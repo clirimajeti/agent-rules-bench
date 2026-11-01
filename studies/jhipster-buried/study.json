@@ -1,0 +1,61 @@
+{
+  "name": "jhipster-buried",
+  "description": "Follow-up to jhipster-clock-authorities: the same two rules buried as single bullets in a realistic set of linked docs (about 5,000 tokens), against rules + pointer + feedback loop with the same docs minus the two bullets. Sonnet and Haiku.",
+  "repo": {
+    "source": "https://github.com/jhipster/jhipster-sample-app.git",
+    "commit": "6b000b5"
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "prompt": "Add an admin-only REST endpoint GET /api/admin/users/recently-created that returns the logins of users created in the last 7 days. Put the query in the user repository and the logic in the user service. Do not run the build."
+    },
+    {
+      "id": "T2",
+      "prompt": "Add an admin-only REST endpoint GET /api/operations/recent that returns the operations whose date lies within the last 30 days. Do not run the build."
+    }
+  ],
+  "arms": [
+    {
+      "id": "prose_buried",
+      "setup": "arms/prose_buried.sh",
+      "fix": true
+    },
+    {
+      "id": "rules",
+      "setup": "arms/rules.sh",
+      "fix": true
+    }
+  ],
+  "baselineArm": "prose_buried",
+  "models": [
+    "sonnet",
+    "haiku"
+  ],
+  "repeats": 4,
+  "maxTurns": 30,
+  "eval": [
+    {
+      "name": "rules",
+      "format": "ast-grep",
+      "command": [
+        "npx",
+        "-y",
+        "-p",
+        "@ast-grep/cli@0.51.0",
+        "ast-grep",
+        "scan",
+        "-c",
+        "{study}/sgconfig.yml",
+        "--json=compact",
+        "{files}"
+      ],
+      "extensions": [
+        ".java"
+      ]
+    }
+  ],
+  "fix": {
+    "prompt": "Code review feedback on your uncommitted change: the new code breaks two project rules. Time must come from an injected java.time.Clock (call Instant.now(clock), never Instant.now() or another now() without a clock), and authority names must come from AuthoritiesConstants, never string literals like \"ROLE_ADMIN\". Fix the new code accordingly. Do not run the build."
+  }
+}
