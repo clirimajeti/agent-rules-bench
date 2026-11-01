@@ -113,7 +113,9 @@ async function runOne(study, run, claudeCmd, log) {
 // claudeCmd is the command that stands in for `claude`; BENCH_CLAUDE (a single executable path) overrides it.
 export async function runStudy(study, { arms: onlyArms, dryRun = false, claudeCmd = [process.env.BENCH_CLAUDE || 'claude'], log = console.log } = {}) {
   const runs = planRuns(study, onlyArms);
-  const todo = runs.filter((r) => !fs.existsSync(path.join(r.dir, 'result.json')));
+  // A failed session (usage limit, crash) is not done: it is run again and its result replaced.
+  const done = (r) => { try { return JSON.parse(fs.readFileSync(path.join(r.dir, 'result.json'), 'utf8')).ok === true; } catch { return false; } };
+  const todo = runs.filter((r) => !done(r));
   log(`${runs.length} runs planned, ${runs.length - todo.length} already done, ${todo.length} to run`);
   if (dryRun) {
     for (const r of todo) log(`  would run ${r.id}`);

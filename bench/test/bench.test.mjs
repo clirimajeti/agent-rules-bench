@@ -89,6 +89,14 @@ test('prepare, run, rerun and summarize: end to end with a fake claude', async (
   await runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: (m) => again.push(m) });
   assert.match(again[0], /4 runs planned, 4 already done, 0 to run/);
 
+  // a run that failed (for example on a usage limit) is not done: the next run redoes it
+  const failed = path.join(study.resultsDir, 'rules-sonnet-T1-2', 'result.json');
+  fs.writeFileSync(failed, JSON.stringify({ ...JSON.parse(fs.readFileSync(failed, 'utf8')), ok: false }));
+  const retry = [];
+  await runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: (m) => retry.push(m) });
+  assert.match(retry[0], /4 runs planned, 3 already done, 1 to run/);
+  assert.equal(JSON.parse(fs.readFileSync(failed, 'utf8')).ok, true);
+
   const rows = aggregate(loadResults(study.resultsDir));
   const p = rows.find((r) => r.arm === 'prose');
   assert.equal(p.totalCost.toFixed(2), '0.15');
