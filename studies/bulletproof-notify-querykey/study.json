@@ -1,0 +1,22 @@
+{
+  "name": "bulletproof-notify-querykey",
+  "description": "TypeScript/React with ESLint: a design-shaping rule (success notifications in the mutation hook, not in components; built-in no-restricted-imports) that the existing components break, and a mechanical rule (query keys from query options; custom ESLint rule) that the code already follows, as buried prose in the project's real docs, always-loaded prose, or rules + pointer + feedback loop.",
+  "repo": { "source": "https://github.com/alan2207/bulletproof-react.git", "commit": "9506629ed003a561c6627735480cce4994244bb4" },
+  "tasks": [
+    { "id": "T1", "prompt": "In apps/react-vite, let the author of a comment edit it: add an update-comment API (PATCH /comments/{commentId} with the new body) and an Edit button with a form drawer in the comments list, shown only on the current user's own comments. Show a success message after saving. Do not run tests, lint or the app." },
+    { "id": "T2", "prompt": "In apps/react-vite, let admins change a user's role from the users list: add an update-user-role API (PATCH /users/{userId}/role with the new role) and a role select in each row of the users table. The list must show the new role after the change, and a success message should appear. Do not run tests, lint or the app." }
+  ],
+  "arms": [
+    { "id": "prose_buried", "setup": "arms/prose_buried.sh", "fix": true },
+    { "id": "prose_loaded", "setup": "arms/prose_loaded.sh", "fix": true },
+    { "id": "rules", "setup": "arms/rules.sh", "fix": true }
+  ],
+  "baselineArm": "prose_buried",
+  "models": ["sonnet", "haiku"],
+  "repeats": 4,
+  "maxTurns": 30,
+  "eval": [
+    { "name": "eslint", "format": "eslint", "command": ["node", "{study}/node_modules/eslint/bin/eslint.js", "-c", "{study}/eslint.config.mjs", "--no-inline-config", "--format", "json", "{files}"], "extensions": [".ts", ".tsx"] }
+  ],
+  "fix": { "prompt": "Code review feedback on your uncommitted change in apps/react-vite: it breaks two project rules. Success notifications are shown inside the mutation hook in the feature's api/ folder (in onSuccess); feature components must not call useNotifications. Query keys come from the feature's query options (for example getUsersQueryOptions().queryKey); literal key arrays are only allowed inside queryOptions(...). Fix the new code accordingly; tests are not affected. Do not run tests, lint or the app." }
+}
