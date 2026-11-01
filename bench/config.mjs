@@ -1,0 +1,91 @@
+// Loads and validates a study config (study.json). Every problem is reported at once, before anything runs or is cloned.
+import fs from 'node:fs';
+import path from 'node:path';
+
+export const FORMATS = ['eslint', 'ast-grep', 'ruff'];
+export const DEFAULT_TOOLS = ['Read', 'Edit', 'Write', 'MultiEdit', 'Glob', 'Grep', 'Bash(git status:*)', 'Bash(git diff:*)', 'Bash(ls:*)'];
+const ID = /^[A-Za-z0-9_]+$/; // run folders are "<arm>-<model>-<task>-<rep>", so ids must not contain "-"
+const NAME = /^[a-z0-9][a-z0-9-]*$/;
+const isStrList = (v) => Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'string' && x.length > 0);
+
+export function validateStudy(s, studyDir) {
+  const errs = [];
+  if (!s || typeof s !== 'object' || Array.isArray(s)) return ['the study must be a JSON object'];
+  const known = ['name', 'description', 'repo', 'workdir', 'tasks', 'arms', 'baselineArm', 'models', 'repeats', 'maxTurns', 'allowedTools', 'eval', 'fix', 'build'];
+  for (const k of Object.keys(s)) if (!known.includes(k)) errs.push(`unknown key "${k}"`);
+  if (typeof s.name !== 'string' || !NAME.test(s.name)) errs.push('name must be lowercase letters, digits and "-"');
+  if (!s.repo || typeof s.repo.source !== 'string' || !s.repo.source) errs.push('repo.source must be a git URL or a local path');
+  if (!s.repo || typeof s.repo.commit !== 'string' || !s.repo.commit) errs.push('repo.commit must pin a commit (sha or tag), so every run starts from the same code');
+  const ids = (list, what) => {
+    if (!Array.isArray(list) || !list.length) return errs.push(`${what} must be a non-empty list`);
+    const seen = new Set();
+    list.forEach((x, i) => {
+      if (!x || !ID.test(x.id ?? '')) errs.push(`${what}[${i}].id must be letters, digits or "_" (no "-")`);
+      else if (seen.has(x.id)) errs.push(`${what}[${i}].id "${x.id}" is used twice`);
+      else seen.add(x.id);
+    });
+  };
+  ids(s.tasks, 'tasks');
+  (Array.isArray(s.tasks) ? s.tasks : []).forEach((t, i) => { if (typeof t?.prompt !== 'string' || !t.prompt.trim()) errs.push(`tasks[${i}].prompt must be a non-empty string`); });
+  ids(s.arms, 'arms');
+  (Array.isArray(s.arms) ? s.arms : []).forEach((a, i) => {
+    if (a?.setup !== undefined) {
+      if (typeof a.setup !== 'string') errs.push(`arms[${i}].setup must be a path to a script`);
+      else if (!fs.existsSync(path.resolve(studyDir, a.setup))) errs.push(`arms[${i}].setup "${a.setup}" does not exist next to the study`);
+    }
+    if (a?.fix !== undefined && typeof a.fix !== 'boolean') errs.push(`arms[${i}].fix must be true or false`);
+  });
+  if (s.baselineArm !== undefined && !(s.arms ?? []).some((a) => a?.id === s.baselineArm)) errs.push(`baselineArm "${s.baselineArm}" is not one of the arms`);
+  if (s.models !== undefined && !isStrList(s.models)) errs.push('models must be a non-empty list of model names');
+  else if ((s.models ?? []).some((m) => m.includes('-'))) errs.push('models must be aliases without "-" (sonnet, haiku, opus)');
+  if (s.repeats !== undefined && !(Number.isInteger(s.repeats) && s.repeats > 0)) errs.push('repeats must be a positive integer');
+  if (s.maxTurns !== undefined && !(Number.isInteger(s.maxTurns) && s.maxTurns > 0)) errs.push('maxTurns must be a positive integer');
+  if (s.allowedTools !== undefined && !isStrList(s.allowedTools)) errs.push('allowedTools must be a non-empty list');
+  if (!Array.isArray(s.eval) || !s.eval.length) errs.push('eval must list at least one checker, or there is nothing to measure');
+  else s.eval.forEach((e, i) => {
+    const at = `eval[${i}]`;
+    if (typeof e?.name !== 'string' || !e.name) errs.push(`${at}.name must be a non-empty string`);
+    if (!FORMATS.includes(e?.format)) errs.push(`${at}.format is "${e?.format}", expected one of ${FORMATS.join(', ')}`);
+    if (!isStrList(e?.command)) errs.push(`${at}.command must be a list of strings`);
+    else if (!e.command.includes('{files}')) errs.push(`${at}.command must contain the element "{files}"`);
+    if (!isStrList(e?.extensions) || !e.extensions.every((x) => x.startsWith('.'))) errs.push(`${at}.extensions must be a list like [".java"]`);
+  });
+  if (s.fix !== undefined && (typeof s.fix?.prompt !== 'string' || !s.fix.prompt.trim())) errs.push('fix.prompt must be a non-empty string');
+  if ((s.arms ?? []).some((a) => a?.fix) && !s.fix) errs.push('an arm has "fix": true, but the study has no fix.prompt');
+  if (s.build !== undefined) {
+    if (!isStrList(s.build?.command)) errs.push('build.command must be a list of strings');
+    if (s.build?.timeoutSec !== undefined && !(Number.isInteger(s.build.timeoutSec) && s.build.timeoutSec > 0)) errs.push('build.timeoutSec must be a positive integer');
+  }
+  return errs;
+}
+
+// Returns the study with defaults filled in and paths made absolute, or throws with every problem listed.
+export function loadStudy(file) {
+  const studyFile = path.resolve(file);
+  const studyDir = path.dirname(studyFile);
+  let s;
+  try {
+    s = JSON.parse(fs.readFileSync(studyFile, 'utf8'));
+  } catch (e) {
+    throw new Error(`could not read study ${studyFile}: ${String(e.message).split('\n')[0]}`);
+  }
+  const errs = validateStudy(s, studyDir);
+  if (errs.length) throw new Error(`invalid study ${studyFile}:\n${errs.map((e) => `  - ${e}`).join('\n')}`);
+  const repoRoot = path.resolve(studyDir, '..', '..');
+  const sub = (list) => list.map((x) => x.replaceAll('{study}', studyDir));
+  return {
+    ...s,
+    studyFile,
+    studyDir,
+    workdir: path.resolve(studyDir, s.workdir ?? path.join(repoRoot, 'workdirs', s.name)),
+    resultsDir: path.join(studyDir, 'results'),
+    baselineArm: s.baselineArm ?? s.arms[0].id,
+    models: s.models ?? ['sonnet'],
+    repeats: s.repeats ?? 4,
+    maxTurns: s.maxTurns ?? 30,
+    allowedTools: s.allowedTools ?? DEFAULT_TOOLS,
+    arms: s.arms.map((a) => ({ ...a, setup: a.setup ? path.resolve(studyDir, a.setup) : undefined, fix: a.fix ?? false })),
+    eval: s.eval.map((e) => ({ ...e, command: sub(e.command), tier: 'full' })),
+    build: s.build ? { ...s.build, command: sub(s.build.command), timeoutSec: s.build.timeoutSec ?? 600 } : undefined,
+  };
+}

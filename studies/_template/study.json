@@ -1,0 +1,19 @@
+{
+  "name": "template",
+  "description": "Copy this folder to studies/<name>/ and replace every <...>.",
+  "repo": { "source": "https://github.com/<owner>/<repo>.git", "commit": "<sha or tag>" },
+  "tasks": [
+    { "id": "T1", "prompt": "<the task, with no hint about the rule>. Do not run the build." }
+  ],
+  "arms": [
+    { "id": "prose", "setup": "arms/prose.sh", "fix": true },
+    { "id": "rules", "setup": "arms/rules.sh" }
+  ],
+  "baselineArm": "prose",
+  "models": ["sonnet"],
+  "repeats": 4,
+  "eval": [
+    { "name": "rules", "format": "ast-grep", "command": ["npx", "-y", "-p", "@ast-grep/cli@0.51.0", "ast-grep", "scan", "-c", "{study}/rules/sgconfig.yml", "--json=compact", "{files}"], "extensions": [".java"] }
+  ],
+  "fix": { "prompt": "Code review feedback on your uncommitted change: <what is wrong and which rule>. Fix it. Do not run the build." }
+}
