@@ -1,0 +1,14 @@
+id: http-status-constants
+language: python
+severity: error
+message: HTTP status as a number. Use the fastapi status constants (for example status.HTTP_404_NOT_FOUND).
+note: Status codes come from `from fastapi import status`, never integer literals.
+files:
+  - "**/app/**/*.py"
+ignores:
+  - "**/tests/**"
+rule:
+  kind: keyword_argument
+  all:
+    - has: { field: name, regex: ^status_code$ }
+    - has: { field: value, kind: integer }

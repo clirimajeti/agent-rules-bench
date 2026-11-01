@@ -1,0 +1,14 @@
+id: db-access-in-crud
+language: python
+severity: error
+message: Route handler talks to the database directly. Move the query or write into a function in app/crud.py and call that.
+note: Database access goes through app/crud.py; route handlers in app/api/routes only call crud functions.
+files:
+  - "**/app/api/routes/**/*.py"
+rule:
+  pattern: $S.$M($$$)
+constraints:
+  S:
+    regex: ^(session|db)$
+  M:
+    regex: ^(exec|execute|get|add|add_all|delete|commit|refresh|query|scalar|scalars|merge|flush)$

@@ -1,0 +1,22 @@
+{
+  "name": "fastapi-crud-status",
+  "description": "Second stack (Python/FastAPI/SQLModel): a design-shaping rule (database access only through crud.py) and a mechanical rule (status constants), both against the template's existing habits, as always-loaded prose, buried prose, or rules + pointer + feedback loop. Rules and docs both scope to backend/app, not tests.",
+  "repo": { "source": "https://github.com/fastapi/full-stack-fastapi-template.git", "commit": "f4bcfaba7c85be3c6332cc74a20819f586dcdbc6" },
+  "tasks": [
+    { "id": "T1", "prompt": "Add an endpoint GET /api/v1/items/stats that returns, for the current user, the number of items they own and the title of their newest item (null if they have none). Superusers get the numbers across all items. Do not run the tests or the app." },
+    { "id": "T2", "prompt": "Add an endpoint DELETE /api/v1/items/{id}/description that clears the description of an item. Only the owner or a superuser may do this; return the updated item. Do not run the tests or the app." }
+  ],
+  "arms": [
+    { "id": "prose_buried", "setup": "arms/prose_buried.sh", "fix": true },
+    { "id": "prose_loaded", "setup": "arms/prose_loaded.sh", "fix": true },
+    { "id": "rules", "setup": "arms/rules.sh", "fix": true }
+  ],
+  "baselineArm": "prose_buried",
+  "models": ["sonnet", "haiku"],
+  "repeats": 4,
+  "maxTurns": 30,
+  "eval": [
+    { "name": "rules", "format": "ast-grep", "command": ["npx", "-y", "-p", "@ast-grep/cli@0.51.0", "ast-grep", "scan", "-c", "{study}/sgconfig.yml", "--json=compact", "{files}"], "extensions": [".py"] }
+  ],
+  "fix": { "prompt": "Code review feedback on your uncommitted change: the new code in backend/app breaks two project rules. Database access goes through functions in app/crud.py; route handlers must not call session.exec, session.get, session.add, session.delete or session.commit themselves. Status codes come from fastapi's status module (for example status.HTTP_404_NOT_FOUND), never integer literals like status_code=404. Fix the new code accordingly; tests are not affected. Do not run the tests or the app." }
+}
