@@ -1,0 +1,172 @@
+diff --git a/backend/app/api/routes/items.py b/backend/app/api/routes/items.py
+index f0eb30e..5a63553 100644
+--- a/backend/app/api/routes/items.py
++++ b/backend/app/api/routes/items.py
+@@ -4,8 +4,17 @@ from typing import Any
+ from fastapi import APIRouter, HTTPException
+ from sqlmodel import col, func, select
+ 
++from app import crud
+ from app.api.deps import CurrentUser, SessionDep
+-from app.models import Item, ItemCreate, ItemPublic, ItemsPublic, ItemUpdate, Message
++from app.models import (
++    Item,
++    ItemCreate,
++    ItemPublic,
++    ItemStatsPublic,
++    ItemsPublic,
++    ItemUpdate,
++    Message,
++)
+ 
+ router = APIRouter(prefix="/items", tags=["items"])
+ 
+@@ -45,6 +54,21 @@ def read_items(
+     return ItemsPublic(data=items_public, count=count)
+ 
+ 
++@router.get("/stats", response_model=ItemStatsPublic)
++def read_item_stats(session: SessionDep, current_user: CurrentUser) -> ItemStatsPublic:
++    """
++    Get the number of items and the title of the newest item.
++
++    Regular users get their own items; superusers get all items.
++    """
++    owner_id = None if current_user.is_superuser else current_user.id
++    count = crud.count_items(session=session, owner_id=owner_id)
++    newest = crud.get_newest_item(session=session, owner_id=owner_id)
++    return ItemStatsPublic(
++        count=count, newest_item_title=newest.title if newest else None
++    )
++
++
+ @router.get("/{id}", response_model=ItemPublic)
+ def read_item(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) -> Any:
+     """
+diff --git a/backend/app/crud.py b/backend/app/crud.py
+index a8ceba6..d3e2922 100644
+--- a/backend/app/crud.py
++++ b/backend/app/crud.py
+@@ -1,7 +1,7 @@
+ import uuid
+ from typing import Any
+ 
+-from sqlmodel import Session, select
++from sqlmodel import Session, col, func, select
+ 
+ from app.core.security import get_password_hash, verify_password
+ from app.models import Item, ItemCreate, User, UserCreate, UserUpdate
+@@ -66,3 +66,24 @@ def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++def count_items(*, session: Session, owner_id: uuid.UUID | None = None) -> int:
++    """Count the items of one owner, or of all owners when owner_id is None."""
++    statement = select(func.count()).select_from(Item)
++    if owner_id is not None:
++        statement = statement.where(Item.owner_id == owner_id)
++    return session.exec(statement).one()
++
++
++def get_newest_item(
++    *, session: Session, owner_id: uuid.UUID | None = None
++) -> Item | None:
++    """Return the newest item of one owner, or of all owners when owner_id is None."""
++    statement = select(Item)
++    if owner_id is not None:
++        statement = statement.where(Item.owner_id == owner_id)
++    statement = statement.order_by(
++        col(Item.created_at).desc(), col(Item.id).desc()
++    ).limit(1)
++    return session.exec(statement).first()
+diff --git a/backend/app/models.py b/backend/app/models.py
+index 181acf2..eeff47c 100644
+--- a/backend/app/models.py
++++ b/backend/app/models.py
+@@ -105,6 +105,11 @@ class ItemsPublic(SQLModel):
+     count: int
+ 
+ 
++class ItemStatsPublic(SQLModel):
++    count: int
++    newest_item_title: str | None = None
++
++
+ # Generic message
+ class Message(SQLModel):
+     message: str
+diff --git a/backend/tests/api/routes/test_items.py b/backend/tests/api/routes/test_items.py
+index 3e82cd0..e73e0f5 100644
+--- a/backend/tests/api/routes/test_items.py
++++ b/backend/tests/api/routes/test_items.py
+@@ -1,10 +1,13 @@
+ import uuid
+ 
+ from fastapi.testclient import TestClient
+-from sqlmodel import Session
++from sqlmodel import Session, func, select
+ 
+ from app.core.config import settings
++from app.models import Item
+ from tests.utils.item import create_random_item
++from tests.utils.user import authentication_token_from_email
++from tests.utils.utils import random_email
+ 
+ 
+ def test_create_item(
+@@ -162,3 +165,53 @@ def test_delete_item_not_enough_permissions(
+     assert response.status_code == 403
+     content = response.json()
+     assert content["detail"] == "Not enough permissions"
++
++
++def test_read_item_stats_superuser_sees_all_items(
++    client: TestClient, superuser_token_headers: dict[str, str], db: Session
++) -> None:
++    item = create_random_item(db)
++    response = client.get(
++        f"{settings.API_V1_STR}/items/stats",
++        headers=superuser_token_headers,
++    )
++    assert response.status_code == 200
++    content = response.json()
++    total = db.exec(select(func.count()).select_from(Item)).one()
++    assert content["count"] == total
++    assert content["newest_item_title"] == item.title
++
++
++def test_read_item_stats_no_items(client: TestClient, db: Session) -> None:
++    headers = authentication_token_from_email(
++        client=client, email=random_email(), db=db
++    )
++    response = client.get(
++        f"{settings.API_V1_STR}/items/stats",
++        headers=headers,
++    )
++    assert response.status_code == 200
++    assert response.json() == {"count": 0, "newest_item_title": None}
++
++
++def test_read_item_stats_counts_only_own_items(client: TestClient, db: Session) -> None:
++    headers = authentication_token_from_email(
++        client=client, email=random_email(), db=db
++    )
++    client.post(
++        f"{settings.API_V1_STR}/items/",
++        headers=headers,
++        json={"title": "First"},
++    )
++    client.post(
++        f"{settings.API_V1_STR}/items/",
++        headers=headers,
++        json={"title": "Second"},
++    )
++    create_random_item(db)  # belongs to another user and is newer
++    response = client.get(
++        f"{settings.API_V1_STR}/items/stats",
++        headers=headers,
++    )
++    assert response.status_code == 200
++    assert response.json() == {"count": 2, "newest_item_title": "Second"}

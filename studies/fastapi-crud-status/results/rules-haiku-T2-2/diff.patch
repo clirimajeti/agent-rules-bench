@@ -1,0 +1,114 @@
+diff --git a/backend/app/api/routes/items.py b/backend/app/api/routes/items.py
+index f0eb30e..d2a475f 100644
+--- a/backend/app/api/routes/items.py
++++ b/backend/app/api/routes/items.py
+@@ -1,9 +1,10 @@
+ import uuid
+ from typing import Any
+ 
+-from fastapi import APIRouter, HTTPException
++from fastapi import APIRouter, HTTPException, status
+ from sqlmodel import col, func, select
+ 
++from app import crud
+ from app.api.deps import CurrentUser, SessionDep
+ from app.models import Item, ItemCreate, ItemPublic, ItemsPublic, ItemUpdate, Message
+ 
+@@ -96,6 +97,25 @@ def update_item(
+     return item
+ 
+ 
++@router.delete("/{id}/description", response_model=ItemPublic)
++def delete_item_description(
++    *, session: SessionDep, current_user: CurrentUser, id: uuid.UUID
++) -> Any:
++    """
++    Clear the description of an item. Only the owner or a superuser may do this.
++    """
++    item = crud.get_item(session=session, item_id=id)
++    if not item:
++        raise HTTPException(
++            status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
++        )
++    if not current_user.is_superuser and (item.owner_id != current_user.id):
++        raise HTTPException(
++            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
++        )
++    return crud.clear_item_description(session=session, db_item=item)
++
++
+ @router.delete("/{id}")
+ def delete_item(
+     session: SessionDep, current_user: CurrentUser, id: uuid.UUID
+diff --git a/backend/app/crud.py b/backend/app/crud.py
+index a8ceba6..45c3713 100644
+--- a/backend/app/crud.py
++++ b/backend/app/crud.py
+@@ -66,3 +66,15 @@ def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++def get_item(*, session: Session, item_id: uuid.UUID) -> Item | None:
++    return session.get(Item, item_id)
++
++
++def clear_item_description(*, session: Session, db_item: Item) -> Item:
++    db_item.description = None
++    session.add(db_item)
++    session.commit()
++    session.refresh(db_item)
++    return db_item
+diff --git a/backend/tests/api/routes/test_items.py b/backend/tests/api/routes/test_items.py
+index 3e82cd0..e3f51d0 100644
+--- a/backend/tests/api/routes/test_items.py
++++ b/backend/tests/api/routes/test_items.py
+@@ -162,3 +162,47 @@ def test_delete_item_not_enough_permissions(
+     assert response.status_code == 403
+     content = response.json()
+     assert content["detail"] == "Not enough permissions"
++
++
++def test_delete_item_description(
++    client: TestClient, superuser_token_headers: dict[str, str], db: Session
++) -> None:
++    item = create_random_item(db)
++    response = client.delete(
++        f"{settings.API_V1_STR}/items/{item.id}/description",
++        headers=superuser_token_headers,
++    )
++    assert response.status_code == 200
++    content = response.json()
++    assert content["id"] == str(item.id)
++    assert content["title"] == item.title
++    assert content["description"] is None
++    db.refresh(item)
++    assert item.description is None
++
++
++def test_delete_item_description_not_found(
++    client: TestClient, superuser_token_headers: dict[str, str]
++) -> None:
++    response = client.delete(
++        f"{settings.API_V1_STR}/items/{uuid.uuid4()}/description",
++        headers=superuser_token_headers,
++    )
++    assert response.status_code == 404
++    content = response.json()
++    assert content["detail"] == "Item not found"
++
++
++def test_delete_item_description_not_enough_permissions(
++    client: TestClient, normal_user_token_headers: dict[str, str], db: Session
++) -> None:
++    item = create_random_item(db)
++    response = client.delete(
++        f"{settings.API_V1_STR}/items/{item.id}/description",
++        headers=normal_user_token_headers,
++    )
++    assert response.status_code == 403
++    content = response.json()
++    assert content["detail"] == "Not enough permissions"
++    db.refresh(item)
++    assert item.description is not None

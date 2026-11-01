@@ -1,0 +1,143 @@
+diff --git a/backend/app/api/routes/items.py b/backend/app/api/routes/items.py
+index f0eb30e..ed7e758 100644
+--- a/backend/app/api/routes/items.py
++++ b/backend/app/api/routes/items.py
+@@ -1,9 +1,10 @@
+ import uuid
+ from typing import Any
+ 
+-from fastapi import APIRouter, HTTPException
++from fastapi import APIRouter, HTTPException, status
+ from sqlmodel import col, func, select
+ 
++from app import crud
+ from app.api.deps import CurrentUser, SessionDep
+ from app.models import Item, ItemCreate, ItemPublic, ItemsPublic, ItemUpdate, Message
+ 
+@@ -111,3 +112,22 @@ def delete_item(
+     session.delete(item)
+     session.commit()
+     return Message(message="Item deleted successfully")
++
++
++@router.delete("/{id}/description", response_model=ItemPublic)
++def clear_item_description(
++    session: SessionDep, current_user: CurrentUser, id: uuid.UUID
++) -> Any:
++    """
++    Clear the description of an item.
++    """
++    item = crud.get_item(session=session, item_id=id)
++    if not item:
++        raise HTTPException(
++            status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
++        )
++    if not current_user.is_superuser and (item.owner_id != current_user.id):
++        raise HTTPException(
++            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
++        )
++    return crud.clear_item_description(session=session, db_item=item)
+diff --git a/backend/app/crud.py b/backend/app/crud.py
+index a8ceba6..45c3713 100644
+--- a/backend/app/crud.py
++++ b/backend/app/crud.py
+@@ -66,3 +66,15 @@ def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++def get_item(*, session: Session, item_id: uuid.UUID) -> Item | None:
++    return session.get(Item, item_id)
++
++
++def clear_item_description(*, session: Session, db_item: Item) -> Item:
++    db_item.description = None
++    session.add(db_item)
++    session.commit()
++    session.refresh(db_item)
++    return db_item
+diff --git a/backend/tests/api/routes/test_items.py b/backend/tests/api/routes/test_items.py
+index 3e82cd0..dfe6e28 100644
+--- a/backend/tests/api/routes/test_items.py
++++ b/backend/tests/api/routes/test_items.py
+@@ -162,3 +162,55 @@ def test_delete_item_not_enough_permissions(
+     assert response.status_code == 403
+     content = response.json()
+     assert content["detail"] == "Not enough permissions"
++
++
++def test_clear_item_description(
++    client: TestClient, normal_user_token_headers: dict[str, str], db: Session
++) -> None:
++    me = client.get(
++        f"{settings.API_V1_STR}/users/me", headers=normal_user_token_headers
++    ).json()
++    item = create_random_item(db, owner_id=uuid.UUID(me["id"]))
++    response = client.delete(
++        f"{settings.API_V1_STR}/items/{item.id}/description",
++        headers=normal_user_token_headers,
++    )
++    assert response.status_code == 200
++    content = response.json()
++    assert content["id"] == str(item.id)
++    assert content["description"] is None
++
++
++def test_clear_item_description_superuser(
++    client: TestClient, superuser_token_headers: dict[str, str], db: Session
++) -> None:
++    item = create_random_item(db)
++    response = client.delete(
++        f"{settings.API_V1_STR}/items/{item.id}/description",
++        headers=superuser_token_headers,
++    )
++    assert response.status_code == 200
++    assert response.json()["description"] is None
++
++
++def test_clear_item_description_not_found(
++    client: TestClient, superuser_token_headers: dict[str, str]
++) -> None:
++    response = client.delete(
++        f"{settings.API_V1_STR}/items/{uuid.uuid4()}/description",
++        headers=superuser_token_headers,
++    )
++    assert response.status_code == 404
++    assert response.json()["detail"] == "Item not found"
++
++
++def test_clear_item_description_not_enough_permissions(
++    client: TestClient, normal_user_token_headers: dict[str, str], db: Session
++) -> None:
++    item = create_random_item(db)
++    response = client.delete(
++        f"{settings.API_V1_STR}/items/{item.id}/description",
++        headers=normal_user_token_headers,
++    )
++    assert response.status_code == 403
++    assert response.json()["detail"] == "Not enough permissions"
+diff --git a/backend/tests/utils/item.py b/backend/tests/utils/item.py
+index ee51b35..3ca6350 100644
+--- a/backend/tests/utils/item.py
++++ b/backend/tests/utils/item.py
+@@ -1,3 +1,5 @@
++import uuid
++
+ from sqlmodel import Session
+ 
+ from app import crud
+@@ -6,9 +8,10 @@ from tests.utils.user import create_random_user
+ from tests.utils.utils import random_lower_string
+ 
+ 
+-def create_random_item(db: Session) -> Item:
+-    user = create_random_user(db)
+-    owner_id = user.id
++def create_random_item(db: Session, owner_id: uuid.UUID | None = None) -> Item:
++    if owner_id is None:
++        user = create_random_user(db)
++        owner_id = user.id
+     assert owner_id is not None
+     title = random_lower_string()
+     description = random_lower_string()

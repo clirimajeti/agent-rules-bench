@@ -1,0 +1,98 @@
+diff --git a/backend/app/api/routes/items.py b/backend/app/api/routes/items.py
+index f0eb30e..6f274aa 100644
+--- a/backend/app/api/routes/items.py
++++ b/backend/app/api/routes/items.py
+@@ -4,8 +4,17 @@ from typing import Any
+ from fastapi import APIRouter, HTTPException
+ from sqlmodel import col, func, select
+ 
++from app import crud
+ from app.api.deps import CurrentUser, SessionDep
+-from app.models import Item, ItemCreate, ItemPublic, ItemsPublic, ItemUpdate, Message
++from app.models import (
++    Item,
++    ItemCreate,
++    ItemPublic,
++    ItemsPublic,
++    ItemStats,
++    ItemUpdate,
++    Message,
++)
+ 
+ router = APIRouter(prefix="/items", tags=["items"])
+ 
+@@ -45,6 +54,22 @@ def read_items(
+     return ItemsPublic(data=items_public, count=count)
+ 
+ 
++@router.get("/stats", response_model=ItemStats)
++def read_item_stats(session: SessionDep, current_user: CurrentUser) -> Any:
++    """
++    Get the number of items and the title of the newest item.
++
++    Regular users see their own items; superusers see all items.
++    """
++    owner_id = None if current_user.is_superuser else current_user.id
++    return ItemStats(
++        item_count=crud.count_items(session=session, owner_id=owner_id),
++        newest_item_title=crud.get_newest_item_title(
++            session=session, owner_id=owner_id
++        ),
++    )
++
++
+ @router.get("/{id}", response_model=ItemPublic)
+ def read_item(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) -> Any:
+     """
+diff --git a/backend/app/crud.py b/backend/app/crud.py
+index a8ceba6..930cfad 100644
+--- a/backend/app/crud.py
++++ b/backend/app/crud.py
+@@ -1,7 +1,7 @@
+ import uuid
+ from typing import Any
+ 
+-from sqlmodel import Session, select
++from sqlmodel import Session, col, func, select
+ 
+ from app.core.security import get_password_hash, verify_password
+ from app.models import Item, ItemCreate, User, UserCreate, UserUpdate
+@@ -66,3 +66,22 @@ def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++def count_items(*, session: Session, owner_id: uuid.UUID | None = None) -> int:
++    """Count all items, or only the items owned by ``owner_id`` when given."""
++    statement = select(func.count()).select_from(Item)
++    if owner_id is not None:
++        statement = statement.where(Item.owner_id == owner_id)
++    return session.exec(statement).one()
++
++
++def get_newest_item_title(
++    *, session: Session, owner_id: uuid.UUID | None = None
++) -> str | None:
++    """Return the title of the newest item, optionally limited to one owner."""
++    statement = select(Item.title)
++    if owner_id is not None:
++        statement = statement.where(Item.owner_id == owner_id)
++    statement = statement.order_by(col(Item.created_at).desc()).limit(1)
++    return session.exec(statement).first()
+diff --git a/backend/app/models.py b/backend/app/models.py
+index 181acf2..3af4135 100644
+--- a/backend/app/models.py
++++ b/backend/app/models.py
+@@ -105,6 +105,11 @@ class ItemsPublic(SQLModel):
+     count: int
+ 
+ 
++class ItemStats(SQLModel):
++    item_count: int
++    newest_item_title: str | None = None
++
++
+ # Generic message
+ class Message(SQLModel):
+     message: str

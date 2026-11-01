@@ -1,0 +1,62 @@
+diff --git a/backend/app/api/routes/items.py b/backend/app/api/routes/items.py
+index f0eb30e..6c36c4f 100644
+--- a/backend/app/api/routes/items.py
++++ b/backend/app/api/routes/items.py
+@@ -1,9 +1,10 @@
+ import uuid
+ from typing import Any
+ 
+-from fastapi import APIRouter, HTTPException
++from fastapi import APIRouter, HTTPException, status
+ from sqlmodel import col, func, select
+ 
++from app import crud
+ from app.api.deps import CurrentUser, SessionDep
+ from app.models import Item, ItemCreate, ItemPublic, ItemsPublic, ItemUpdate, Message
+ 
+@@ -96,6 +97,25 @@ def update_item(
+     return item
+ 
+ 
++@router.delete("/{id}/description", response_model=ItemPublic)
++def delete_item_description(
++    session: SessionDep, current_user: CurrentUser, id: uuid.UUID
++) -> Any:
++    """
++    Clear the description of an item.
++    """
++    item = crud.get_item(session=session, item_id=id)
++    if not item:
++        raise HTTPException(
++            status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
++        )
++    if not current_user.is_superuser and (item.owner_id != current_user.id):
++        raise HTTPException(
++            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
++        )
++    return crud.clear_item_description(session=session, db_item=item)
++
++
+ @router.delete("/{id}")
+ def delete_item(
+     session: SessionDep, current_user: CurrentUser, id: uuid.UUID
+diff --git a/backend/app/crud.py b/backend/app/crud.py
+index a8ceba6..45c3713 100644
+--- a/backend/app/crud.py
++++ b/backend/app/crud.py
+@@ -66,3 +66,15 @@ def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++def get_item(*, session: Session, item_id: uuid.UUID) -> Item | None:
++    return session.get(Item, item_id)
++
++
++def clear_item_description(*, session: Session, db_item: Item) -> Item:
++    db_item.description = None
++    session.add(db_item)
++    session.commit()
++    session.refresh(db_item)
++    return db_item
