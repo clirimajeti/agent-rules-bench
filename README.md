@@ -26,7 +26,9 @@ Six rounds on an internal Kotlin/Spring codebase (124 sessions; aggregate number
 - Against prose the agent always loads, it was cost-neutral, adding a guarantee.
 - Always-loaded prose costs about $0.009 per 1,000 tokens per Sonnet session.
 
-Replications on open-source projects, with all raw data, are planned.
+First public replication on jhipster-sample-app (24 sessions, all raw data, see [studies/jhipster-clock-authorities](studies/jhipster-clock-authorities/README.md)):
+- With a short, prominent link to the conventions, every arm followed both rules and costs were equal within 1%.
+- So rules + pointer stay cost-neutral when the agent sees the prose, and the internal failures depend on how buried the prose is.
 
 ## How it works
 
