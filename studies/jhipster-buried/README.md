@@ -18,6 +18,28 @@ Both arms build their docs from [arms/files](arms/files/) with [arms/docs.sh](ar
 Sonnet and Haiku, 2 tasks x 4 repeats each: 32 runs.
 Haiku shows whether a smaller model drops buried prose sooner.
 
-## Result
+## Result (2026-11-01)
 
-Not run yet.
+| arm | model | runs broken after task | of those in production code | fix rounds | loop catches (main / test) | total cost per run | turns |
+|---|---|---|---|---|---|---|---|
+| prose_buried | sonnet | 3 of 8 | 0 | 3 | - | $0.282 ±0.124 | 24.5 |
+| rules | sonnet | 0 of 8 | 0 | 0 | 7 / 20 | $0.235 ±0.066 (-17%) | 22.8 |
+| prose_buried | haiku | 6 of 8 | 3 (clock) | 6 | - | $0.031 ±0.012 | 31.0 |
+| rules | haiku | 0 of 8 | 0 | 0 | 0 / 15 | $0.023 ±0.004 (-26%) | 26.0 |
+
+All runs ended with 0 breaks; cost differences are inside the spread.
+Production versus test split for prose_buried comes from the fix sessions' own reports, because this run recorded only the final breaks per rule (fixed in the harness since).
+
+## Reading
+
+- **Scope mismatch, a flaw in this study:** the docs say the backend conventions apply to `src/main/java`, but the checkers and the loop apply both rules to tests too.
+  Most prose_buried "breaks" (all of Sonnet's) are `Instant.now()` or `"ROLE_ADMIN"` in new integration tests, which the docs never asked about.
+  Most rules-arm loop catches are in tests as well.
+- **Production code, the fair comparison:** Sonnet followed the buried prose in all 8 runs; Haiku broke the buried clock rule in 3 of 8.
+  With rules + pointer, Haiku never wrote a clockless `now()` in production code; Sonnet did in 3 runs and the loop caught each one before the turn ended.
+- So the pointer alone is not the guarantee; the loop is.
+- Cost: rules + loop was cheaper for both models (-17% Sonnet, -26% Haiku), mostly from avoided fix rounds, but inside the spread.
+
+## Next
+
+Decide whether the rules cover tests, make docs and checkers agree, and rerun.

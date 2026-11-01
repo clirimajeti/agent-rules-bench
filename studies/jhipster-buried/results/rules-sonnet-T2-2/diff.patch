@@ -1,0 +1,227 @@
+diff --git a/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+new file mode 100644
+index 00000000..06c3d361
+--- /dev/null
++++ b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+@@ -0,0 +1,14 @@
++package io.github.jhipster.sample.config;
++
++import java.time.Clock;
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++
++@Configuration
++public class ClockConfiguration {
++
++    @Bean
++    public Clock clock() {
++        return Clock.systemUTC();
++    }
++}
+diff --git a/src/main/java/io/github/jhipster/sample/repository/OperationRepository.java b/src/main/java/io/github/jhipster/sample/repository/OperationRepository.java
+index 8be1aca3..aaff23c1 100644
+--- a/src/main/java/io/github/jhipster/sample/repository/OperationRepository.java
++++ b/src/main/java/io/github/jhipster/sample/repository/OperationRepository.java
+@@ -1,6 +1,7 @@
+ package io.github.jhipster.sample.repository;
+ 
+ import io.github.jhipster.sample.domain.Operation;
++import java.time.Instant;
+ import java.util.List;
+ import java.util.Optional;
+ import org.springframework.data.domain.Page;
+@@ -29,6 +30,8 @@ public interface OperationRepository extends OperationRepositoryWithBagRelations
+         return this.fetchBagRelationships(this.findAllWithToOneRelationships(pageable));
+     }
+ 
++    Page<Operation> findAllByDateGreaterThanEqual(Instant date, Pageable pageable);
++
+     @Query(
+         value = "select operation from Operation operation left join fetch operation.bankAccount",
+         countQuery = "select count(operation) from Operation operation"
+diff --git a/src/main/java/io/github/jhipster/sample/service/OperationService.java b/src/main/java/io/github/jhipster/sample/service/OperationService.java
+new file mode 100644
+index 00000000..88f02872
+--- /dev/null
++++ b/src/main/java/io/github/jhipster/sample/service/OperationService.java
+@@ -0,0 +1,41 @@
++package io.github.jhipster.sample.service;
++
++import io.github.jhipster.sample.repository.OperationRepository;
++import io.github.jhipster.sample.service.dto.OperationDTO;
++import java.time.Clock;
++import java.time.Instant;
++import java.time.temporal.ChronoUnit;
++import org.springframework.data.domain.Page;
++import org.springframework.data.domain.Pageable;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++
++/**
++ * Service for operation queries that go beyond generated CRUD.
++ */
++@Service
++@Transactional(readOnly = true)
++public class OperationService {
++
++    static final int RECENT_DAYS = 30;
++
++    private final OperationRepository operationRepository;
++
++    private final Clock clock;
++
++    public OperationService(OperationRepository operationRepository, Clock clock) {
++        this.operationRepository = operationRepository;
++        this.clock = clock;
++    }
++
++    /**
++     * Get the operations dated within the last {@value #RECENT_DAYS} days.
++     *
++     * @param pageable the pagination information.
++     * @return the page of recent operations.
++     */
++    public Page<OperationDTO> findRecent(Pageable pageable) {
++        Instant since = Instant.now(clock).minus(RECENT_DAYS, ChronoUnit.DAYS);
++        return operationRepository.findAllByDateGreaterThanEqual(since, pageable).map(OperationDTO::from);
++    }
++}
+diff --git a/src/main/java/io/github/jhipster/sample/service/dto/OperationDTO.java b/src/main/java/io/github/jhipster/sample/service/dto/OperationDTO.java
+new file mode 100644
+index 00000000..638c0cfc
+--- /dev/null
++++ b/src/main/java/io/github/jhipster/sample/service/dto/OperationDTO.java
+@@ -0,0 +1,14 @@
++package io.github.jhipster.sample.service.dto;
++
++import io.github.jhipster.sample.domain.Operation;
++import java.math.BigDecimal;
++import java.time.Instant;
++
++/**
++ * A DTO representing an operation without its relationships.
++ */
++public record OperationDTO(Long id, Instant date, String description, BigDecimal amount) {
++    public static OperationDTO from(Operation operation) {
++        return new OperationDTO(operation.getId(), operation.getDate(), operation.getDescription(), operation.getAmount());
++    }
++}
+diff --git a/src/main/java/io/github/jhipster/sample/web/rest/OperationResource.java b/src/main/java/io/github/jhipster/sample/web/rest/OperationResource.java
+index 11545693..83560998 100644
+--- a/src/main/java/io/github/jhipster/sample/web/rest/OperationResource.java
++++ b/src/main/java/io/github/jhipster/sample/web/rest/OperationResource.java
+@@ -2,6 +2,9 @@ package io.github.jhipster.sample.web.rest;
+ 
+ import io.github.jhipster.sample.domain.Operation;
+ import io.github.jhipster.sample.repository.OperationRepository;
++import io.github.jhipster.sample.security.AuthoritiesConstants;
++import io.github.jhipster.sample.service.OperationService;
++import io.github.jhipster.sample.service.dto.OperationDTO;
+ import io.github.jhipster.sample.web.rest.errors.BadRequestAlertException;
+ import jakarta.validation.Valid;
+ import jakarta.validation.constraints.NotNull;
+@@ -16,8 +19,10 @@ import org.slf4j.LoggerFactory;
+ import org.springframework.beans.factory.annotation.Value;
+ import org.springframework.data.domain.Page;
+ import org.springframework.data.domain.Pageable;
++import org.springframework.data.domain.Sort;
+ import org.springframework.http.HttpHeaders;
+ import org.springframework.http.ResponseEntity;
++import org.springframework.security.access.prepost.PreAuthorize;
+ import org.springframework.transaction.annotation.Transactional;
+ import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+@@ -40,10 +45,15 @@ public class OperationResource {
+     @Value("${jhipster.clientApp.name:jhipsterSampleApplication}")
+     private String applicationName;
+ 
++    private static final List<String> ALLOWED_RECENT_ORDERED_PROPERTIES = List.of("id", "date", "description", "amount");
++
+     private final OperationRepository operationRepository;
+ 
+-    public OperationResource(OperationRepository operationRepository) {
++    private final OperationService operationService;
++
++    public OperationResource(OperationRepository operationRepository, OperationService operationService) {
+         this.operationRepository = operationRepository;
++        this.operationService = operationService;
+     }
+ 
+     /**
+@@ -166,6 +176,25 @@ public class OperationResource {
+         return ResponseEntity.ok().headers(headers).body(page.getContent());
+     }
+ 
++    /**
++     * {@code GET  /operations/recent} : get the operations dated within the last 30 days. Admin only.
++     *
++     * @param pageable the pagination information.
++     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of recent operations in body,
++     * or with status {@code 400 (Bad Request)} if sorted by a property that is not allowed.
++     */
++    @GetMapping("/recent")
++    @PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")")
++    public ResponseEntity<List<OperationDTO>> getRecentOperations(@org.springdoc.core.annotations.ParameterObject Pageable pageable) {
++        LOG.debug("REST request to get a page of recent Operations");
++        if (!pageable.getSort().stream().map(Sort.Order::getProperty).allMatch(ALLOWED_RECENT_ORDERED_PROPERTIES::contains)) {
++            return ResponseEntity.badRequest().build();
++        }
++        Page<OperationDTO> page = operationService.findRecent(pageable);
++        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
++        return ResponseEntity.ok().headers(headers).body(page.getContent());
++    }
++
+     /**
+      * {@code GET  /operations/:id} : get the "id" operation.
+      *
+diff --git a/src/test/java/io/github/jhipster/sample/web/rest/OperationResourceIT.java b/src/test/java/io/github/jhipster/sample/web/rest/OperationResourceIT.java
+index b7aa5c6e..52069fe8 100644
+--- a/src/test/java/io/github/jhipster/sample/web/rest/OperationResourceIT.java
++++ b/src/test/java/io/github/jhipster/sample/web/rest/OperationResourceIT.java
+@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
+ import io.github.jhipster.sample.IntegrationTest;
+ import io.github.jhipster.sample.domain.Operation;
+ import io.github.jhipster.sample.repository.OperationRepository;
++import io.github.jhipster.sample.security.AuthoritiesConstants;
+ import jakarta.persistence.EntityManager;
+ import java.math.BigDecimal;
+ import java.time.Instant;
+@@ -70,6 +71,9 @@ class OperationResourceIT {
+     @Autowired
+     private EntityManager em;
+ 
++    @Autowired
++    private java.time.Clock clock;
++
+     @Autowired
+     private MockMvc restOperationMockMvc;
+ 
+@@ -110,6 +114,28 @@ class OperationResourceIT {
+         }
+     }
+ 
++    @Test
++    @Transactional
++    @WithMockUser(authorities = AuthoritiesConstants.ADMIN)
++    void getRecentOperations_asAdmin_returnsOnlyOperationsFromLast30Days() throws Exception {
++        Operation recent = createEntity().date(Instant.now(clock).minus(1, java.time.temporal.ChronoUnit.DAYS)).description("RECENT");
++        Operation old = createEntity().date(Instant.now(clock).minus(31, java.time.temporal.ChronoUnit.DAYS)).description("OLD");
++        operationRepository.saveAndFlush(recent);
++        operationRepository.saveAndFlush(old);
++
++        restOperationMockMvc
++            .perform(get(ENTITY_API_URL + "/recent"))
++            .andExpect(status().isOk())
++            .andExpect(jsonPath("$.[*].description").value(hasItem("RECENT")))
++            .andExpect(jsonPath("$.[?(@.description == 'OLD')]").isEmpty());
++    }
++
++    @Test
++    @Transactional
++    void getRecentOperations_whenNotAdmin_isForbidden() throws Exception {
++        restOperationMockMvc.perform(get(ENTITY_API_URL + "/recent")).andExpect(status().isForbidden());
++    }
++
+     @Test
+     @Transactional
+     void createOperation() throws Exception {

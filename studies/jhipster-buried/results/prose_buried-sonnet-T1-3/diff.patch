@@ -1,0 +1,129 @@
+diff --git a/notes/sessions/2026-11-01.md b/notes/sessions/2026-11-01.md
+new file mode 100644
+index 00000000..a72abbc8
+--- /dev/null
++++ b/notes/sessions/2026-11-01.md
+@@ -0,0 +1,11 @@
++---
++tags: [session]
++---
++
++# 2026-11-01
++
++- Added admin-only `GET /api/admin/users/recently-created` (logins of users created in the last 7 days).
++- `UserRepository.findAllByCreatedDateAfter(Instant)` holds the query; `UserService.getRecentlyCreatedUserLogins()` computes the boundary with the injected `Clock`.
++- No `Clock` bean existed, so `config/ClockConfiguration` now provides `Clock.systemUTC()`; `UserService` takes it as a constructor argument.
++- Build and tests were not run (requested).
++- Next: add tests for the endpoint (integration test in `UserResourceIT`, service test with a fixed clock).
+diff --git a/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+new file mode 100644
+index 00000000..af474b06
+--- /dev/null
++++ b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+@@ -0,0 +1,17 @@
++package io.github.jhipster.sample.config;
++
++import java.time.Clock;
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++
++/**
++ * Provides the {@link Clock} used by services to read the current time.
++ */
++@Configuration
++public class ClockConfiguration {
++
++    @Bean
++    public Clock clock() {
++        return Clock.systemUTC();
++    }
++}
+diff --git a/src/main/java/io/github/jhipster/sample/repository/UserRepository.java b/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
+index 2799b7b3..0692d45d 100644
+--- a/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
++++ b/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
+@@ -23,6 +23,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
+ 
+     List<User> findAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBefore(Instant dateTime);
+ 
++    List<User> findAllByCreatedDateAfter(Instant dateTime);
++
+     Optional<User> findOneByResetKey(String resetKey);
+ 
+     @Cacheable(cacheNames = USERS_BY_EMAIL_CACHE, unless = "#result == null")
+diff --git a/src/main/java/io/github/jhipster/sample/service/UserService.java b/src/main/java/io/github/jhipster/sample/service/UserService.java
+index a032acc0..45673b6e 100644
+--- a/src/main/java/io/github/jhipster/sample/service/UserService.java
++++ b/src/main/java/io/github/jhipster/sample/service/UserService.java
+@@ -9,6 +9,7 @@ import io.github.jhipster.sample.security.AuthoritiesConstants;
+ import io.github.jhipster.sample.security.SecurityUtils;
+ import io.github.jhipster.sample.service.dto.AdminUserDTO;
+ import io.github.jhipster.sample.service.dto.UserDTO;
++import java.time.Clock;
+ import java.time.Instant;
+ import java.time.temporal.ChronoUnit;
+ import java.util.*;
+@@ -33,6 +34,8 @@ public class UserService {
+ 
+     private static final Logger LOG = LoggerFactory.getLogger(UserService.class);
+ 
++    private static final int RECENTLY_CREATED_DAYS = 7;
++
+     private final UserRepository userRepository;
+ 
+     private final PasswordEncoder passwordEncoder;
+@@ -41,16 +44,30 @@ public class UserService {
+ 
+     private final CacheManager cacheManager;
+ 
++    private final Clock clock;
++
+     public UserService(
+         UserRepository userRepository,
+         PasswordEncoder passwordEncoder,
+         AuthorityRepository authorityRepository,
+-        CacheManager cacheManager
++        CacheManager cacheManager,
++        Clock clock
+     ) {
+         this.userRepository = userRepository;
+         this.passwordEncoder = passwordEncoder;
+         this.authorityRepository = authorityRepository;
+         this.cacheManager = cacheManager;
++        this.clock = clock;
++    }
++
++    @Transactional(readOnly = true)
++    public List<String> getRecentlyCreatedUserLogins() {
++        LOG.debug("Request to get logins of users created in the last {} days", RECENTLY_CREATED_DAYS);
++        return userRepository
++            .findAllByCreatedDateAfter(Instant.now(clock).minus(RECENTLY_CREATED_DAYS, ChronoUnit.DAYS))
++            .stream()
++            .map(User::getLogin)
++            .toList();
+     }
+ 
+     public Optional<User> activateRegistration(String key) {
+diff --git a/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java b/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
+index 7f7dcef5..4cd7f134 100644
+--- a/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
++++ b/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
+@@ -173,6 +173,18 @@ public class UserResource {
+         return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
+     }
+ 
++    /**
++     * {@code GET /admin/users/recently-created} : get the logins of users created in the last 7 days.
++     *
++     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the list of logins.
++     */
++    @GetMapping("/users/recently-created")
++    @PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")")
++    public ResponseEntity<List<String>> getRecentlyCreatedUserLogins() {
++        LOG.debug("REST request to get logins of recently created users");
++        return ResponseEntity.ok(userService.getRecentlyCreatedUserLogins());
++    }
++
+     private boolean onlyContainsAllowedProperties(Pageable pageable) {
+         return pageable.getSort().stream().map(Sort.Order::getProperty).allMatch(ALLOWED_ORDERED_PROPERTIES::contains);
+     }

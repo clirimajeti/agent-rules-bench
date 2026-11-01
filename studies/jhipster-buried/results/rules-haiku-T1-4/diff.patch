@@ -1,0 +1,271 @@
+diff --git a/notes/decisions/2026-11-01-recently-created-users.md b/notes/decisions/2026-11-01-recently-created-users.md
+new file mode 100644
+index 00000000..40a60a42
+--- /dev/null
++++ b/notes/decisions/2026-11-01-recently-created-users.md
+@@ -0,0 +1,12 @@
++---
++tags: [decision, api, users]
++---
++
++# Recently created users endpoint
++
++`GET /api/admin/users/recently-created` returns the logins of users created in the last 7 days.
++
++- The endpoint is paged with `Pageable` because `docs/api.md` forbids unbounded lists; sort uses the existing `ALLOWED_ORDERED_PROPERTIES` allow-list.
++- The 7-day boundary is computed in `UserService` from an injected `Clock`; the repository query in `UserRepository.findLoginsCreatedSince` takes the boundary as a parameter.
++- A `Clock` bean now lives in `ClockConfiguration`; new time-dependent code should inject it instead of calling `Instant.now()`.
++- The route does not clash with `GET /api/admin/users/{login}` because Spring prefers the literal path.
+diff --git a/notes/index.md b/notes/index.md
+new file mode 100644
+index 00000000..512ba2ff
+--- /dev/null
++++ b/notes/index.md
+@@ -0,0 +1,14 @@
++---
++tags: [index]
++---
++
++# jhipsterSampleApplication
++
++JHipster 9 monolith with a Spring Boot 3 backend (Java 21, Maven) and an Angular frontend in `src/main/webapp`.
++It manages bank accounts, operations and labels for users with JWT authentication.
++Read the project docs in `docs/` before changing an area; they are the source of the conventions.
++
++## Notes
++
++- [[decisions/2026-11-01-recently-created-users]]: why the recently-created endpoint is paged and how the clock is injected
++- [[sessions/2026-11-01]]: latest session log
+diff --git a/notes/sessions/2026-11-01.md b/notes/sessions/2026-11-01.md
+new file mode 100644
+index 00000000..213d09cb
+--- /dev/null
++++ b/notes/sessions/2026-11-01.md
+@@ -0,0 +1,19 @@
++---
++tags: [session]
++---
++
++# 2026-11-01
++
++## Done
++
++- Added `GET /api/admin/users/recently-created` (admin only, paged) in `UserResource`.
++- Added `UserRepository.findLoginsCreatedSince` and `UserService.getRecentlyCreatedUserLogins`.
++- Added `ClockConfiguration` and injected the `Clock` into `UserService`.
++- Added `UserResourceIT` tests for the window and for non-admin access. Not run: the build was not run on request.
++
++## Next
++
++- Run `./mvnw verify` to confirm the tests and the new `Clock` bean.
++- Existing `Instant.now()` calls in `UserService` were left as they are; migrate them to the clock in a separate change.
++
++See [[decisions/2026-11-01-recently-created-users]].
+diff --git a/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+new file mode 100644
+index 00000000..6804db1b
+--- /dev/null
++++ b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+@@ -0,0 +1,17 @@
++package io.github.jhipster.sample.config;
++
++import java.time.Clock;
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++
++/**
++ * Provides the {@link Clock} used for time-dependent business logic, so tests can control the current time.
++ */
++@Configuration
++public class ClockConfiguration {
++
++    @Bean
++    public Clock clock() {
++        return Clock.systemUTC();
++    }
++}
+diff --git a/src/main/java/io/github/jhipster/sample/repository/UserRepository.java b/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
+index 2799b7b3..4e6c22ed 100644
+--- a/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
++++ b/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
+@@ -8,6 +8,8 @@ import org.springframework.cache.annotation.Cacheable;
+ import org.springframework.data.domain.*;
+ import org.springframework.data.jpa.repository.EntityGraph;
+ import org.springframework.data.jpa.repository.JpaRepository;
++import org.springframework.data.jpa.repository.Query;
++import org.springframework.data.repository.query.Param;
+ import org.springframework.stereotype.Repository;
+ 
+ /**
+@@ -38,4 +40,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
+     Optional<User> findOneByLogin(String login);
+ 
+     Page<User> findAllByIdNotNullAndActivatedIsTrue(Pageable pageable);
++
++    @Query(
++        value = "SELECT u.login FROM User u WHERE u.createdDate >= :createdSince ORDER BY u.login",
++        countQuery = "SELECT COUNT(u) FROM User u WHERE u.createdDate >= :createdSince"
++    )
++    Page<String> findLoginsCreatedSince(@Param("createdSince") Instant createdSince, Pageable pageable);
+ }
+diff --git a/src/main/java/io/github/jhipster/sample/service/UserService.java b/src/main/java/io/github/jhipster/sample/service/UserService.java
+index a032acc0..e7eef808 100644
+--- a/src/main/java/io/github/jhipster/sample/service/UserService.java
++++ b/src/main/java/io/github/jhipster/sample/service/UserService.java
+@@ -9,6 +9,7 @@ import io.github.jhipster.sample.security.AuthoritiesConstants;
+ import io.github.jhipster.sample.security.SecurityUtils;
+ import io.github.jhipster.sample.service.dto.AdminUserDTO;
+ import io.github.jhipster.sample.service.dto.UserDTO;
++import java.time.Clock;
+ import java.time.Instant;
+ import java.time.temporal.ChronoUnit;
+ import java.util.*;
+@@ -33,6 +34,8 @@ public class UserService {
+ 
+     private static final Logger LOG = LoggerFactory.getLogger(UserService.class);
+ 
++    private static final long RECENTLY_CREATED_WINDOW_DAYS = 7;
++
+     private final UserRepository userRepository;
+ 
+     private final PasswordEncoder passwordEncoder;
+@@ -41,16 +44,20 @@ public class UserService {
+ 
+     private final CacheManager cacheManager;
+ 
++    private final Clock clock;
++
+     public UserService(
+         UserRepository userRepository,
+         PasswordEncoder passwordEncoder,
+         AuthorityRepository authorityRepository,
+-        CacheManager cacheManager
++        CacheManager cacheManager,
++        Clock clock
+     ) {
+         this.userRepository = userRepository;
+         this.passwordEncoder = passwordEncoder;
+         this.authorityRepository = authorityRepository;
+         this.cacheManager = cacheManager;
++        this.clock = clock;
+     }
+ 
+     public Optional<User> activateRegistration(String key) {
+@@ -267,6 +274,18 @@ public class UserService {
+         return userRepository.findAll(pageable).map(AdminUserDTO::new);
+     }
+ 
++    /**
++     * Gets the logins of all users created within the last {@link #RECENTLY_CREATED_WINDOW_DAYS} days.
++     *
++     * @param pageable the pagination information.
++     * @return a page of logins.
++     */
++    @Transactional(readOnly = true)
++    public Page<String> getRecentlyCreatedUserLogins(Pageable pageable) {
++        Instant createdSince = Instant.now(clock).minus(RECENTLY_CREATED_WINDOW_DAYS, ChronoUnit.DAYS);
++        return userRepository.findLoginsCreatedSince(createdSince, pageable);
++    }
++
+     @Transactional(readOnly = true)
+     public Page<UserDTO> getAllPublicUsers(Pageable pageable) {
+         return userRepository.findAllByIdNotNullAndActivatedIsTrue(pageable).map(UserDTO::new);
+diff --git a/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java b/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
+index 7f7dcef5..edd831d5 100644
+--- a/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
++++ b/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
+@@ -173,6 +173,25 @@ public class UserResource {
+         return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
+     }
+ 
++    /**
++     * {@code GET /admin/users/recently-created} : get the logins of users created in the last 7 days - calling this is only allowed for the administrators.
++     *
++     * @param pageable the pagination information.
++     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the logins, or with status {@code 400 (Bad Request)} if the sort is not allowed.
++     */
++    @GetMapping("/users/recently-created")
++    @PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")")
++    public ResponseEntity<List<String>> getRecentlyCreatedUserLogins(@org.springdoc.core.annotations.ParameterObject Pageable pageable) {
++        LOG.debug("REST request to get logins of users created recently");
++        if (!onlyContainsAllowedProperties(pageable)) {
++            return ResponseEntity.badRequest().build();
++        }
++
++        final Page<String> page = userService.getRecentlyCreatedUserLogins(pageable);
++        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
++        return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
++    }
++
+     private boolean onlyContainsAllowedProperties(Pageable pageable) {
+         return pageable.getSort().stream().map(Sort.Order::getProperty).allMatch(ALLOWED_ORDERED_PROPERTIES::contains);
+     }
+diff --git a/src/test/java/io/github/jhipster/sample/web/rest/UserResourceIT.java b/src/test/java/io/github/jhipster/sample/web/rest/UserResourceIT.java
+index fe7ca042..c978865d 100644
+--- a/src/test/java/io/github/jhipster/sample/web/rest/UserResourceIT.java
++++ b/src/test/java/io/github/jhipster/sample/web/rest/UserResourceIT.java
+@@ -2,6 +2,7 @@ package io.github.jhipster.sample.web.rest;
+ 
+ import static org.assertj.core.api.Assertions.assertThat;
+ import static org.hamcrest.Matchers.hasItem;
++import static org.hamcrest.Matchers.not;
+ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+ 
+@@ -13,6 +14,9 @@ import io.github.jhipster.sample.service.UserService;
+ import io.github.jhipster.sample.service.dto.AdminUserDTO;
+ import io.github.jhipster.sample.service.mapper.UserMapper;
+ import jakarta.persistence.EntityManager;
++import java.time.Clock;
++import java.time.Instant;
++import java.time.temporal.ChronoUnit;
+ import java.util.*;
+ import java.util.function.Consumer;
+ import org.apache.commons.lang3.RandomStringUtils;
+@@ -72,6 +76,9 @@ class UserResourceIT {
+     @Autowired
+     private EntityManager em;
+ 
++    @Autowired
++    private Clock clock;
++
+     @Autowired
+     private CacheManager cacheManager;
+ 
+@@ -263,6 +270,36 @@ class UserResourceIT {
+             .andExpect(jsonPath("$.[*].langKey").value(hasItem(DEFAULT_LANGKEY)));
+     }
+ 
++    @Test
++    @Transactional
++    void getRecentlyCreatedUserLogins() throws Exception {
++        User recentUser = createEntity();
++        User oldUser = createEntity();
++        userRepository.saveAndFlush(recentUser);
++        userRepository.saveAndFlush(oldUser);
++        // The auditing listener sets created_date on insert, so backdate the old user afterwards
++        em
++            .createNativeQuery("UPDATE jhi_user SET created_date = :createdDate WHERE id = :id")
++            .setParameter("createdDate", Instant.now(clock).minus(8, ChronoUnit.DAYS))
++            .setParameter("id", oldUser.getId())
++            .executeUpdate();
++        em.clear();
++
++        restUserMockMvc
++            .perform(get("/api/admin/users/recently-created").accept(MediaType.APPLICATION_JSON))
++            .andExpect(status().isOk())
++            .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
++            .andExpect(jsonPath("$.[*]").value(hasItem(recentUser.getLogin())))
++            .andExpect(jsonPath("$.[*]").value(not(hasItem(oldUser.getLogin()))));
++    }
++
++    @Test
++    @Transactional
++    @WithMockUser(authorities = AuthoritiesConstants.USER)
++    void getRecentlyCreatedUserLoginsWhenNotAdmin() throws Exception {
++        restUserMockMvc.perform(get("/api/admin/users/recently-created")).andExpect(status().isForbidden());
++    }
++
+     @Test
+     @Transactional
+     void getUser() throws Exception {

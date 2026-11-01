@@ -99,6 +99,7 @@ async function runOne(study, run, claudeCmd, log) {
     breaksAfterTask: afterTask.breaks,
     breaksFinal: final.breaks,
     byRule: final.byRule,
+    breaksAfterTaskAt: afterTask.findings.map((f) => ({ ruleId: f.ruleId, file: f.file, line: f.line })),
     evalNotes: [...new Set([...afterTask.notes, ...final.notes])],
     changedFiles: final.changedFiles,
     hookCatches,

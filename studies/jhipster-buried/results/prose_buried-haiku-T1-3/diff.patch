@@ -1,0 +1,198 @@
+diff --git a/notes/index.md b/notes/index.md
+new file mode 100644
+index 00000000..62fea15e
+--- /dev/null
++++ b/notes/index.md
+@@ -0,0 +1,13 @@
++---
++tags: [project, jhipster]
++---
++
++# jhipsterSampleApplication
++
++JHipster 9 monolith: Spring Boot 3 backend (Java 21, Maven) and an Angular frontend in `src/main/webapp`.
++It manages bank accounts, operations and labels for users with JWT authentication.
++Conventions live in the checked-in `docs/` folder, referenced from `CLAUDE.md`.
++
++## Notes
++
++- [[sessions/2026-11-01]]: admin endpoint for logins of users created in the last 7 days
+diff --git a/notes/sessions/2026-11-01.md b/notes/sessions/2026-11-01.md
+new file mode 100644
+index 00000000..ac48a3d2
+--- /dev/null
++++ b/notes/sessions/2026-11-01.md
+@@ -0,0 +1,20 @@
++---
++tags: [session, admin, users]
++---
++
++# 2026-11-01
++
++## Done
++
++- Added `GET /api/admin/users/recently-created`, admin only, returning the logins of users whose `createdDate` is within the last 7 days, most recent first.
++- Query in `UserRepository.findLoginsCreatedSince`, window logic in `UserService.getRecentlyCreatedUserLogins`, endpoint in `UserResource`.
++- Added Liquibase changelog `20261101120000_added_index_jhi_user_created_date` (index on `jhi_user.created_date`), registered in `master.xml`, because the query filters on that column.
++- Build not run and no tests added, as requested.
++- Review fix: the 7-day window now uses an injected `java.time.Clock` (new `config/ClockConfiguration` bean, passed into `UserService`) instead of `Instant.now()`. The endpoint's `@PreAuthorize` already uses `AuthoritiesConstants.ADMIN`.
++
++## Next
++
++- Run `./mvnw verify` and add an integration test for the endpoint.
++- Decide whether the frontend needs a view for this list.
++- `GET /api/admin/users/{login}` now shadows any user whose login is exactly `recently-created`.
++- Pre-existing `Instant.now()` calls in `UserService` (password reset checks, activation cleanup scheduler) do not use the clock. Out of scope here; migrate them to the injected `Clock` separately.
+diff --git a/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+new file mode 100644
+index 00000000..1fed6c01
+--- /dev/null
++++ b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+@@ -0,0 +1,14 @@
++package io.github.jhipster.sample.config;
++
++import java.time.Clock;
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++
++@Configuration
++public class ClockConfiguration {
++
++    @Bean
++    public Clock clock() {
++        return Clock.systemDefaultZone();
++    }
++}
+diff --git a/src/main/java/io/github/jhipster/sample/repository/UserRepository.java b/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
+index 2799b7b3..5beb826e 100644
+--- a/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
++++ b/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
+@@ -8,6 +8,8 @@ import org.springframework.cache.annotation.Cacheable;
+ import org.springframework.data.domain.*;
+ import org.springframework.data.jpa.repository.EntityGraph;
+ import org.springframework.data.jpa.repository.JpaRepository;
++import org.springframework.data.jpa.repository.Query;
++import org.springframework.data.repository.query.Param;
+ import org.springframework.stereotype.Repository;
+ 
+ /**
+@@ -38,4 +40,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
+     Optional<User> findOneByLogin(String login);
+ 
+     Page<User> findAllByIdNotNullAndActivatedIsTrue(Pageable pageable);
++
++    @Query("select u.login from User u where u.createdDate >= :since order by u.createdDate desc")
++    List<String> findLoginsCreatedSince(@Param("since") Instant since);
+ }
+diff --git a/src/main/java/io/github/jhipster/sample/service/UserService.java b/src/main/java/io/github/jhipster/sample/service/UserService.java
+index a032acc0..7d6d98e5 100644
+--- a/src/main/java/io/github/jhipster/sample/service/UserService.java
++++ b/src/main/java/io/github/jhipster/sample/service/UserService.java
+@@ -9,6 +9,7 @@ import io.github.jhipster.sample.security.AuthoritiesConstants;
+ import io.github.jhipster.sample.security.SecurityUtils;
+ import io.github.jhipster.sample.service.dto.AdminUserDTO;
+ import io.github.jhipster.sample.service.dto.UserDTO;
++import java.time.Clock;
+ import java.time.Instant;
+ import java.time.temporal.ChronoUnit;
+ import java.util.*;
+@@ -33,6 +34,8 @@ public class UserService {
+ 
+     private static final Logger LOG = LoggerFactory.getLogger(UserService.class);
+ 
++    private static final int RECENTLY_CREATED_DAYS = 7;
++
+     private final UserRepository userRepository;
+ 
+     private final PasswordEncoder passwordEncoder;
+@@ -41,16 +44,20 @@ public class UserService {
+ 
+     private final CacheManager cacheManager;
+ 
++    private final Clock clock;
++
+     public UserService(
+         UserRepository userRepository,
+         PasswordEncoder passwordEncoder,
+         AuthorityRepository authorityRepository,
+-        CacheManager cacheManager
++        CacheManager cacheManager,
++        Clock clock
+     ) {
+         this.userRepository = userRepository;
+         this.passwordEncoder = passwordEncoder;
+         this.authorityRepository = authorityRepository;
+         this.cacheManager = cacheManager;
++        this.clock = clock;
+     }
+ 
+     public Optional<User> activateRegistration(String key) {
+@@ -307,6 +314,17 @@ public class UserService {
+         return authorityRepository.findAll().stream().map(Authority::getName).toList();
+     }
+ 
++    /**
++     * Gets the logins of all users created in the last seven days, most recently created first.
++     *
++     * @return the logins of the recently created users.
++     */
++    @Transactional(readOnly = true)
++    public List<String> getRecentlyCreatedUserLogins() {
++        Instant since = Instant.now(clock).minus(RECENTLY_CREATED_DAYS, ChronoUnit.DAYS);
++        return userRepository.findLoginsCreatedSince(since);
++    }
++
+     private void clearUserCaches(User user) {
+         Objects.requireNonNull(cacheManager.getCache(UserRepository.USERS_BY_LOGIN_CACHE)).evictIfPresent(user.getLogin());
+         if (user.getEmail() != null) {
+diff --git a/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java b/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
+index 7f7dcef5..5f5c166c 100644
+--- a/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
++++ b/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
+@@ -190,6 +190,18 @@ public class UserResource {
+         return ResponseUtil.wrapOrNotFound(userService.getUserWithAuthoritiesByLogin(login).map(AdminUserDTO::new));
+     }
+ 
++    /**
++     * {@code GET /admin/users/recently-created} : get the logins of the users created in the last seven days.
++     *
++     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the logins of the recently created users.
++     */
++    @GetMapping("/users/recently-created")
++    @PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")")
++    public ResponseEntity<List<String>> getRecentlyCreatedUserLogins() {
++        LOG.debug("REST request to get logins of Users created in the last seven days");
++        return ResponseEntity.ok(userService.getRecentlyCreatedUserLogins());
++    }
++
+     /**
+      * {@code DELETE /admin/users/:login} : delete the "login" User.
+      *
+diff --git a/src/main/resources/config/liquibase/changelog/20261101120000_added_index_jhi_user_created_date.xml b/src/main/resources/config/liquibase/changelog/20261101120000_added_index_jhi_user_created_date.xml
+new file mode 100644
+index 00000000..22d3e444
+--- /dev/null
++++ b/src/main/resources/config/liquibase/changelog/20261101120000_added_index_jhi_user_created_date.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<databaseChangeLog
++    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
++    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
++    <changeSet id="20261101120000-1" author="clirimajeti">
++        <createIndex indexName="idx_jhi_user_created_date" tableName="jhi_user">
++            <column name="created_date"/>
++        </createIndex>
++    </changeSet>
++</databaseChangeLog>
+diff --git a/src/main/resources/config/liquibase/master.xml b/src/main/resources/config/liquibase/master.xml
+index 9413660b..f1f4ae86 100644
+--- a/src/main/resources/config/liquibase/master.xml
++++ b/src/main/resources/config/liquibase/master.xml
+@@ -26,5 +26,6 @@
+     <include file="config/liquibase/changelog/20150805124838_added_entity_constraints_BankAccount.xml" relativeToChangelogFile="false"/>
+     <include file="config/liquibase/changelog/20150805125054_added_entity_constraints_Operation.xml" relativeToChangelogFile="false"/>
+     <!-- jhipster-needle-liquibase-add-constraints-changelog - JHipster will add liquibase constraints changelogs here -->
++    <include file="config/liquibase/changelog/20261101120000_added_index_jhi_user_created_date.xml" relativeToChangelogFile="false"/>
+     <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->
+ </databaseChangeLog>
