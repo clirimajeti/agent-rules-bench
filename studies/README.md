@@ -20,7 +20,7 @@ Copy [`_template/`](_template/) to `studies/<name>/` and fill it in.
   "repeats": 4,
   "maxTurns": 30,
   "eval": [
-    { "name": "rules", "format": "ast-grep", "command": ["npx", "-y", "-p", "@ast-grep/cli@0.51.0", "ast-grep", "scan", "-c", "{study}/rules/sgconfig.yml", "--json=compact", "{files}"], "extensions": [".java"] }
+    { "name": "rules", "format": "ast-grep", "command": ["npx", "-y", "-p", "@ast-grep/cli@0.51.0", "ast-grep", "scan", "-c", "{study}/sgconfig.yml", "--json=compact", "{files}"], "extensions": [".java"] }
   ],
   "fix": { "prompt": "Code review feedback on your uncommitted change: ... Fix it." },
   "build": { "command": ["./mvnw", "-q", "-o", "compile"], "timeoutSec": 600 }

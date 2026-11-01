@@ -1,0 +1,12 @@
+id: authorities-from-constants
+language: Java
+severity: error
+message: Authority name as a string literal. Use AuthoritiesConstants (for example AuthoritiesConstants.ADMIN) instead.
+rule:
+  kind: string_literal
+  regex: 'ROLE_[A-Z]'
+  not:
+    inside:
+      kind: class_declaration
+      has: { field: name, regex: '^AuthoritiesConstants$' }
+      stopBy: end

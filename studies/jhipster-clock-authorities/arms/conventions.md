@@ -1,0 +1,2 @@
+- Time: inject `java.time.Clock` and call `Instant.now(clock)` (or the matching `now(clock)`); never call `now()` without a clock.
+- Authorities: use the constants in `AuthoritiesConstants` (for example `AuthoritiesConstants.ADMIN`), never string literals like `"ROLE_ADMIN"`.

@@ -1,0 +1,8 @@
+id: use-clock-injection
+language: Java
+severity: error
+message: $T.now() without a Clock. Inject java.time.Clock and call $T.now(clock).
+rule:
+  pattern: $T.now()
+constraints:
+  T: { regex: '(^|\.)(Instant|LocalDate|LocalDateTime|LocalTime|ZonedDateTime|OffsetDateTime)$' }

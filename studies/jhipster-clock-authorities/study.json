@@ -1,0 +1,22 @@
+{
+  "name": "jhipster-clock-authorities",
+  "description": "Replication on an open-source Spring Boot app: a design-shaping rule (Clock injection) and a mechanical rule (authorities from constants), as linked prose, always-loaded prose, or rules + pointer + feedback loop.",
+  "repo": { "source": "https://github.com/jhipster/jhipster-sample-app.git", "commit": "6b000b5" },
+  "tasks": [
+    { "id": "T1", "prompt": "Add an admin-only REST endpoint GET /api/admin/users/recently-created that returns the logins of users created in the last 7 days. Put the query in the user repository and the logic in the user service. Do not run the build." },
+    { "id": "T2", "prompt": "Add an admin-only REST endpoint GET /api/operations/recent that returns the operations whose date lies within the last 30 days. Do not run the build." }
+  ],
+  "arms": [
+    { "id": "prose_linked", "setup": "arms/prose_linked.sh", "fix": true },
+    { "id": "prose_loaded", "setup": "arms/prose_loaded.sh", "fix": true },
+    { "id": "rules", "setup": "arms/rules.sh", "fix": true }
+  ],
+  "baselineArm": "prose_linked",
+  "models": ["sonnet"],
+  "repeats": 4,
+  "maxTurns": 30,
+  "eval": [
+    { "name": "rules", "format": "ast-grep", "command": ["npx", "-y", "-p", "@ast-grep/cli@0.51.0", "ast-grep", "scan", "-c", "{study}/sgconfig.yml", "--json=compact", "{files}"], "extensions": [".java"] }
+  ],
+  "fix": { "prompt": "Code review feedback on your uncommitted change: the new code breaks two project rules. Time must come from an injected java.time.Clock (call Instant.now(clock), never Instant.now() or another now() without a clock), and authority names must come from AuthoritiesConstants, never string literals like \"ROLE_ADMIN\". Fix the new code accordingly. Do not run the build." }
+}
