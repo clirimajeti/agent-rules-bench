@@ -30,7 +30,7 @@ First public replication on jhipster-sample-app (24 sessions, all raw data, see 
 - With a short, prominent link to the conventions, every arm followed both rules and costs were equal within 1%.
 - So rules + pointer stay cost-neutral when the agent sees the prose, and the internal failures depend on how buried the prose is.
 
-Pooled over the four public studies (112 runs per side, [studies/pooled.md](studies/pooled.md)):
+Pooled over the four public studies (152 runs, [studies/pooled.md](studies/pooled.md)):
 - Against prose the agent can miss: rules + loop cost **-14% (95% interval -22% to -5%)**, with first drafts broken in 0/56 runs against 17/56.
 - Against always-loaded prose: **-0% (-11% to +12%)**, no breaks on either side.
 
