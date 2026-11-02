@@ -11,13 +11,12 @@ import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadStudy } from '../bench/config.mjs';
+import { defaultWorkdirs, loadStudy } from '../bench/config.mjs';
 import { prepareStudy } from '../bench/prepare.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.dirname(here);
 const targets = JSON.parse(fs.readFileSync(path.join(here, 'targets.json'), 'utf8'));
-const copyOf = (t) => path.join(repoRoot, 'workdirs', 'skill-eval', t.name, 'skill');
+const copyOf = (t) => path.join(defaultWorkdirs(), 'skill-eval', t.name, 'skill');
 const resultsOf = (t) => path.join(here, 'results', t.name);
 const git = (cwd, ...args) => spawnSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 1 << 28 });
 const TOOLS = ['Skill', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'TodoWrite'];

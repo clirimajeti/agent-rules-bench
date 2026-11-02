@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { changedLines, onChangedLines, runLinters } from './lib/codemyrules-lib.mjs';
 import { copyPath } from './prepare.mjs';
+import { assertNoClaudeMemoryAbove } from './config.mjs';
 
 const LOOP_DIR = '.claude/codemyrules';
 
@@ -121,6 +122,7 @@ export async function runStudy(study, { arms: onlyArms, dryRun = false, claudeCm
     for (const r of todo) log(`  would run ${r.id}`);
     return [];
   }
+  if (todo.length) assertNoClaudeMemoryAbove(study.workdir);
   for (const arm of new Set(todo.map((r) => r.arm.id))) {
     const copy = copyPath(study, arm);
     if (git(copy, 'rev-parse', '-q', '--verify', 'bench-base').status !== 0) throw new Error(`${copy} is not prepared; run "prepare" first`);

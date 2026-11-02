@@ -62,6 +62,19 @@ test('loadStudy fills defaults and resolves paths', (t) => {
   assert.equal(s.build.timeoutSec, 600);
 });
 
+test('the default workdir lies outside the repo, under BENCH_WORKDIRS when it is set', (t) => {
+  const { file } = setup(t);
+  const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+  delete raw.workdir;
+  fs.writeFileSync(file, JSON.stringify(raw));
+  const saved = process.env.BENCH_WORKDIRS;
+  t.after(() => { if (saved === undefined) delete process.env.BENCH_WORKDIRS; else process.env.BENCH_WORKDIRS = saved; });
+  delete process.env.BENCH_WORKDIRS;
+  assert.equal(loadStudy(file).workdir, path.join(os.homedir(), '.cache', 'agent-rules-bench', 'workdirs', 'demo'));
+  process.env.BENCH_WORKDIRS = '/somewhere/else';
+  assert.equal(loadStudy(file).workdir, path.join('/somewhere/else', 'demo'));
+});
+
 test('prepare, run, rerun and summarize: end to end with a fake claude', async (t) => {
   const { src, commit, file, root } = setup(t);
   const study = loadStudy(file);
@@ -117,6 +130,17 @@ test('run refuses an arm that was not prepared, and --dry-run plans without runn
   await runStudy(study, { dryRun: true, log: (m) => logs.push(m) });
   assert.match(logs[0], /4 runs planned, 0 already done, 4 to run/);
   await assert.rejects(runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: () => {} }), /not prepared; run "prepare" first/);
+});
+
+test('prepare and run refuse a workdir below a folder with its own CLAUDE.md', async (t) => {
+  const { file, root } = setup(t, {});
+  const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+  fs.mkdirSync(path.join(root, 'project'));
+  fs.writeFileSync(path.join(root, 'project', 'CLAUDE.md'), '# someone else\'s instructions\n');
+  raw.workdir = path.join(root, 'project', 'copies');
+  fs.writeFileSync(file, JSON.stringify(raw));
+  assert.throws(() => prepareStudy(loadStudy(file), () => {}), /CLAUDE\.md.*every session would load it/);
+  await assert.rejects(runStudy(loadStudy(file), { claudeCmd: ['node', FAKE_CLAUDE], log: () => {} }), /CLAUDE\.md.*every session would load it/);
 });
 
 test('prepare refuses a workdir inside the source repo', (t) => {

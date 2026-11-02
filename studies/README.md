@@ -31,7 +31,7 @@ Copy [`_template/`](_template/) to `studies/<name>/` and fill it in.
 |---|---|
 | `name` | lowercase letters, digits and `-`; also the default workdir name |
 | `repo.source` | git URL or local path; `repo.commit` pins the starting point for every copy |
-| `workdir` | optional; where the copies go, default `workdirs/<name>` in this repo (git-ignored) |
+| `workdir` | optional; where the copies go, default `~/.cache/agent-rules-bench/workdirs/<name>` (or `$BENCH_WORKDIRS/<name>`); never below a folder with its own `CLAUDE.md`, which every session would load, so `prepare` and `run` refuse that |
 | `tasks` | the prompts; ids use letters, digits or `_` |
 | `arms` | one copy each; `setup` is a script run inside the fresh copy (env: `BENCH_COPY`, `BENCH_STUDY_DIR`, `BENCH_ARM`), `fix: true` gives runs that broke a rule one review-fix session |
 | `baselineArm` | the arm others are compared with; default the first |

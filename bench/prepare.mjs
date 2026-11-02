@@ -3,6 +3,7 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { assertNoClaudeMemoryAbove } from './config.mjs';
 
 const git = (cwd, ...args) => {
   const r = spawnSync('git', ['-c', 'user.email=bench@local', '-c', 'user.name=bench', ...args], { cwd, encoding: 'utf8' });
@@ -25,6 +26,7 @@ export function prepareStudy(study, log = console.log) {
     const src = path.resolve(study.studyDir, study.repo.source);
     if (inside(study.workdir, src)) throw new Error(`workdir ${study.workdir} lies inside the source repo ${src}; pick a workdir outside it`);
   }
+  assertNoClaudeMemoryAbove(study.workdir);
   fs.mkdirSync(study.workdir, { recursive: true });
   for (const arm of study.arms) {
     const dest = copyPath(study, arm.id);

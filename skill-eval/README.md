@@ -12,7 +12,7 @@ The skill asks before every write, and a headless session cannot answer, so [pro
 The session may use Bash (scans, rule tests, dependency installs), so it runs only in these isolated copies.
 
 ```bash
-node skill-eval/eval.mjs prepare            # copies under workdirs/skill-eval/<target>/skill
+node skill-eval/eval.mjs prepare            # copies under ~/.cache/agent-rules-bench/workdirs/skill-eval/<target>/skill
 node skill-eval/eval.mjs run [--model opus]  # one session per target not yet done (default sonnet)
 node skill-eval/eval.mjs run --resume       # continue sessions that failed (for example on a usage limit)
 node skill-eval/eval.mjs status

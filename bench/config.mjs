@@ -1,5 +1,6 @@
 // Loads and validates a study config (study.json). Every problem is reported at once, before anything runs or is cloned.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 export const FORMATS = ['eslint', 'ast-grep', 'ruff'];
@@ -71,13 +72,12 @@ export function loadStudy(file) {
   }
   const errs = validateStudy(s, studyDir);
   if (errs.length) throw new Error(`invalid study ${studyFile}:\n${errs.map((e) => `  - ${e}`).join('\n')}`);
-  const repoRoot = path.resolve(studyDir, '..', '..');
   const sub = (list) => list.map((x) => x.replaceAll('{study}', studyDir));
   return {
     ...s,
     studyFile,
     studyDir,
-    workdir: path.resolve(studyDir, s.workdir ?? path.join(repoRoot, 'workdirs', s.name)),
+    workdir: path.resolve(studyDir, s.workdir ?? path.join(defaultWorkdirs(), s.name)),
     resultsDir: path.join(studyDir, 'results'),
     baselineArm: s.baselineArm ?? s.arms[0].id,
     models: s.models ?? ['sonnet'],
@@ -88,4 +88,23 @@ export function loadStudy(file) {
     eval: s.eval.map((e) => ({ ...e, command: sub(e.command), tier: 'full' })),
     build: s.build ? { ...s.build, command: sub(s.build.command), timeoutSec: s.build.timeoutSec ?? 600 } : undefined,
   };
+}
+
+// Copies live outside any project tree by default: Claude Code loads every CLAUDE.md in the folders above
+// a session's working directory, so copies below a project would carry that project's instructions.
+export function defaultWorkdirs() {
+  return process.env.BENCH_WORKDIRS || path.join(os.homedir(), '.cache', 'agent-rules-bench', 'workdirs');
+}
+
+// The first CLAUDE.md or CLAUDE.local.md in the workdir or any folder above it, or null.
+export function claudeMemoryAbove(dir) {
+  for (let d = path.resolve(dir); ; d = path.dirname(d)) {
+    for (const f of ['CLAUDE.md', 'CLAUDE.local.md']) if (fs.existsSync(path.join(d, f))) return path.join(d, f);
+    if (path.dirname(d) === d) return null;
+  }
+}
+
+export function assertNoClaudeMemoryAbove(workdir) {
+  const found = claudeMemoryAbove(workdir);
+  if (found) throw new Error(`${found} lies above the workdir ${workdir}, so every session would load it as project memory; use a workdir outside that folder ("workdir" in study.json, or BENCH_WORKDIRS)`);
 }
