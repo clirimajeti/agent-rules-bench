@@ -1,0 +1,14 @@
+{
+  "jhipster": [
+    { "rule": "Clock injection: no now() without a clock", "kind": "design-shaping", "where": "docs/backend.md", "existingHits": 7, "pointerExpected": true },
+    { "rule": "Authorities from AuthoritiesConstants, no \"ROLE_...\" literals", "kind": "mechanical", "where": "docs/security.md", "existingHits": 4, "pointerExpected": false }
+  ],
+  "fastapi": [
+    { "rule": "Database access only through app/crud.py, not in route handlers", "kind": "design-shaping", "where": "docs/backend.md", "existingHits": 32, "pointerExpected": true },
+    { "rule": "fastapi status constants, no integer status_code literals", "kind": "mechanical", "where": "docs/api.md", "existingHits": 28, "pointerExpected": false }
+  ],
+  "bulletproof": [
+    { "rule": "Success notifications in the mutation hook, no useNotifications in feature components", "kind": "design-shaping", "where": "docs/api-layer.md", "existingHits": 7, "pointerExpected": true },
+    { "rule": "Query keys from query options, literal key arrays only inside queryOptions(...)", "kind": "mechanical", "where": "docs/state-management.md", "existingHits": 0, "pointerExpected": false }
+  ]
+}
