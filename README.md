@@ -72,7 +72,6 @@ See [studies/README.md](studies/README.md) and the [template](studies/_template/
 
 Practitioners argue that rules belong in tooling rather than prose, without controlled data:
 - Evil Martians, [Stop writing rules in AGENTS.md: use agent hooks and nano-staged instead](https://evilmartians.com/chronicles/stop-writing-rules-in-agents-md-use-agent-hooks-and-nano-staged-instead): move rules into linters and a Claude Code `Stop` hook; its numbers are about tool speed only.
-- Roman (DEV Community), [The Best Agent Prompt Is a Lint Error](https://dev.to/romanonthego/the-best-agent-prompt-is-a-lint-error-3kim): turn repeated failures into lint rules whose message names the fix.
 
 Research on agent context files, without rules or hooks:
 - [Evaluating AGENTS.md: Are Repository-Level Context Files Helpful for Coding Agents?](https://arxiv.org/abs/2602.11988): context files barely change success and cost 20% and more.
