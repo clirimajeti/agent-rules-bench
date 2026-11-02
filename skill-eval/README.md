@@ -14,10 +14,11 @@ The session may use Bash (scans, rule tests, dependency installs), so it runs on
 ```bash
 node skill-eval/eval.mjs prepare            # copies under workdirs/skill-eval/<target>/skill
 node skill-eval/eval.mjs run [--model opus]  # one session per target not yet done (default sonnet)
+node skill-eval/eval.mjs run --resume       # continue sessions that failed (for example on a usage limit)
 node skill-eval/eval.mjs status
 ```
 
-Each run resets its copy first and writes `results/<target>/`: `session.json`, `changes.patch` (everything it added or changed, without the copied skills), `claude/` (the git-excluded loop files and settings) and `codemyrules-report.md`.
+A fresh run resets its copy first; `--resume` keeps the copy as it is and continues the failed session (`claude -p --resume`), keeping earlier attempts as `session.1.json`, ... so their cost counts. Each run writes `results/<target>/`: `session.json`, `changes.patch` (everything it added or changed, without the copied skills), `claude/` (the git-excluded loop files and settings) and `codemyrules-report.md`.
 
 ## Scoring
 
