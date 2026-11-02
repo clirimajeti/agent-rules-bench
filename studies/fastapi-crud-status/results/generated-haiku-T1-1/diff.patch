@@ -1,0 +1,175 @@
+diff --git a/backend/app/api/routes/items.py b/backend/app/api/routes/items.py
+index f0eb30e..e42a1d6 100644
+--- a/backend/app/api/routes/items.py
++++ b/backend/app/api/routes/items.py
+@@ -4,8 +4,17 @@ from typing import Any
+ from fastapi import APIRouter, HTTPException
+ from sqlmodel import col, func, select
+ 
++from app import crud
+ from app.api.deps import CurrentUser, SessionDep
+-from app.models import Item, ItemCreate, ItemPublic, ItemsPublic, ItemUpdate, Message
++from app.models import (
++    Item,
++    ItemCreate,
++    ItemPublic,
++    ItemsPublic,
++    ItemStatsPublic,
++    ItemUpdate,
++    Message,
++)
+ 
+ router = APIRouter(prefix="/items", tags=["items"])
+ 
+@@ -45,6 +54,17 @@ def read_items(
+     return ItemsPublic(data=items_public, count=count)
+ 
+ 
++@router.get("/stats", response_model=ItemStatsPublic)
++def read_item_stats(session: SessionDep, current_user: CurrentUser) -> Any:
++    """
++    Get item count and the title of the newest item.
++
++    Superusers get the figures across all items; other users only their own.
++    """
++    owner_id = None if current_user.is_superuser else current_user.id
++    return crud.get_item_stats(session=session, owner_id=owner_id)
++
++
+ @router.get("/{id}", response_model=ItemPublic)
+ def read_item(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) -> Any:
+     """
+diff --git a/backend/app/crud.py b/backend/app/crud.py
+index a8ceba6..c7dc2c5 100644
+--- a/backend/app/crud.py
++++ b/backend/app/crud.py
+@@ -1,10 +1,17 @@
+ import uuid
+ from typing import Any
+ 
+-from sqlmodel import Session, select
++from sqlmodel import Session, col, func, select
+ 
+ from app.core.security import get_password_hash, verify_password
+-from app.models import Item, ItemCreate, User, UserCreate, UserUpdate
++from app.models import (
++    Item,
++    ItemCreate,
++    ItemStatsPublic,
++    User,
++    UserCreate,
++    UserUpdate,
++)
+ 
+ 
+ def create_user(*, session: Session, user_create: UserCreate) -> User:
+@@ -66,3 +73,25 @@ def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -
+     session.commit()
+     session.refresh(db_item)
+     return db_item
++
++
++def get_item_stats(
++    *, session: Session, owner_id: uuid.UUID | None = None
++) -> ItemStatsPublic:
++    """
++    Count items and find the newest title.
++
++    Covers all items when owner_id is None, otherwise only that owner's items.
++    """
++    count_statement = select(func.count()).select_from(Item)
++    title_statement = (
++        select(Item.title)
++        .order_by(col(Item.created_at).desc(), col(Item.id).desc())
++        .limit(1)
++    )
++    if owner_id is not None:
++        count_statement = count_statement.where(Item.owner_id == owner_id)
++        title_statement = title_statement.where(Item.owner_id == owner_id)
++    count = session.exec(count_statement).one()
++    newest_title = session.exec(title_statement).first()
++    return ItemStatsPublic(count=count, newest_title=newest_title)
+diff --git a/backend/app/models.py b/backend/app/models.py
+index 181acf2..0a6938e 100644
+--- a/backend/app/models.py
++++ b/backend/app/models.py
+@@ -105,6 +105,11 @@ class ItemsPublic(SQLModel):
+     count: int
+ 
+ 
++class ItemStatsPublic(SQLModel):
++    count: int
++    newest_title: str | None = None
++
++
+ # Generic message
+ class Message(SQLModel):
+     message: str
+diff --git a/backend/tests/api/routes/test_items.py b/backend/tests/api/routes/test_items.py
+index 3e82cd0..f8ebc77 100644
+--- a/backend/tests/api/routes/test_items.py
++++ b/backend/tests/api/routes/test_items.py
+@@ -3,8 +3,12 @@ import uuid
+ from fastapi.testclient import TestClient
+ from sqlmodel import Session
+ 
++from app import crud
+ from app.core.config import settings
++from app.models import ItemCreate, UserCreate
+ from tests.utils.item import create_random_item
++from tests.utils.user import user_authentication_headers
++from tests.utils.utils import random_email, random_lower_string
+ 
+ 
+ def test_create_item(
+@@ -24,6 +28,50 @@ def test_create_item(
+     assert "owner_id" in content
+ 
+ 
++def test_read_item_stats_normal_user(
++    client: TestClient, normal_user_token_headers: dict[str, str], db: Session
++) -> None:
++    url = f"{settings.API_V1_STR}/items/stats"
++    before = client.get(url, headers=normal_user_token_headers).json()
++    user = crud.get_user_by_email(session=db, email=settings.EMAIL_TEST_USER)
++    assert user is not None
++    item = crud.create_item(
++        session=db, item_in=ItemCreate(title=random_lower_string()), owner_id=user.id
++    )
++    response = client.get(url, headers=normal_user_token_headers)
++    assert response.status_code == 200
++    content = response.json()
++    assert content["count"] == before["count"] + 1
++    assert content["newest_title"] == item.title
++
++
++def test_read_item_stats_superuser_sees_all_items(
++    client: TestClient, superuser_token_headers: dict[str, str], db: Session
++) -> None:
++    url = f"{settings.API_V1_STR}/items/stats"
++    before = client.get(url, headers=superuser_token_headers).json()
++    item = create_random_item(db)
++    response = client.get(url, headers=superuser_token_headers)
++    assert response.status_code == 200
++    content = response.json()
++    assert content["count"] == before["count"] + 1
++    assert content["newest_title"] == item.title
++
++
++def test_read_item_stats_no_items(client: TestClient, db: Session) -> None:
++    email = random_email()
++    password = random_lower_string()
++    crud.create_user(session=db, user_create=UserCreate(email=email, password=password))
++    headers = user_authentication_headers(
++        client=client, email=email, password=password
++    )
++    # Another user's item must not be counted for this user.
++    create_random_item(db)
++    response = client.get(f"{settings.API_V1_STR}/items/stats", headers=headers)
++    assert response.status_code == 200
++    assert response.json() == {"count": 0, "newest_title": None}
++
++
+ def test_read_item(
+     client: TestClient, superuser_token_headers: dict[str, str], db: Session
+ ) -> None:

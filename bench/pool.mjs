@@ -22,7 +22,7 @@ const resampleMean = (xs, rand) => { let s = 0; for (let i = 0; i < xs.length; i
 const percentiles = (xs) => { const s = [...xs].sort((a, b) => a - b); const at = (q) => s[Math.min(s.length - 1, Math.floor(q * s.length))]; return [at(0.025), at(0.975)]; };
 const total = (r) => r.taskCost + r.fixCost;
 
-export function comparisons(results, { seed = 1, iterations = 10000 } = {}) {
+export function comparisons(results, { seed = 1, iterations = 10000, rulesArm = 'rules' } = {}) {
   const rand = rng(seed);
   const groups = new Map();
   for (const r of results) {
@@ -32,7 +32,7 @@ export function comparisons(results, { seed = 1, iterations = 10000 } = {}) {
   const out = [];
   for (const [k, rs] of groups) {
     const [study, model] = k.split('|');
-    const rules = rs.filter((r) => r.arm === 'rules');
+    const rules = rs.filter((r) => r.arm === rulesArm);
     if (!rules.length) continue;
     const proseArms = [...new Set(rs.map((r) => r.arm).filter((a) => a.startsWith('prose')))].sort();
     for (const prose of proseArms) {
@@ -73,8 +73,8 @@ export function poolComparisons(cs, { seed = 1, iterations = 10000, exclude = []
 const pct = (r) => `${r >= 1 ? '+' : ''}${((r - 1) * 100).toFixed(0)}%`;
 const KIND = { missable: 'prose the agent can miss (linked or buried)', loaded: 'always-loaded prose' };
 
-export function poolMarkdown(cs, pooled, exclude) {
-  const lines = ['# Pooled results', '', 'Rules + pointer + loop against prose, total cost per run including review fixes. Ratio = rules / prose; 95% bootstrap interval; first-draft breaks are runs with a rule broken after the task, before any review.', ''];
+export function poolMarkdown(cs, pooled, exclude, rulesArm = 'rules') {
+  const lines = ['# Pooled results', '', ...(rulesArm === 'rules' ? [] : [`Rules side: the "${rulesArm}" arm.`, '']), 'Rules + pointer + loop against prose, total cost per run including review fixes. Ratio = rules / prose; 95% bootstrap interval; first-draft breaks are runs with a rule broken after the task, before any review.', ''];
   lines.push('## Pooled', '', '| against | model | comparisons | cost change | 95% interval | prose: runs broken | rules: runs broken |', '|---|---|---|---|---|---|---|');
   for (const p of pooled) lines.push(`| ${KIND[p.kind]} | ${p.model} | ${p.cells} | ${pct(p.ratio)} | ${pct(p.ci[0])} to ${pct(p.ci[1])} | ${p.proseBroken}/${p.proseRuns} | ${p.rulesBroken}/${p.rulesRuns} |`);
   if (exclude.length) lines.push('', `Excluded from pooling: ${exclude.join(', ')}.`);
@@ -83,10 +83,10 @@ export function poolMarkdown(cs, pooled, exclude) {
   return lines.join('\n') + '\n';
 }
 
-export function poolStudies(files, { exclude = [], out, log = console.log } = {}) {
+export function poolStudies(files, { exclude = [], out, rulesArm = 'rules', log = console.log } = {}) {
   const results = files.flatMap((f) => { const s = loadStudy(f); return loadResults(s.resultsDir).map((r) => ({ ...r, study: s.name })); });
-  const cs = comparisons(results);
-  const md = poolMarkdown(cs, poolComparisons(cs, { exclude }), exclude);
+  const cs = comparisons(results, { rulesArm });
+  const md = poolMarkdown(cs, poolComparisons(cs, { exclude }), exclude, rulesArm);
   if (out) fs.writeFileSync(path.resolve(out), md);
   log(md);
   return md;

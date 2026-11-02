@@ -18,6 +18,7 @@ All arms get the same `CLAUDE.md`, which points to the project's own `AGENTS.md`
 - `prose_buried` (baseline): the notification rule as a bullet mid-list in `docs/api-layer.md`, the query-key rule as a sentence in the server-cache section of `docs/state-management.md`.
 - `prose_loaded`: both rules in `CLAUDE.md`.
 - `rules`: no rule prose; the ESLint rules with the codemyrules feedback loop, and a one-line pointer for the notification rule in `apps/react-vite/src/features/CLAUDE.md`.
+- `generated`: what codemyrules built on its own from the `prose_buried` state ([skill-eval run 96a98b7](../../skill-eval/results-96a98b7/SCORE.md)), applied by [arms/generated.sh](arms/generated.sh): 15 ESLint rules in the app's own config (the notification rule in the suggestions layer, the query-key rule in the main one), the slimmed `AGENTS.md` and its feedback loop; the rule prose in `docs/` stays, as the skill left it.
 
 ## Setup
 
@@ -51,3 +52,8 @@ The setups did the same work: 4-7 changed files per run, no run wrote tests, and
 - **Cost:** rules + loop were cheaper than buried prose (-9% Sonnet inside the spread, -20% Haiku outside it).
   Against always-loaded prose they were -12% for Haiku but +16% for Sonnet (inside the spread); the always-loaded Sonnet runs read less (281k vs 305k input tokens, 18.9 vs 22.3 turns), presumably because the answer was already in `CLAUDE.md`.
 - With only two rules, the always-loaded text is about 100 tokens, so its per-session context cost is negligible here; it grows with every rule added and is paid in sessions that do not need the rules.
+
+## Generated arm (codemyrules' own output)
+
+0 of 16 runs broke either rule; the loop caught the notification rule 4 times and the skill's own `gen-absolute-imports` 16 times, each fixed in the same turn.
+Cost per run against `rules`: Haiku -4%, Sonnet +4%; against `prose_buried`: Haiku -23%, Sonnet -5%.

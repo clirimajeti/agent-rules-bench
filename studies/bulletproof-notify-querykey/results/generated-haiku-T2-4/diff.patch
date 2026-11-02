@@ -1,0 +1,190 @@
+diff --git a/apps/react-vite/src/features/users/api/update-user-role.ts b/apps/react-vite/src/features/users/api/update-user-role.ts
+new file mode 100644
+index 0000000..1777139
+--- /dev/null
++++ b/apps/react-vite/src/features/users/api/update-user-role.ts
+@@ -0,0 +1,52 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { useNotifications } from '@/components/ui/notifications';
++import { api } from '@/lib/api-client';
++import { MutationConfig } from '@/lib/react-query';
++
++import { getUsersQueryOptions } from './get-users';
++
++export const updateUserRoleInputSchema = z.object({
++  role: z.enum(['ADMIN', 'USER']),
++});
++
++export type UpdateUserRoleInput = z.infer<typeof updateUserRoleInputSchema>;
++
++export type UpdateUserRoleDTO = UpdateUserRoleInput & {
++  userId: string;
++};
++
++export const updateUserRole = ({ userId, role }: UpdateUserRoleDTO) => {
++  return api.patch(`/users/${userId}/role`, { role });
++};
++
++type UseUpdateUserRoleOptions = {
++  mutationConfig?: MutationConfig<typeof updateUserRole>;
++};
++
++export const useUpdateUserRole = ({
++  mutationConfig,
++}: UseUpdateUserRoleOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: async (data, variables, context) => {
++      // Awaiting the refetch keeps the mutation pending until the list shows the new role.
++      await queryClient.invalidateQueries({
++        queryKey: getUsersQueryOptions().queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'Role Updated',
++        message: `User role changed to ${variables.role}`,
++      });
++      onSuccess?.(data, variables, context);
++    },
++    ...restConfig,
++    mutationFn: updateUserRole,
++  });
++};
+diff --git a/apps/react-vite/src/features/users/components/update-user-role.tsx b/apps/react-vite/src/features/users/components/update-user-role.tsx
+new file mode 100644
+index 0000000..7b452d3
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/update-user-role.tsx
+@@ -0,0 +1,45 @@
++import {
++  UpdateUserRoleInput,
++  useUpdateUserRole,
++} from '@/features/users/api/update-user-role';
++import { useUser } from '@/lib/auth';
++import { User } from '@/types/api';
++
++const roleOptions: { label: string; value: UpdateUserRoleInput['role'] }[] = [
++  { label: 'Admin', value: 'ADMIN' },
++  { label: 'User', value: 'USER' },
++];
++
++type UpdateUserRoleProps = {
++  id: string;
++  role: User['role'];
++};
++
++export const UpdateUserRole = ({ id, role }: UpdateUserRoleProps) => {
++  const user = useUser();
++  const updateUserRoleMutation = useUpdateUserRole();
++
++  const isPending = updateUserRoleMutation.isPending;
++  const variables = updateUserRoleMutation.variables;
++
++  return (
++    <select
++      aria-label="Role"
++      className="block rounded-md border-gray-600 py-1 pl-2 pr-8 text-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
++      value={isPending && variables ? variables.role : role}
++      disabled={isPending || user.data?.id === id}
++      onChange={(event) =>
++        updateUserRoleMutation.mutate({
++          userId: id,
++          role: event.target.value as UpdateUserRoleInput['role'],
++        })
++      }
++    >
++      {roleOptions.map((option) => (
++        <option key={option.value} value={option.value}>
++          {option.label}
++        </option>
++      ))}
++    </select>
++  );
++};
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..526feb8 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -5,6 +5,7 @@ import { formatDate } from '@/utils/format';
+ import { useUsers } from '../api/get-users';
+ 
+ import { DeleteUser } from './delete-user';
++import { UpdateUserRole } from './update-user-role';
+ 
+ export const UsersList = () => {
+   const usersQuery = useUsers();
+@@ -40,6 +41,9 @@ export const UsersList = () => {
+         {
+           title: 'Role',
+           field: 'role',
++          Cell({ entry: { id, role } }) {
++            return <UpdateUserRole id={id} role={role} />;
++          },
+         },
+         {
+           title: 'Created At',
+diff --git a/apps/react-vite/src/testing/mocks/handlers/users.ts b/apps/react-vite/src/testing/mocks/handlers/users.ts
+index 444b918..c323725 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/users.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/users.ts
+@@ -101,4 +101,54 @@ export const usersHandlers = [
+       );
+     }
+   }),
++
++  http.patch(
++    `${env.API_URL}/users/:userId/role`,
++    async ({ request, cookies, params }) => {
++      await networkDelay();
++
++      try {
++        const { user, error } = requireAuth(cookies);
++        if (error) {
++          return HttpResponse.json({ message: error }, { status: 401 });
++        }
++        if (user?.role !== 'ADMIN') {
++          return HttpResponse.json({ message: 'Forbidden' }, { status: 403 });
++        }
++
++        const { role } = (await request.json()) as { role: string };
++        if (role !== 'ADMIN' && role !== 'USER') {
++          return HttpResponse.json(
++            { message: 'Invalid role' },
++            { status: 400 },
++          );
++        }
++
++        const userId = params.userId as string;
++        const result = db.user.update({
++          where: {
++            id: {
++              equals: userId,
++            },
++            teamId: {
++              equals: user?.teamId,
++            },
++          },
++          data: { role },
++        });
++
++        if (!result) {
++          return HttpResponse.json({ message: 'Not Found' }, { status: 404 });
++        }
++
++        await persistDb('user');
++        return HttpResponse.json(sanitizeUser(result));
++      } catch (error: any) {
++        return HttpResponse.json(
++          { message: error?.message || 'Server Error' },
++          { status: 500 },
++        );
++      }
++    },
++  ),
+ ];

@@ -10,6 +10,8 @@ Same repo, commit, tasks, rules, checkers and fix prompt as the first study.
 - `prose_buried` (baseline): `CLAUDE.md` gives a short overview and links to 8 docs (architecture, backend, API, persistence, security, testing, frontend, workflow; about 5,000 tokens in all).
   The clock rule is one bullet in the middle of the services section of `docs/backend.md`, the authorities rule one bullet in the middle of the authorization section of `docs/security.md`.
 - `rules`: the identical docs without those two bullets, plus the ast-grep rules, the codemyrules feedback loop, and a one-line pointer for the clock rule in `src/main/java/CLAUDE.md`.
+- `generated`: what codemyrules built on its own from the `prose_buried` state ([skill-eval run 96a98b7](../../skill-eval/results-96a98b7/SCORE.md)), applied by [arms/generated.sh](arms/generated.sh): 28 ast-grep and 5 ESLint rules (both study rules in the suggestions layer), the slimmed docs, its pointer file `src/main/java/CLAUDE.md` and its feedback loop.
+  It answers whether installing the skill gives the result of the hand-written rules.
 
 Both arms build their docs from [arms/files](arms/files/) with [arms/docs.sh](arms/docs.sh), so the docs differ only in the two bullets.
 
@@ -43,3 +45,10 @@ Production versus test split for prose_buried comes from the fix sessions' own r
 ## Next
 
 Decide whether the rules cover tests, make docs and checkers agree, and rerun.
+
+## Generated arm (codemyrules' own output)
+
+0 of 16 runs broke a rule in production code.
+The 2 Haiku runs counted as broken wrote a clockless `now()` in `OperationResourceIT.java`, a test the skill's `gen-clock-now` does not cover (scoped to `service/**`, where the doc line sits).
+The loop caught `gen-clock-now` 5 times (Haiku), fixed in the same turn.
+Cost per run against `rules`: Haiku +3%, Sonnet -34%; Sonnet wrote tests in 0 of 8 runs against 4 of 8, so part of that is less work (-18% on runs without tests).

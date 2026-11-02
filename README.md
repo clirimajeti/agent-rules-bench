@@ -37,7 +37,7 @@ Pooled over the four public studies (152 runs, [studies/pooled.md](studies/poole
 ## How it works
 
 ```bash
-node bench/bench.mjs prepare   studies/<study>/study.json   # one fresh copy per arm, at the pinned commit
+node bench/bench.mjs prepare   studies/<study>/study.json [--arms a,b]   # one fresh copy per arm, at the pinned commit
 node bench/bench.mjs run       studies/<study>/study.json   # all sessions, resumable; prints the summary
 node bench/bench.mjs summarize studies/<study>/study.json   # summary.md and runs.csv from the results
 ```

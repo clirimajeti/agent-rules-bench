@@ -38,3 +38,9 @@ test('pooling averages log ratios across cells, honours exclusions, and is repro
   const without = poolComparisons(comparisons(results, opts), { ...opts, exclude: ['a/sonnet/prose_buried'] });
   assert.equal(without.find((p) => p.kind === 'missable' && p.model === 'all').cells, 1);
 });
+
+test('comparisons can put another arm on the rules side', () => {
+  const results = [...cell('s', 'prose_buried', 'haiku', [2, 2]), ...cell('s', 'rules', 'haiku', [1, 1]), ...cell('s', 'generated', 'haiku', [0.5, 0.5])];
+  assert.equal(comparisons(results, { iterations: 100 })[0].ratio, 0.5);
+  assert.equal(comparisons(results, { iterations: 100, rulesArm: 'generated' })[0].ratio, 0.25);
+});

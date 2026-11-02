@@ -23,6 +23,8 @@ A fresh run resets its copy first; `--resume` keeps the copy as it is and contin
 Earlier runs are kept as `results-<codemyrules commit>/`, each with its `SCORE.md`: [results-d307701](results-d307701/SCORE.md) is the first run, before the suggestions layer.
 [results-96a98b7](results-96a98b7/SCORE.md) is the second run, with the suggestions layer: all 6 known rules reach the loop.
 
+[apply-output.sh](apply-output.sh) puts a run's output onto a study copy; each study's `generated` arm uses it to run the study tasks against what the skill built.
+
 ## Scoring
 
 Against [expected.json](expected.json), per target:

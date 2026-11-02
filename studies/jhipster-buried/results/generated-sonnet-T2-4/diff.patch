@@ -1,0 +1,148 @@
+diff --git a/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+new file mode 100644
+index 00000000..555feee2
+--- /dev/null
++++ b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+@@ -0,0 +1,17 @@
++package io.github.jhipster.sample.config;
++
++import java.time.Clock;
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++
++/**
++ * Provides the application wide {@link Clock} so time dependent code can be tested.
++ */
++@Configuration
++public class ClockConfiguration {
++
++    @Bean
++    public Clock clock() {
++        return Clock.systemUTC();
++    }
++}
+diff --git a/src/main/java/io/github/jhipster/sample/repository/OperationRepository.java b/src/main/java/io/github/jhipster/sample/repository/OperationRepository.java
+index 8be1aca3..98f1591d 100644
+--- a/src/main/java/io/github/jhipster/sample/repository/OperationRepository.java
++++ b/src/main/java/io/github/jhipster/sample/repository/OperationRepository.java
+@@ -1,6 +1,7 @@
+ package io.github.jhipster.sample.repository;
+ 
+ import io.github.jhipster.sample.domain.Operation;
++import java.time.Instant;
+ import java.util.List;
+ import java.util.Optional;
+ import org.springframework.data.domain.Page;
+@@ -29,6 +30,8 @@ public interface OperationRepository extends OperationRepositoryWithBagRelations
+         return this.fetchBagRelationships(this.findAllWithToOneRelationships(pageable));
+     }
+ 
++    Page<Operation> findByDateBetween(Instant from, Instant to, Pageable pageable);
++
+     @Query(
+         value = "select operation from Operation operation left join fetch operation.bankAccount",
+         countQuery = "select count(operation) from Operation operation"
+diff --git a/src/main/java/io/github/jhipster/sample/service/OperationService.java b/src/main/java/io/github/jhipster/sample/service/OperationService.java
+new file mode 100644
+index 00000000..a142379e
+--- /dev/null
++++ b/src/main/java/io/github/jhipster/sample/service/OperationService.java
+@@ -0,0 +1,41 @@
++package io.github.jhipster.sample.service;
++
++import io.github.jhipster.sample.domain.Operation;
++import io.github.jhipster.sample.repository.OperationRepository;
++import java.time.Clock;
++import java.time.Duration;
++import java.time.Instant;
++import org.springframework.data.domain.Page;
++import org.springframework.data.domain.Pageable;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++
++/**
++ * Service for queries on {@link Operation} that go beyond plain CRUD.
++ */
++@Service
++@Transactional(readOnly = true)
++public class OperationService {
++
++    private static final Duration RECENT_PERIOD = Duration.ofDays(30);
++
++    private final OperationRepository operationRepository;
++
++    private final Clock clock;
++
++    public OperationService(OperationRepository operationRepository, Clock clock) {
++        this.operationRepository = operationRepository;
++        this.clock = clock;
++    }
++
++    /**
++     * Get the operations whose date lies within the last 30 days.
++     *
++     * @param pageable the pagination information.
++     * @return the page of recent operations.
++     */
++    public Page<Operation> findRecent(Pageable pageable) {
++        Instant now = Instant.now(clock);
++        return operationRepository.findByDateBetween(now.minus(RECENT_PERIOD), now, pageable);
++    }
++}
+diff --git a/src/main/java/io/github/jhipster/sample/web/rest/OperationResource.java b/src/main/java/io/github/jhipster/sample/web/rest/OperationResource.java
+index 11545693..7828e804 100644
+--- a/src/main/java/io/github/jhipster/sample/web/rest/OperationResource.java
++++ b/src/main/java/io/github/jhipster/sample/web/rest/OperationResource.java
+@@ -2,6 +2,8 @@ package io.github.jhipster.sample.web.rest;
+ 
+ import io.github.jhipster.sample.domain.Operation;
+ import io.github.jhipster.sample.repository.OperationRepository;
++import io.github.jhipster.sample.security.AuthoritiesConstants;
++import io.github.jhipster.sample.service.OperationService;
+ import io.github.jhipster.sample.web.rest.errors.BadRequestAlertException;
+ import jakarta.validation.Valid;
+ import jakarta.validation.constraints.NotNull;
+@@ -18,6 +20,7 @@ import org.springframework.data.domain.Page;
+ import org.springframework.data.domain.Pageable;
+ import org.springframework.http.HttpHeaders;
+ import org.springframework.http.ResponseEntity;
++import org.springframework.security.access.prepost.PreAuthorize;
+ import org.springframework.transaction.annotation.Transactional;
+ import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+@@ -42,8 +45,11 @@ public class OperationResource {
+ 
+     private final OperationRepository operationRepository;
+ 
+-    public OperationResource(OperationRepository operationRepository) {
++    private final OperationService operationService;
++
++    public OperationResource(OperationRepository operationRepository, OperationService operationService) {
+         this.operationRepository = operationRepository;
++        this.operationService = operationService;
+     }
+ 
+     /**
+@@ -166,6 +172,22 @@ public class OperationResource {
+         return ResponseEntity.ok().headers(headers).body(page.getContent());
+     }
+ 
++    // Hand-written (not generated): admin-only list of operations from the last 30 days.
++    /**
++     * {@code GET  /operations/recent} : get the operations whose date lies within the last 30 days.
++     *
++     * @param pageable the pagination information.
++     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of recent Operations in body.
++     */
++    @GetMapping("/recent")
++    @PreAuthorize("hasAuthority('" + AuthoritiesConstants.ADMIN + "')")
++    public ResponseEntity<List<Operation>> getRecentOperations(@org.springdoc.core.annotations.ParameterObject Pageable pageable) {
++        LOG.debug("REST request to get a page of recent Operations");
++        Page<Operation> page = operationService.findRecent(pageable);
++        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
++        return ResponseEntity.ok().headers(headers).body(page.getContent());
++    }
++
+     /**
+      * {@code GET  /operations/:id} : get the "id" operation.
+      *
