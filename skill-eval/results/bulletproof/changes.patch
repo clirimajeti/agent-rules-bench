@@ -1,0 +1,581 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index d64deab..ef00c57 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -82,8 +82,6 @@ src/features/awesome-feature/
+ ### Code Style
+ - **ESLint + Prettier** configured for consistent formatting
+ - **Kebab-case** for file and folder names
+-- **PascalCase** for React components
+-- **camelCase** for functions and variables
+ 
+ ### Architecture Rules
+ - **No cross-feature imports** - Features should not import from each other
+@@ -95,7 +93,6 @@ src/features/awesome-feature/
+ ### Best Practices
+ - **Composition over props** - Use children/slots instead of many props
+ - **Single responsibility** - Each component should have one clear purpose  
+-- **Extract render functions** - Move complex JSX into separate components
+ - **Limit prop count** - Consider composition if accepting too many props
+ 
+ ### Styling
+@@ -117,12 +114,10 @@ src/features/awesome-feature/
+ ### Server State
+ - **React Query (TanStack Query)** for all server state management
+ - **MSW (Mock Service Worker)** for API mocking during development
+-- Separate fetcher functions from hooks
+ 
+ ### Form State
+-- **React Hook Form** for form management
++- Build forms with `Form` and the field components from `@/components/ui/form`, which wrap React Hook Form (enforced by ESLint)
+ - **Zod** for form validation schemas
+-- Create reusable Form and Input components
+ 
+ ## API Layer
+ 
+@@ -179,19 +174,16 @@ export const useDiscussions = (params: GetDiscussionsParams) => {
+ 
+ ### XSS Prevention
+ - **Sanitize all user inputs** before rendering
+-- Use DOMPurify for HTML content sanitization
+ - Validate and escape data at boundaries
+ 
+ ## Performance Optimization
+ 
+ ### Code Splitting
+-- **Route-level splitting** - Lazy load pages/routes
+ - Avoid excessive splitting (balance requests vs. bundle size)
+ 
+ ### React Optimizations
+ - **Children prop pattern** - Prevent unnecessary re-renders
+ - **State colocation** - Keep state close to where it's used
+-- **State initializer functions** - For expensive initial computations
+ 
+ ### Image Optimization
+ - Lazy loading for images outside viewport
+@@ -225,7 +217,6 @@ export const useDiscussions = (params: GetDiscussionsParams) => {
+ ## File Naming Conventions
+ 
+ - **Components**: `kebab-case.tsx` (e.g., `user-profile.tsx`)
+-- **Hooks**: `use-kebab-case.ts` (e.g., `use-discussions.ts`)  
+ - **Utilities**: `kebab-case.ts` (e.g., `format-date.ts`)
+ - **Types**: `kebab-case.ts` (e.g., `api-types.ts`)
+ - **Folders**: `kebab-case` throughout
+@@ -252,7 +243,6 @@ export const useDiscussions = (params: GetDiscussionsParams) => {
+ ### UI & Styling  
+ - **Tailwind CSS** for styling
+ - **Radix UI** for headless components
+-- **Lucide React** for icons
+ 
+ ### Data & State
+ - **TanStack Query** for server state
+diff --git a/apps/react-vite/.eslintrc.cjs b/apps/react-vite/.eslintrc.cjs
+index d14efd6..75301af 100644
+--- a/apps/react-vite/.eslintrc.cjs
++++ b/apps/react-vite/.eslintrc.cjs
+@@ -1,3 +1,113 @@
++// Project conventions from AGENTS.md and docs/*.md, enforced with built-in rules.
++// Legacy overrides replace a rule's options per file, so each override below
++// lists the full set of entries that applies to its files.
++
++const testFiles = [
++  '**/__tests__/**',
++  '**/*.test.ts',
++  '**/*.test.tsx',
++  'src/testing/**',
++];
++
++const restrictedImport = {
++  axios: {
++    name: 'axios',
++    message:
++      'Use the single preconfigured API client from @/lib/api-client (docs/api-layer.md).',
++  },
++  reactHookForm: {
++    name: 'react-hook-form',
++    message:
++      'Build forms with the Form and field components from @/components/ui/form, which wrap react-hook-form (docs/state-management.md).',
++  },
++};
++
++const restrictedSyntax = {
++  queryKeyLiteral: {
++    selector:
++      "CallExpression:not([callee.name=/^(queryOptions|infiniteQueryOptions)$/]) > ObjectExpression > Property[key.name='queryKey'] > ArrayExpression",
++    message:
++      "Take query keys from the feature's query options, e.g. getUsersQueryOptions().queryKey; write literal key arrays only inside queryOptions(...) (docs/state-management.md).",
++  },
++  queryClientKeyLiteral: {
++    selector:
++      'CallExpression[callee.property.name=/^(getQueryData|setQueryData|getQueriesData|setQueriesData|ensureQueryData|prefetchQuery|fetchQuery|refetchQueries|cancelQueries|removeQueries|resetQueries|invalidateQueries)$/] > ArrayExpression',
++    message:
++      "Take query keys from the feature's query options, e.g. getUsersQueryOptions().queryKey; write literal key arrays only inside queryOptions(...) (docs/state-management.md).",
++  },
++  inlineFetcher: {
++    selector:
++      "Property[key.name=/^(queryFn|mutationFn)$/] CallExpression[callee.object.name='api']",
++    message:
++      'Declare a separate fetcher function that calls the API client and pass it to queryFn/mutationFn (docs/api-layer.md).',
++  },
++  unsanitizedHtml: {
++    selector:
++      "JSXAttribute[name.name='dangerouslySetInnerHTML']:not(:has(CallExpression[callee.property.name='sanitize']))",
++    message:
++      'Sanitize HTML with DOMPurify.sanitize(...) before passing it to dangerouslySetInnerHTML (docs/security.md).',
++  },
++  eagerStateInit: {
++    selector:
++      "CallExpression[callee.name='useState'] > CallExpression, CallExpression[callee.property.name='useState'] > CallExpression",
++    message:
++      'Pass an initializer function, useState(() => compute()), so the computation runs only once (docs/performance.md).',
++  },
++  nestedRenderFunction: {
++    selector:
++      ':function FunctionDeclaration[id.name=/^render[A-Z]/], :function VariableDeclarator[id.name=/^render[A-Z]/] > :matches(ArrowFunctionExpression, FunctionExpression)',
++    message:
++      'Extract this rendering function into its own component instead of nesting it (docs/components-and-styling.md).',
++  },
++  mockedFetch: {
++    selector:
++      "CallExpression[callee.object.name='vi'][callee.property.name='spyOn'][arguments.1.value='fetch'], CallExpression[callee.object.name='vi'][callee.property.name='stubGlobal'][arguments.0.value='fetch'], CallExpression[callee.object.name='vi'][callee.property.name=/^(mock|doMock)$/][arguments.0.value=/^(axios|@.lib.api-client)$/], AssignmentExpression[left.property.name='fetch']",
++    message:
++      'Do not mock fetch or the API client in tests; send real requests and handle them with MSW handlers in src/testing/mocks (docs/testing.md).',
++  },
++};
++
++const sourceSyntax = [
++  'error',
++  restrictedSyntax.queryKeyLiteral,
++  restrictedSyntax.queryClientKeyLiteral,
++  restrictedSyntax.inlineFetcher,
++  restrictedSyntax.unsanitizedHtml,
++  restrictedSyntax.eagerStateInit,
++  restrictedSyntax.nestedRenderFunction,
++];
++
++// Conventions with open hits stay at warn until those are fixed, then move
++// into the error-level no-restricted-imports above.
++const legacyImport = {
++  parentRelative: {
++    group: ['../*', '../../*', '../../../*'],
++    message:
++      'Use the @/ alias for imports outside the current folder, e.g. @/components/ui/button (docs/project-standards.md).',
++  },
++  radixIcons: {
++    name: '@radix-ui/react-icons',
++    message: 'Use lucide-react for icons.',
++  },
++  routerLink: {
++    name: 'react-router',
++    importNames: ['Link'],
++    message:
++      'Use the wrapped Link from @/components/ui/link (docs/components-and-styling.md).',
++  },
++  notifications: {
++    name: '@/components/ui/notifications',
++    importNames: ['useNotifications'],
++    message:
++      "Show mutation success notifications in the mutation hook's onSuccess in the feature's api/ folder, not in components (docs/api-layer.md).",
++  },
++};
++
++const legacyImports = (...paths) => [
++  'warn',
++  { paths, patterns: [legacyImport.parentRelative] },
++];
++
+ module.exports = {
+   root: true,
+   env: {
+@@ -130,11 +240,127 @@ module.exports = {
+           'error',
+           {
+             '**/*.{ts,tsx}': 'KEBAB_CASE',
++            'src/**/hooks/*.{ts,tsx}': 'use-+([a-z0-9-])',
+           },
+           {
+             ignoreMiddleExtensions: true,
+           },
+         ],
++        '@typescript-eslint/naming-convention': [
++          'error',
++          { selector: 'function', format: ['camelCase', 'PascalCase'] },
++          {
++            selector: 'variable',
++            format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
++            leadingUnderscore: 'allow',
++          },
++          { selector: 'typeLike', format: ['PascalCase'] },
++        ],
++        'no-restricted-imports': [
++          'error',
++          { paths: [restrictedImport.axios, restrictedImport.reactHookForm] },
++        ],
++        'no-restricted-globals': [
++          'error',
++          {
++            name: 'fetch',
++            message:
++              'Use the single preconfigured API client from @/lib/api-client (docs/api-layer.md).',
++          },
++        ],
++        'no-restricted-properties': [
++          'error',
++          ...['window', 'globalThis', 'self'].map((object) => ({
++            object,
++            property: 'fetch',
++            message:
++              'Use the single preconfigured API client from @/lib/api-client (docs/api-layer.md).',
++          })),
++        ],
++        'no-restricted-syntax': sourceSyntax,
++        '@typescript-eslint/no-restricted-imports': legacyImports(
++          legacyImport.radixIcons,
++          legacyImport.routerLink,
++        ),
++      },
++    },
++    {
++      files: testFiles,
++      rules: {
++        'no-restricted-syntax': [
++          'error',
++          restrictedSyntax.queryKeyLiteral,
++          restrictedSyntax.queryClientKeyLiteral,
++          restrictedSyntax.inlineFetcher,
++          restrictedSyntax.unsanitizedHtml,
++          restrictedSyntax.eagerStateInit,
++          restrictedSyntax.mockedFetch,
++        ],
++      },
++    },
++    {
++      files: ['src/lib/api-client.ts'],
++      rules: {
++        'no-restricted-imports': [
++          'error',
++          { paths: [restrictedImport.reactHookForm] },
++        ],
++      },
++    },
++    {
++      files: ['src/components/ui/form/**'],
++      rules: {
++        'no-restricted-imports': [
++          'error',
++          { paths: [restrictedImport.axios] },
++        ],
++      },
++    },
++    {
++      files: ['src/app/router.tsx'],
++      rules: {
++        'no-restricted-imports': [
++          'error',
++          {
++            paths: [restrictedImport.axios, restrictedImport.reactHookForm],
++            patterns: [
++              {
++                group: [
++                  './routes/*',
++                  '!./routes/app',
++                  './routes/app/*',
++                  '!./routes/app/root',
++                ],
++                message:
++                  "Load route modules lazily with lazy: () => import('./routes/...') so each route is its own chunk (docs/performance.md).",
++              },
++            ],
++          },
++        ],
++      },
++    },
++    {
++      files: ['src/components/ui/link/**'],
++      rules: {
++        '@typescript-eslint/no-restricted-imports': legacyImports(
++          legacyImport.radixIcons,
++        ),
++      },
++    },
++    {
++      files: ['src/features/*/components/**'],
++      rules: {
++        '@typescript-eslint/no-restricted-imports': legacyImports(
++          legacyImport.radixIcons,
++          legacyImport.routerLink,
++          legacyImport.notifications,
++        ),
++      },
++    },
++    {
++      files: ['src/features/**'],
++      rules: {
++        'check-file/no-index': 'error',
+       },
+     },
+     {
+diff --git a/codemyrules-report.md b/codemyrules-report.md
+new file mode 100644
+index 0000000..54da939
+--- /dev/null
++++ b/codemyrules-report.md
+@@ -0,0 +1,207 @@
++# codemyrules report - bulletproof-react (`apps/react-vite`)
++
++Date: 2026-11-02.
++Stacks: one JS/TS stack, `apps/react-vite` (ESLint 8.57.0, legacy `.eslintrc.cjs`, `@typescript-eslint/parser` 7, Vitest), handled by `eslint-pattern-rules`.
++Backend: none (no `pom.xml`, `go.mod`, `pyproject.toml` and so on), so `backend-pattern-rules` did not run.
++The Next.js apps were left alone, as the project CLAUDE.md asks.
++No generated source folders (only `generators/` Plop templates, already ignored by ESLint).
++Dependencies were installed from the lockfile with `yarn install --frozen-lockfile --ignore-scripts` (`node_modules/` is git-ignored); no new package was added and `package.json` is byte-identical.
++
++## Selection
++
++Picked, per the advance answer: every candidate whose convention is stated in `CLAUDE.md`, `AGENTS.md` or `docs/*.md`, design-shaping ones included.
++Nothing was automatic (`config.json` mode is `ask`).
++No general rules and no code-only conventions were picked; they are listed below.
++
++## Rules built (frontend)
++
++All are built-in rules (no custom rule files), because the legacy config has no local-rule mechanism and adding one would need a new package.
++All live in `apps/react-vite/.eslintrc.cjs`, with the doc the convention comes from cited in each message.
++
++| # | Convention (source) | Rule id | Severity | Open hits |
++|---|---|---|---|---|
++| 1 | One API client: no `axios` outside `src/lib/api-client.ts` (api-layer.md, AGENTS.md) | `no-restricted-imports` | error | 0 |
++| 2 | One API client: no raw `fetch`, `window/globalThis/self.fetch` (same) | `no-restricted-globals`, `no-restricted-properties` | error | 0 |
++| 3 | Forms only through `@/components/ui/form`: no `react-hook-form` import elsewhere (state-management.md, AGENTS.md) | `no-restricted-imports` | error | 0 |
++| 4 | Route modules load lazily in `src/app/router.tsx`, only `./routes/app/root` static (performance.md, AGENTS.md) | `no-restricted-imports` | error | 0 |
++| 5 | Query keys from query options; literal key arrays only inside `queryOptions`/`infiniteQueryOptions` (state-management.md:41) | `no-restricted-syntax` | error | 0 |
++| 6 | Separate fetcher functions: `queryFn`/`mutationFn` never call `api.*` inline (api-layer.md, AGENTS.md) | `no-restricted-syntax` | error | 0 |
++| 7 | HTML only through `DOMPurify.sanitize` in `dangerouslySetInnerHTML` (security.md, AGENTS.md) | `no-restricted-syntax` | error | 0 |
++| 8 | `useState(() => compute())`, never `useState(compute())` (performance.md, AGENTS.md) | `no-restricted-syntax` | error | 0 |
++| 9 | No nested `renderX` functions inside components, non-test files (components-and-styling.md, AGENTS.md) | `no-restricted-syntax` | error | 0 |
++| 10 | Tests use MSW: no `vi.spyOn(x, 'fetch')`, `vi.stubGlobal('fetch')`, `vi.mock('axios' / '@/lib/api-client')`, `x.fetch = ...` (testing.md, AGENTS.md) | `no-restricted-syntax` (test files) | error | 0 |
++| 11 | No barrel `index.ts` in features (project-structure.md:61) | `check-file/no-index` (`src/features/**`) | error | 0 |
++| 12 | Hook files named `use-*.ts(x)` in `hooks/` folders (AGENTS.md) | `check-file/filename-naming-convention` | error | 0 |
++| 13 | PascalCase / camelCase names (AGENTS.md) | `@typescript-eslint/naming-convention` | error | 0 |
++| 14 | `@/` alias instead of parent-relative `../` imports (project-standards.md, AGENTS.md) | `@typescript-eslint/no-restricted-imports` | warn | 48 in 37 files |
++| 15 | Icons from `lucide-react`, not `@radix-ui/react-icons` (AGENTS.md) | `@typescript-eslint/no-restricted-imports` | warn | 4 in 4 files |
++| 16 | `Link` from `@/components/ui/link`, not `react-router` (components-and-styling.md) | `@typescript-eslint/no-restricted-imports` | warn | 2 in 2 files |
++| 17 | Mutation success notifications live in the api hook's `onSuccess`; feature components never call `useNotifications` (api-layer.md:18) | `@typescript-eslint/no-restricted-imports` (`src/features/*/components/**`) | warn | 7 in 7 files |
++
++A few hits:
++- 14: `src/components/errors/main.tsx:1` (`../ui/button`), `src/features/discussions/components/discussions-list.tsx:10` (`../api/get-discussion`), `src/testing/mocks/handlers/auth.ts:6` (`../db`).
++- 15: `src/components/ui/dialog/dialog.tsx:2`, `src/components/ui/drawer/drawer.tsx:2`, `src/components/ui/dropdown/dropdown.tsx:2`, `src/components/ui/table/pagination.tsx:1`.
++- 16: `src/features/auth/components/login-form.tsx:1`, `src/features/auth/components/register-form.tsx:2`.
++- 17: `src/features/comments/components/create-comment.tsx:5`, `src/features/discussions/components/update-discussion.tsx:5`, `src/features/users/components/update-profile.tsx:5`, and 4 more.
++
++Every hit was read and is a violation under the agreed boundary.
++One false positive found during verify was fixed: `NavLink` in `dashboard-layout.tsx` (the wrapper covers only `Link`, so `NavLink` is allowed).
++The router exception for `./routes/app/root` needed a gitignore-style re-include chain, also fixed and checked.
++
++Shared rule ids, counted together in the baseline:
++- `no-restricted-syntax` holds rules 5 to 10.
++- `@typescript-eslint/no-restricted-imports` holds the four warn-level conventions 14 to 17 (61 hits).
++  They use this id only so they can stay at `warn` while the error-level `no-restricted-imports` stays separate.
++  Promotion plan: fix the hits of one convention, then move its entry into the `no-restricted-imports` error list (`restrictedImport` in the config).
++
++### Verify
++
++- Each zero-hit rule was checked with temporary probe files (deleted afterwards): every violation form fired with its message, and every valid form stayed quiet (`queryKey` inside `queryOptions`, `okOptions().queryKey`, `useState(() => ...)`, sanitized HTML, `vi.mock('zustand')`, nested helpers in tests, `use-good.ts`).
++- The project's own run, `eslint src --ignore-path .gitignore` in `apps/react-vite`, loads the config and exits 0 (61 warnings, 0 errors).
++- The full build and test suite were not run, as asked.
++
++### Config change (short diff)
++
++```diff
++ // apps/react-vite/.eslintrc.cjs
+++const testFiles = ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', 'src/testing/**'];
+++const restrictedImport = { axios: {...}, reactHookForm: {...} };
+++const restrictedSyntax = { queryKeyLiteral, queryClientKeyLiteral, inlineFetcher, unsanitizedHtml, eagerStateInit, nestedRenderFunction, mockedFetch };
+++const legacyImport = { parentRelative, radixIcons, routerLink, notifications };
++ ...
++   '**/*.{ts,tsx}': 'KEBAB_CASE',
+++  'src/**/hooks/*.{ts,tsx}': 'use-+([a-z0-9-])',
+++'@typescript-eslint/naming-convention': ['error', function camel|Pascal, variable camel|Pascal|UPPER, typeLike Pascal],
+++'no-restricted-imports': ['error', { paths: [axios, react-hook-form] }],
+++'no-restricted-globals': ['error', fetch],
+++'no-restricted-properties': ['error', window|globalThis|self .fetch],
+++'no-restricted-syntax': sourceSyntax,
+++'@typescript-eslint/no-restricted-imports': ['warn', radix-icons, react-router Link, '../*'],
+++overrides: test files | src/lib/api-client.ts | src/components/ui/form/** | src/app/router.tsx
+++           | src/components/ui/link/** | src/features/*/components/** | src/features/** (check-file/no-index)
++```
++
++Legacy overrides replace a rule's options per file, so each override restates the full entry list for its files.
++
++## Agent-doc cleanup
++
++Only `AGENTS.md` was edited.
++`AGENTS.md` is always loaded (the root `CLAUDE.md` tells every session to read it).
++`docs/*.md` were left as they are: they are the project's human guides, loaded on demand, and the rule messages now cite them.
++
++Deleted (the rule message carries the line):
++- `**PascalCase** for React components`, `**camelCase** for functions and variables` (rule 13)
++- `**Extract render functions** - Move complex JSX into separate components` (rule 9)
++- `Separate fetcher functions from hooks` (rule 6)
++- `Use DOMPurify for HTML content sanitization` (rule 7)
++- `**Route-level splitting** - Lazy load pages/routes` (rule 4)
++- `**State initializer functions** - For expensive initial computations` (rule 8)
++- `**Hooks**: use-kebab-case.ts` (rule 12)
++- `**Lucide React** for icons` (rule 15)
++
++Shortened to a pointer, kept in place in `AGENTS.md` (the rule spans all of `src/`, so the root doc is the right place):
++- `**React Hook Form** for form management` + `Create reusable Form and Input components` became `Build forms with Form and the field components from @/components/ui/form, which wrap React Hook Form (enforced by ESLint)` (rule 3, design-shaping: a form built on raw `useForm` is a rewrite).
++
++Kept as they are:
++- `Absolute imports - Use @/ prefix for all src imports`: the rule covers only `../`; the `./` part is contradicted by the code (see below).
++- `Use real HTTP requests with MSW instead of mocking fetch`: design-shaping for tests and already one short line.
++- `Sanitize all user inputs before rendering`, the API Layer structure and example: broader than the rules.
++
++Doc tokens removed: 418 characters, about 105 tokens, all always-loaded, so about 105 tokens less in every session.
++On-demand tokens removed: 0.
++The larger effect is not those tokens: it is the fix rounds the rules avoid, where an agent hears about a broken convention right after the edit instead of in review or CI.
++`AGENTS.md` also describes the two Next.js apps; the deleted lines are no longer stated for them, and no rule guards them there (the project CLAUDE.md scopes agent work to `apps/react-vite`).
++
++## Feedback loop
++
++Installed, private: `.claude/settings.local.json` plus `.claude/codemyrules/`, both added to `.git/info/exclude`; no tracked file changed.
++
++- Guard (`PreToolUse`): asks before any edit that adds a lint or type-check suppression comment, and before edits to the protected paths.
++- Fast tier (after each edit): no linter; the project has no `eslint_d` and no `sgconfig.yml`.
++  The edit hook only records the file for the end-of-turn check.
++- Full tier (end of turn): `eslint-react-vite`, the project's ESLint run from `apps/react-vite` (ESLint 8 resolves plugins and the `@/` alias from there), through a small `sh -c` wrapper that keeps only files under `apps/react-vite/` and rebases their paths.
++  Extensions: `.ts .tsx .js .jsx .cjs`.
++- Protected paths: `apps/react-vite/.eslintrc.cjs`, `apps/react-vite/.prettierrc`, `apps/react-vite/tsconfig.json`, `apps/nextjs-app/.eslintrc.cjs`, `apps/nextjs-pages/.eslintrc.cjs`, plus `.claude/codemyrules/` and `.claude/settings.local.json`.
++  Lint settings inside `package.json` (`lint-staged`) are not guarded.
++- Smoke test: a clean edited file passed silently; a temporary file importing `axios` blocked the turn with `no-restricted-imports` and the fix instruction (exit 2); the test file and its log line were removed.
++- The guard already fired once in this run: writing this report, whose scan log quoted suppression-comment syntax, needed a rephrase.
++- Only errors block, so the four warn-level conventions (14 to 17) are invisible to the loop until they are promoted to `error`.
++- Optional, for a fast tier: `yarn --cwd apps/react-vite add -D --exact eslint_d@<version>`, then add it as a `fast` linter.
++
++## Baseline
++
++`.claude/codemyrules/baseline.json`, written after the doc cleanup:
++- always-loaded doc tokens: 2317 per session (root `CLAUDE.md` + `AGENTS.md`)
++- on-demand doc tokens: 0
++- rule ids: 8; open hits: 61, all in `@typescript-eslint/no-restricted-imports` (warn)
++
++A later run of this skill compares against it with `measure.mjs report`.
++A rule that fails often in `failures.log` needs a one-line pointer where the agent works.
++
++## General rules offered and not picked
++
++Counted in one ESLint run on `src`, without changing the config:
++- `max-lines-per-function` 50 (skip blanks and comments): 18 hits in 17 files
++- `no-console`: 2 hits in 2 files
++- `no-else-return`: 2 hits in 2 files
++- `react/no-danger`: 1 hit (`md-preview.tsx`, sanitized; rule 7 covers this safely)
++- 0 hits: `complexity` 10, `max-depth` 4, `max-params` 3, `no-nested-ternary`, `max-lines` 400, `eqeqeq`, `no-constant-binary-expression`, `array-callback-return`, `no-self-compare`, `no-unreachable-loop`, `no-implied-eval`, `no-new-func`, `no-script-url`
++- Need a type-aware config (`parserOptions.project`), not counted: `@typescript-eslint/no-floating-promises`, `no-misused-promises`, `switch-exhaustiveness-check`
++- Report only: a secret scanner in CI (gitleaks or trufflehog), `knip` for unused files and exports
++
++## Conventions not built
++
++- `./` sibling imports versus "Use `@/` prefix for all src imports" (AGENTS.md): contradicted, 51 files use `./`; only `../` was built.
++- Code-only conventions (not picked, per the advance answer):
++  - env through `@/config/env`: 2 bypasses, `src/app/provider.tsx:36` (`import.meta.env.DEV`), `src/testing/mocks/utils.ts:33`
++  - route URLs through `@/config/paths`: 12 files use it, no literal hrefs
++- Not lintable as a rule: composition over props, limit prop count, single responsibility, colocation, error boundaries per feature, Zustand for global state, keep state local, type-first, types and schemas per endpoint, image optimization, Sentry.
++- Token storage (AGENTS.md): permissive ("cookies preferred, or localStorage"), nothing to enforce.
++- Already covered (notes): cross-feature imports and unidirectional flow (`import/no-restricted-paths`), kebab-case files and folders (`check-file`), formatting (`prettier/prettier`), hooks rules (`react-hooks`), strict TypeScript (`tsc`).
++
++## Scan log
++
++| Signal | Good | Bad | Verdict |
++|---|---|---|---|
++| `@/` imports vs `../` | 81 files with `@/` | 48 `../` imports, 37 files | built, warn |
++| `./` sibling imports | - | 51 files | contradicted, not built |
++| `useNotifications` in feature components vs api hooks | 0 in `api/` | 7 components | contradicted, enforced doc at warn |
++| literal `queryKey` outside query options | 5 query option factories | 0 | built |
++| `invalidateQueries` etc. with literal keys | 6 via `...QueryOptions().queryKey` | 0 | built |
++| raw `fetch` / `axios` outside api-client | `@/lib/api-client` in 12 files | 0 | built |
++| `dangerouslySetInnerHTML` without `sanitize` | 1 sanitized | 0 | built |
++| nested `renderX` in components | - | 0 (2 test helpers at module level) | built |
++| `useState(fn())` | - | 0 | built |
++| fetch / client mocking in tests | MSW handlers | 0 (`vi.mock('zustand')` is allowed) | built |
++| `react-hook-form` outside `ui/form` | 6 files inside | 0 | built |
++| static route imports in router | 1 static (`app/root`, allowed) | 0 | built |
++| `index.ts` in features | 13 barrels, all outside features | 0 | built |
++| hook file names | 1 `use-*` | 0 | built |
++| naming convention | - | 0 | built |
++| `react-router` `Link` vs wrapper | 3 files use the wrapper | 2 | built, warn |
++| `lucide-react` vs `@radix-ui/react-icons` | 11 imports | 4 | built, warn |
++| `import.meta.env` outside config | - | 2 | code-only, not picked |
++| ESLint and TypeScript suppression comments | - | 0 | nothing contradicted |
++| type-aware signals (floating promises, exhaustive switch) | - | - | not probed: no type-aware config |
++
++## Design answers given on the user's behalf
++
++Nobody could answer during the run, so these are the recommended, safer choices; each can be changed with a one-line config edit.
++
++1. Notifications (rule 17): the docs and code contradict (doc: components never call `useNotifications`; code: 7 components do, 0 hooks do).
++   Chose to enforce the doc at `warn`, following the "pick everything the docs state" answer.
++   Alternative: update `docs/api-layer.md:18` to match the code and drop the rule.
++2. Absolute imports (rule 14): banned only `../`, at `warn`, test files included.
++   Reason: `./` is used in 51 files and the docs' rationale is about `../../../` paths.
++   Alternative: also ban `./` (AGENTS.md's literal wording), or exempt tests.
++3. Warn-level conventions share `@typescript-eslint/no-restricted-imports` so severities can differ; they count together in the baseline.
++   Alternative: custom `local/gen-*` rules, which would need `eslint-plugin-local-rules` (a new dev dependency and a `package.json` change).
++4. Icons (rule 15) also apply to `src/components/ui`, where all 4 hits are.
++   Alternative: exempt `src/components/ui/**` as copied ShadCN code.
++5. Link (rule 16) covers `Link` only, not `NavLink`, because the wrapper wraps only `Link`.
++6. Barrels (rule 11) are banned only in `src/features/**`; `src/components/ui` keeps its index files.
++7. Naming (rule 13) is loose (functions camelCase or PascalCase; variables also UPPER_CASE), matching the code with 0 hits.
++   Alternative: stricter per-selector formats.
++8. New rules with no open hits are `error`, so the loop shows them; rules with hits are `warn` with the promotion plan above.
++9. `docs/*.md` were not edited; only always-loaded `AGENTS.md` lines were deleted or shortened.
++   Alternative: also trim the covered lines in `docs/` (on demand, so no per-session token saving).
+diff --git a/notes/decisions/2026-11-02-conventions-as-lint-rules.md b/notes/decisions/2026-11-02-conventions-as-lint-rules.md
+new file mode 100644
+index 0000000..9142ad4
+--- /dev/null
++++ b/notes/decisions/2026-11-02-conventions-as-lint-rules.md
+@@ -0,0 +1,12 @@
++---
++tags: [decision, eslint, agent-docs]
++---
++
++# Conventions as lint rules (2026-11-02)
++
++Documented conventions of `apps/react-vite` are enforced with built-in ESLint rules instead of AGENTS.md prose.
++Built-ins only: the legacy `.eslintrc.cjs` has no local-rule mechanism, and adding `eslint-plugin-local-rules` would change `package.json`.
++Legacy overrides replace a rule's options per file, so each override restates the full entry list (shared constants at the top of the config).
++Rules with no open hits are `error`; the four with open hits (`../` imports, radix icons, raw `react-router` `Link`, `useNotifications` in feature components) share `@typescript-eslint/no-restricted-imports` at `warn` until fixed.
++The `useNotifications` rule enforces `docs/api-layer.md` although the code still does the opposite in 7 components; confirm or drop.
++Full rationale and open questions: `codemyrules-report.md`.
+diff --git a/notes/index.md b/notes/index.md
+new file mode 100644
+index 0000000..52d7ecc
+--- /dev/null
++++ b/notes/index.md
+@@ -0,0 +1,11 @@
++---
++tags: [index]
++---
++
++# bulletproof-react
++
++Reference React architecture with three apps; agent work targets `apps/react-vite` (React, Vite, TanStack Query, Zod, Tailwind) and leaves the Next.js apps alone.
++Project conventions from `AGENTS.md` and `docs/*.md` are enforced as ESLint rules in `apps/react-vite/.eslintrc.cjs`.
++
++- [[decisions/2026-11-02-conventions-as-lint-rules]]
++- [[sessions/2026-11-02]]
+diff --git a/notes/sessions/2026-11-02.md b/notes/sessions/2026-11-02.md
+new file mode 100644
+index 0000000..059f9c3
+--- /dev/null
++++ b/notes/sessions/2026-11-02.md
+@@ -0,0 +1,10 @@
++---
++tags: [session]
++---
++
++# 2026-11-02
++
++- Ran codemyrules on `apps/react-vite`: 17 conventions from the docs became ESLint config entries; see [[decisions/2026-11-02-conventions-as-lint-rules]].
++- Trimmed covered lines from `AGENTS.md` (about 105 always-loaded tokens).
++- Installed the private codemyrules feedback loop (`.claude/settings.local.json`, `.claude/codemyrules/`) and its baseline.
++- Next: fix the 61 warn-level hits, promote those rules to `error`, and decide the notifications contradiction.

@@ -1,0 +1,48 @@
+{
+  "linters": [
+    {
+      "name": "ast-grep",
+      "format": "ast-grep",
+      "command": [
+        "npx",
+        "-y",
+        "-p",
+        "@ast-grep/cli@0.51.0",
+        "ast-grep",
+        "scan",
+        "--json=compact",
+        "{files}"
+      ],
+      "extensions": [
+        ".java"
+      ],
+      "tier": "fast"
+    },
+    {
+      "name": "eslint",
+      "format": "eslint",
+      "command": [
+        "node_modules/.bin/eslint",
+        "--format",
+        "json",
+        "{files}"
+      ],
+      "extensions": [
+        ".ts",
+        ".html",
+        ".js",
+        ".mjs",
+        ".cjs"
+      ],
+      "tier": "full"
+    }
+  ],
+  "protect": [
+    "eslint.config.ts",
+    "sgconfig.yml",
+    "ast-grep/**",
+    "eslint-rules/**",
+    "checkstyle.xml",
+    "src/test/java/**/TechnicalStructureTest.java"
+  ]
+}

@@ -1,0 +1,4009 @@
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-core-no-api-imports-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-core-no-api-imports-snapshot.yml
+new file mode 100644
+index 0000000..187e4a5
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-core-no-api-imports-snapshot.yml
+@@ -0,0 +1,56 @@
++id: gen-core-no-api-imports
++snapshots:
++  "from ..api.deps import CurrentUser\n":
++    labels:
++    - source: from ..api.deps import CurrentUser
++      style: primary
++      start: 0
++      end: 34
++    - source: ..api.deps
++      style: secondary
++      start: 5
++      end: 15
++  "from app import api\n":
++    labels:
++    - source: from app import api
++      style: primary
++      start: 0
++      end: 19
++    - source: app
++      style: secondary
++      start: 5
++      end: 8
++    - source: api
++      style: secondary
++      start: 16
++      end: 19
++  "from app.api import deps\n":
++    labels:
++    - source: from app.api import deps
++      style: primary
++      start: 0
++      end: 24
++    - source: app.api
++      style: secondary
++      start: 5
++      end: 12
++  "from app.api.deps import SessionDep\n":
++    labels:
++    - source: from app.api.deps import SessionDep
++      style: primary
++      start: 0
++      end: 35
++    - source: app.api.deps
++      style: secondary
++      start: 5
++      end: 17
++  "import app.api.main\n":
++    labels:
++    - source: import app.api.main
++      style: primary
++      start: 0
++      end: 19
++    - source: app.api.main
++      style: secondary
++      start: 7
++      end: 19
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-cors-no-wildcard-origin-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-cors-no-wildcard-origin-snapshot.yml
+new file mode 100644
+index 0000000..7992b32
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-cors-no-wildcard-origin-snapshot.yml
+@@ -0,0 +1,66 @@
++id: gen-cors-no-wildcard-origin
++snapshots:
++  "app.add_middleware(CORSMiddleware, allow_origin_regex=\".*\")\n":
++    labels:
++    - source: allow_origin_regex=".*"
++      style: primary
++      start: 35
++      end: 58
++    - source: allow_origin_regex
++      style: secondary
++      start: 35
++      end: 53
++    - source: "\".*\""
++      style: secondary
++      start: 54
++      end: 58
++  "app.add_middleware(CORSMiddleware, allow_origins=\"*\")\n":
++    labels:
++    - source: allow_origins="*"
++      style: primary
++      start: 35
++      end: 52
++    - source: allow_origins
++      style: secondary
++      start: 35
++      end: 48
++    - source: "\"*\""
++      style: secondary
++      start: 49
++      end: 52
++  "app.add_middleware(CORSMiddleware, allow_origins=[\"*\"])\n":
++    labels:
++    - source: allow_origins=["*"]
++      style: primary
++      start: 35
++      end: 54
++    - source: allow_origins
++      style: secondary
++      start: 35
++      end: 48
++    - source: "\"*\""
++      style: secondary
++      start: 50
++      end: 53
++    - source: "\"*\""
++      style: secondary
++      start: 50
++      end: 53
++  "app.add_middleware(CORSMiddleware, allow_origins=[settings.FRONTEND_HOST, \"*\"])\n":
++    labels:
++    - source: allow_origins=[settings.FRONTEND_HOST, "*"]
++      style: primary
++      start: 35
++      end: 78
++    - source: allow_origins
++      style: secondary
++      start: 35
++      end: 48
++    - source: "\"*\""
++      style: secondary
++      start: 74
++      end: 77
++    - source: "\"*\""
++      style: secondary
++      start: 74
++      end: 77
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-count-in-database-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-count-in-database-snapshot.yml
+new file mode 100644
+index 0000000..e46c712
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-count-in-database-snapshot.yml
+@@ -0,0 +1,14 @@
++id: gen-count-in-database
++snapshots:
++  "count = len(result.all())\n":
++    labels:
++    - source: len(result.all())
++      style: primary
++      start: 8
++      end: 25
++  "count = len(session.exec(select(Item)).all())\n":
++    labels:
++    - source: len(session.exec(select(Item)).all())
++      style: primary
++      start: 8
++      end: 45
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-crud-dependencies-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-crud-dependencies-snapshot.yml
+new file mode 100644
+index 0000000..31a0762
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-crud-dependencies-snapshot.yml
+@@ -0,0 +1,72 @@
++id: gen-crud-dependencies
++snapshots:
++  "from .utils import send_email\n":
++    labels:
++    - source: from .utils import send_email
++      style: primary
++      start: 0
++      end: 29
++    - source: .utils
++      style: secondary
++      start: 5
++      end: 11
++  "from app import utils\n":
++    labels:
++    - source: from app import utils
++      style: primary
++      start: 0
++      end: 21
++    - source: app
++      style: secondary
++      start: 5
++      end: 8
++  "from app.api.deps import SessionDep\n":
++    labels:
++    - source: from app.api.deps import SessionDep
++      style: primary
++      start: 0
++      end: 35
++    - source: app.api.deps
++      style: secondary
++      start: 5
++      end: 17
++  "from app.core import security, db\n":
++    labels:
++    - source: from app.core import security, db
++      style: primary
++      start: 0
++      end: 33
++    - source: app.core
++      style: secondary
++      start: 5
++      end: 13
++  "from app.core.config import settings\n":
++    labels:
++    - source: from app.core.config import settings
++      style: primary
++      start: 0
++      end: 36
++    - source: app.core.config
++      style: secondary
++      start: 5
++      end: 20
++  "import app.utils\n":
++    labels:
++    - source: import app.utils
++      style: primary
++      start: 0
++      end: 16
++    - source: app.utils
++      style: secondary
++      start: 7
++      end: 16
++  "import app.utils as u\n":
++    labels:
++    - source: import app.utils as u
++      style: primary
++      start: 0
++      end: 21
++    - source: app.utils
++      style: secondary
++      start: 7
++      end: 16
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-crud-keyword-session-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-crud-keyword-session-snapshot.yml
+new file mode 100644
+index 0000000..cdbbd55
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-crud-keyword-session-snapshot.yml
+@@ -0,0 +1,32 @@
++id: gen-crud-keyword-session
++snapshots:
++  "def create_user(session: Session, user_create: UserCreate) -> User:\n    pass\n":
++    labels:
++    - source: "session: Session"
++      style: primary
++      start: 16
++      end: 32
++    - source: "(session: Session, user_create: UserCreate)"
++      style: secondary
++      start: 15
++      end: 58
++  "def get_item(item_id: uuid.UUID, session: Session, *, lock: bool = False) -> Item:\n    pass\n":
++    labels:
++    - source: "session: Session"
++      style: primary
++      start: 33
++      end: 49
++    - source: "(item_id: uuid.UUID, session: Session, *, lock: bool = False)"
++      style: secondary
++      start: 12
++      end: 73
++  "def get_item(session, item_id):\n    pass\n":
++    labels:
++    - source: session
++      style: primary
++      start: 13
++      end: 20
++    - source: (session, item_id)
++      style: secondary
++      start: 12
++      end: 30
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-http-exception-detail-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-http-exception-detail-snapshot.yml
+new file mode 100644
+index 0000000..96e686f
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-http-exception-detail-snapshot.yml
+@@ -0,0 +1,32 @@
++id: gen-http-exception-detail
++snapshots:
++  "raise HTTPException(404, \"Item not found\")\n":
++    labels:
++    - source: HTTPException(404, "Item not found")
++      style: primary
++      start: 6
++      end: 42
++    - source: HTTPException
++      style: secondary
++      start: 6
++      end: 19
++  "raise HTTPException(status_code=404)\n":
++    labels:
++    - source: HTTPException(status_code=404)
++      style: primary
++      start: 6
++      end: 36
++    - source: HTTPException
++      style: secondary
++      start: 6
++      end: 19
++  "raise fastapi.HTTPException(status_code=400)\n":
++    labels:
++    - source: fastapi.HTTPException(status_code=400)
++      style: primary
++      start: 6
++      end: 44
++    - source: fastapi.HTTPException
++      style: secondary
++      start: 6
++      end: 27
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-jinja-autoescape-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-jinja-autoescape-snapshot.yml
+new file mode 100644
+index 0000000..89d71c5
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-jinja-autoescape-snapshot.yml
+@@ -0,0 +1,32 @@
++id: gen-jinja-autoescape
++snapshots:
++  "env = Environment(loader=loader)\n":
++    labels:
++    - source: Environment(loader=loader)
++      style: primary
++      start: 6
++      end: 32
++    - source: Environment
++      style: secondary
++      start: 6
++      end: 17
++  "env = jinja2.Environment(autoescape=False)\n":
++    labels:
++    - source: jinja2.Environment(autoescape=False)
++      style: primary
++      start: 6
++      end: 42
++    - source: jinja2.Environment
++      style: secondary
++      start: 6
++      end: 24
++  "template: Template = Template(template_str)\n":
++    labels:
++    - source: Template(template_str)
++      style: primary
++      start: 21
++      end: 43
++    - source: Template
++      style: secondary
++      start: 21
++      end: 29
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-keyword-only-params-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-keyword-only-params-snapshot.yml
+new file mode 100644
+index 0000000..0a34ad9
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-keyword-only-params-snapshot.yml
+@@ -0,0 +1,50 @@
++id: gen-keyword-only-params
++snapshots:
++  "class A:\n    def m(self, a, b, c):\n        pass\n":
++    labels:
++    - source: (self, a, b, c)
++      style: primary
++      start: 18
++      end: 33
++    - source: c
++      style: secondary
++      start: 31
++      end: 32
++    - source: |-
++        def m(self, a, b, c):
++                pass
++      style: secondary
++      start: 13
++      end: 47
++  "def generate_reset_password_email(email_to: str, email: str, token: str) -> EmailData:\n    pass\n":
++    labels:
++    - source: "(email_to: str, email: str, token: str)"
++      style: primary
++      start: 33
++      end: 72
++    - source: "token: str"
++      style: secondary
++      start: 61
++      end: 71
++    - source: |-
++        def generate_reset_password_email(email_to: str, email: str, token: str) -> EmailData:
++            pass
++      style: secondary
++      start: 0
++      end: 95
++  "def read_items(session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100) -> Any:\n    pass\n":
++    labels:
++    - source: "(session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100)"
++      style: primary
++      start: 14
++      end: 95
++    - source: "skip: int = 0"
++      style: secondary
++      start: 63
++      end: 76
++    - source: |-
++        def read_items(session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100) -> Any:
++            pass
++      style: secondary
++      start: 0
++      end: 112
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-models-dependencies-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-models-dependencies-snapshot.yml
+new file mode 100644
+index 0000000..42537d8
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-models-dependencies-snapshot.yml
+@@ -0,0 +1,52 @@
++id: gen-models-dependencies
++snapshots:
++  "from .utils import get_datetime_utc\n":
++    labels:
++    - source: from .utils import get_datetime_utc
++      style: primary
++      start: 0
++      end: 35
++    - source: .utils
++      style: secondary
++      start: 5
++      end: 11
++  "from app import crud\n":
++    labels:
++    - source: from app import crud
++      style: primary
++      start: 0
++      end: 20
++    - source: app
++      style: secondary
++      start: 5
++      end: 8
++  "from app.core.config import settings\n":
++    labels:
++    - source: from app.core.config import settings
++      style: primary
++      start: 0
++      end: 36
++    - source: app.core.config
++      style: secondary
++      start: 5
++      end: 20
++  "from app.utils import get_datetime_utc\n":
++    labels:
++    - source: from app.utils import get_datetime_utc
++      style: primary
++      start: 0
++      end: 38
++    - source: app.utils
++      style: secondary
++      start: 5
++      end: 14
++  "import app.core.security\n":
++    labels:
++    - source: import app.core.security
++      style: primary
++      start: 0
++      end: 24
++    - source: app.core.security
++      style: secondary
++      start: 7
++      end: 24
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-bare-collection-response-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-bare-collection-response-snapshot.yml
+new file mode 100644
+index 0000000..d5ddc60
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-bare-collection-response-snapshot.yml
+@@ -0,0 +1,66 @@
++id: gen-no-bare-collection-response
++snapshots:
++  "@router.get(\"/\")\ndef read_items(session: SessionDep) -> list[ItemPublic]:\n    pass\n":
++    labels:
++    - source: |-
++        def read_items(session: SessionDep) -> list[ItemPublic]:
++            pass
++      style: primary
++      start: 17
++      end: 82
++    - source: "@router.get(\"/\")"
++      style: secondary
++      start: 0
++      end: 16
++    - source: |-
++        @router.get("/")
++        def read_items(session: SessionDep) -> list[ItemPublic]:
++            pass
++      style: secondary
++      start: 0
++      end: 82
++    - source: list[ItemPublic]
++      style: secondary
++      start: 56
++      end: 72
++  "@router.get(\"/\", response_model=list[ItemPublic])\ndef read_items(session: SessionDep) -> Any:\n    pass\n":
++    labels:
++    - source: response_model=list[ItemPublic]
++      style: primary
++      start: 17
++      end: 48
++    - source: response_model
++      style: secondary
++      start: 17
++      end: 31
++    - source: list[ItemPublic]
++      style: secondary
++      start: 32
++      end: 48
++    - source: "@router.get(\"/\", response_model=list[ItemPublic])"
++      style: secondary
++      start: 0
++      end: 49
++  "@router.get(\"/stats\")\ndef stats() -> dict[str, int]:\n    pass\n":
++    labels:
++    - source: |-
++        def stats() -> dict[str, int]:
++            pass
++      style: primary
++      start: 22
++      end: 61
++    - source: "@router.get(\"/stats\")"
++      style: secondary
++      start: 0
++      end: 21
++    - source: |-
++        @router.get("/stats")
++        def stats() -> dict[str, int]:
++            pass
++      style: secondary
++      start: 0
++      end: 61
++    - source: dict[str, int]
++      style: secondary
++      start: 37
++      end: 51
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-db-access-in-routes-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-db-access-in-routes-snapshot.yml
+new file mode 100644
+index 0000000..42ec907
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-db-access-in-routes-snapshot.yml
+@@ -0,0 +1,52 @@
++id: gen-no-db-access-in-routes
++snapshots:
++  "item = session.get(Item, id)\n":
++    labels:
++    - source: session.get(Item, id)
++      style: primary
++      start: 7
++      end: 28
++    - source: session.get
++      style: secondary
++      start: 7
++      end: 18
++  "items = session.exec(statement).all()\n":
++    labels:
++    - source: session.exec(statement)
++      style: primary
++      start: 8
++      end: 31
++    - source: session.exec
++      style: secondary
++      start: 8
++      end: 20
++  "session.add(item)\n":
++    labels:
++    - source: session.add(item)
++      style: primary
++      start: 0
++      end: 17
++    - source: session.add
++      style: secondary
++      start: 0
++      end: 11
++  "session.commit()\n":
++    labels:
++    - source: session.commit()
++      style: primary
++      start: 0
++      end: 16
++    - source: session.commit
++      style: secondary
++      start: 0
++      end: 14
++  "session.delete(item)\n":
++    labels:
++    - source: session.delete(item)
++      style: primary
++      start: 0
++      end: 20
++    - source: session.delete
++      style: secondary
++      start: 0
++      end: 14
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-db-mocks-in-tests-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-db-mocks-in-tests-snapshot.yml
+new file mode 100644
+index 0000000..2444359
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-db-mocks-in-tests-snapshot.yml
+@@ -0,0 +1,92 @@
++id: gen-no-db-mocks-in-tests
++snapshots:
++  "mock.patch(\"app.core.db.engine\")\n":
++    labels:
++    - source: mock.patch("app.core.db.engine")
++      style: primary
++      start: 0
++      end: 32
++    - source: mock.patch
++      style: secondary
++      start: 0
++      end: 10
++    - source: "\"app.core.db.engine\""
++      style: secondary
++      start: 11
++      end: 31
++    - source: "\"app.core.db.engine\""
++      style: secondary
++      start: 11
++      end: 31
++  "mocker.patch(\"sqlmodel.Session.exec\")\n":
++    labels:
++    - source: mocker.patch("sqlmodel.Session.exec")
++      style: primary
++      start: 0
++      end: 37
++    - source: mocker.patch
++      style: secondary
++      start: 0
++      end: 12
++    - source: "\"sqlmodel.Session.exec\""
++      style: secondary
++      start: 13
++      end: 36
++    - source: "\"sqlmodel.Session.exec\""
++      style: secondary
++      start: 13
++      end: 36
++  "patch(\"app.api.deps.get_db\")\n":
++    labels:
++    - source: patch("app.api.deps.get_db")
++      style: primary
++      start: 0
++      end: 28
++    - source: patch
++      style: secondary
++      start: 0
++      end: 5
++    - source: "\"app.api.deps.get_db\""
++      style: secondary
++      start: 6
++      end: 27
++    - source: "\"app.api.deps.get_db\""
++      style: secondary
++      start: 6
++      end: 27
++  "patch(\"app.crud.get_user_by_email\", return_value=None)\n":
++    labels:
++    - source: patch("app.crud.get_user_by_email", return_value=None)
++      style: primary
++      start: 0
++      end: 54
++    - source: patch
++      style: secondary
++      start: 0
++      end: 5
++    - source: "\"app.crud.get_user_by_email\""
++      style: secondary
++      start: 6
++      end: 34
++    - source: "\"app.crud.get_user_by_email\""
++      style: secondary
++      start: 6
++      end: 34
++  "patch.object(session, \"commit\")\n":
++    labels:
++    - source: patch.object(session, "commit")
++      style: primary
++      start: 0
++      end: 31
++    - source: patch.object
++      style: secondary
++      start: 0
++      end: 12
++    - source: session
++      style: secondary
++      start: 13
++      end: 20
++    - source: session
++      style: secondary
++      start: 13
++      end: 20
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-delete-in-loop-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-delete-in-loop-snapshot.yml
+new file mode 100644
+index 0000000..90fb729
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-delete-in-loop-snapshot.yml
+@@ -0,0 +1,35 @@
++id: gen-no-delete-in-loop
++snapshots:
++  "def f():\n    for item in user.items:\n        if item.done:\n            session.delete(item)\n":
++    labels:
++    - source: session.delete(item)
++      style: primary
++      start: 71
++      end: 91
++    - source: |-
++        for item in user.items:
++                if item.done:
++                    session.delete(item)
++      style: secondary
++      start: 13
++      end: 91
++    - source: session.delete
++      style: secondary
++      start: 71
++      end: 85
++  "for item in items:\n    session.delete(item)\n":
++    labels:
++    - source: session.delete(item)
++      style: primary
++      start: 23
++      end: 43
++    - source: |-
++        for item in items:
++            session.delete(item)
++      style: secondary
++      start: 0
++      end: 43
++    - source: session.delete
++      style: secondary
++      start: 23
++      end: 37
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-env-outside-settings-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-env-outside-settings-snapshot.yml
+new file mode 100644
+index 0000000..adb1dbb
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-env-outside-settings-snapshot.yml
+@@ -0,0 +1,60 @@
++id: gen-no-env-outside-settings
++snapshots:
++  "from dotenv import load_dotenv\n":
++    labels:
++    - source: from dotenv import load_dotenv
++      style: primary
++      start: 0
++      end: 30
++    - source: dotenv
++      style: secondary
++      start: 5
++      end: 11
++  "from os import getenv\n":
++    labels:
++    - source: from os import getenv
++      style: primary
++      start: 0
++      end: 21
++    - source: os
++      style: secondary
++      start: 5
++      end: 7
++  "from os import path, environ\n":
++    labels:
++    - source: from os import path, environ
++      style: primary
++      start: 0
++      end: 28
++    - source: os
++      style: secondary
++      start: 5
++      end: 7
++  "import dotenv\n":
++    labels:
++    - source: import dotenv
++      style: primary
++      start: 0
++      end: 13
++    - source: dotenv
++      style: secondary
++      start: 7
++      end: 13
++  "x = os.environ.get(\"SECRET_KEY\")\n":
++    labels:
++    - source: os.environ
++      style: primary
++      start: 4
++      end: 14
++  "x = os.environ[\"SECRET_KEY\"]\n":
++    labels:
++    - source: os.environ
++      style: primary
++      start: 4
++      end: 14
++  "x = os.getenv(\"SECRET_KEY\", \"\")\n":
++    labels:
++    - source: os.getenv
++      style: primary
++      start: 4
++      end: 13
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-imports-from-routes-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-imports-from-routes-snapshot.yml
+new file mode 100644
+index 0000000..f8fd1a6
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-imports-from-routes-snapshot.yml
+@@ -0,0 +1,90 @@
++id: gen-no-imports-from-routes
++snapshots:
++  "from ..routes.items import router\n":
++    labels:
++    - source: from ..routes.items import router
++      style: primary
++      start: 0
++      end: 33
++    - source: ..routes.items
++      style: secondary
++      start: 5
++      end: 19
++  "from .routes import items\n":
++    labels:
++    - source: from .routes import items
++      style: primary
++      start: 0
++      end: 25
++    - source: .routes
++      style: secondary
++      start: 5
++      end: 12
++  "from app.api import deps, routes\n":
++    labels:
++    - source: from app.api import deps, routes
++      style: primary
++      start: 0
++      end: 32
++    - source: app.api
++      style: secondary
++      start: 5
++      end: 12
++    - source: routes
++      style: secondary
++      start: 26
++      end: 32
++  "from app.api import routes\n":
++    labels:
++    - source: from app.api import routes
++      style: primary
++      start: 0
++      end: 26
++    - source: app.api
++      style: secondary
++      start: 5
++      end: 12
++    - source: routes
++      style: secondary
++      start: 20
++      end: 26
++  "from app.api.routes import items\n":
++    labels:
++    - source: from app.api.routes import items
++      style: primary
++      start: 0
++      end: 32
++    - source: app.api.routes
++      style: secondary
++      start: 5
++      end: 19
++  "from app.api.routes.items import read_items\n":
++    labels:
++    - source: from app.api.routes.items import read_items
++      style: primary
++      start: 0
++      end: 43
++    - source: app.api.routes.items
++      style: secondary
++      start: 5
++      end: 25
++  "import app.api.routes.items as items_routes\n":
++    labels:
++    - source: import app.api.routes.items as items_routes
++      style: primary
++      start: 0
++      end: 43
++    - source: app.api.routes.items
++      style: secondary
++      start: 7
++      end: 27
++  "import app.api.routes.users\n":
++    labels:
++    - source: import app.api.routes.users
++      style: primary
++      start: 0
++      end: 27
++    - source: app.api.routes.users
++      style: secondary
++      start: 7
++      end: 27
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-jwt-in-routes-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-jwt-in-routes-snapshot.yml
+new file mode 100644
+index 0000000..0750fd1
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-jwt-in-routes-snapshot.yml
+@@ -0,0 +1,42 @@
++id: gen-no-jwt-in-routes
++snapshots:
++  "from jwt import decode\n":
++    labels:
++    - source: from jwt import decode
++      style: primary
++      start: 0
++      end: 22
++    - source: jwt
++      style: secondary
++      start: 5
++      end: 8
++  "from jwt.exceptions import InvalidTokenError\n":
++    labels:
++    - source: from jwt.exceptions import InvalidTokenError
++      style: primary
++      start: 0
++      end: 44
++    - source: jwt.exceptions
++      style: secondary
++      start: 5
++      end: 19
++  "import jwt\n":
++    labels:
++    - source: import jwt
++      style: primary
++      start: 0
++      end: 10
++    - source: jwt
++      style: secondary
++      start: 7
++      end: 10
++  "import jwt as pyjwt\n":
++    labels:
++    - source: import jwt as pyjwt
++      style: primary
++      start: 0
++      end: 19
++    - source: jwt
++      style: secondary
++      start: 7
++      end: 10
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-manual-validation-error-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-manual-validation-error-snapshot.yml
+new file mode 100644
+index 0000000..3720feb
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-manual-validation-error-snapshot.yml
+@@ -0,0 +1,50 @@
++id: gen-no-manual-validation-error
++snapshots:
++  "raise HTTPException(status_code=422, detail=\"Invalid email\")\n":
++    labels:
++    - source: status_code=422
++      style: primary
++      start: 20
++      end: 35
++    - source: status_code
++      style: secondary
++      start: 20
++      end: 31
++    - source: "422"
++      style: secondary
++      start: 32
++      end: 35
++  "raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=\"Invalid email\")\n":
++    labels:
++    - source: status_code=status.HTTP_422_UNPROCESSABLE_CONTENT
++      style: primary
++      start: 20
++      end: 69
++    - source: status_code
++      style: secondary
++      start: 20
++      end: 31
++    - source: status.HTTP_422_UNPROCESSABLE_CONTENT
++      style: secondary
++      start: 32
++      end: 69
++  "raise RequestValidationError(errors=[])\n":
++    labels:
++    - source: RequestValidationError(errors=[])
++      style: primary
++      start: 6
++      end: 39
++    - source: RequestValidationError
++      style: secondary
++      start: 6
++      end: 28
++  "raise fastapi.exceptions.RequestValidationError([])\n":
++    labels:
++    - source: fastapi.exceptions.RequestValidationError([])
++      style: primary
++      start: 6
++      end: 51
++    - source: fastapi.exceptions.RequestValidationError
++      style: secondary
++      start: 6
++      end: 47
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-raw-sql-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-raw-sql-snapshot.yml
+new file mode 100644
+index 0000000..a5c631c
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-raw-sql-snapshot.yml
+@@ -0,0 +1,60 @@
++id: gen-no-raw-sql
++snapshots:
++  "from sqlalchemy import text\n":
++    labels:
++    - source: from sqlalchemy import text
++      style: primary
++      start: 0
++      end: 27
++    - source: sqlalchemy
++      style: secondary
++      start: 5
++      end: 15
++    - source: text
++      style: secondary
++      start: 23
++      end: 27
++  "from sqlmodel import select, text\n":
++    labels:
++    - source: from sqlmodel import select, text
++      style: primary
++      start: 0
++      end: 33
++    - source: sqlmodel
++      style: secondary
++      start: 5
++      end: 13
++    - source: text
++      style: secondary
++      start: 29
++      end: 33
++  "rows = session.query(User).all()\n":
++    labels:
++    - source: session.query(User)
++      style: primary
++      start: 7
++      end: 26
++    - source: session.query
++      style: secondary
++      start: 7
++      end: 20
++  "session.exec(sa.text(\"DELETE FROM item\"))\n":
++    labels:
++    - source: sa.text("DELETE FROM item")
++      style: primary
++      start: 13
++      end: 40
++    - source: sa.text
++      style: secondary
++      start: 13
++      end: 20
++  "session.execute(sqlalchemy.text(\"SELECT 1\"))\n":
++    labels:
++    - source: session.execute(sqlalchemy.text("SELECT 1"))
++      style: primary
++      start: 0
++      end: 44
++    - source: session.execute
++      style: secondary
++      start: 0
++      end: 15
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-sensitive-logging-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-sensitive-logging-snapshot.yml
+new file mode 100644
+index 0000000..16e3e4e
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-sensitive-logging-snapshot.yml
+@@ -0,0 +1,92 @@
++id: gen-no-sensitive-logging
++snapshots:
++  "logger.debug(f\"token {token}\")\n":
++    labels:
++    - source: logger.debug(f"token {token}")
++      style: primary
++      start: 0
++      end: 30
++    - source: logger.debug
++      style: secondary
++      start: 0
++      end: 12
++    - source: token
++      style: secondary
++      start: 22
++      end: 27
++    - source: token
++      style: secondary
++      start: 22
++      end: 27
++  "logger.info(\"password: %s\", password)\n":
++    labels:
++    - source: "logger.info(\"password: %s\", password)"
++      style: primary
++      start: 0
++      end: 37
++    - source: logger.info
++      style: secondary
++      start: 0
++      end: 11
++    - source: password
++      style: secondary
++      start: 28
++      end: 36
++    - source: password
++      style: secondary
++      start: 28
++      end: 36
++  "logger.info(\"reset %s\", user_in.new_password)\n":
++    labels:
++    - source: logger.info("reset %s", user_in.new_password)
++      style: primary
++      start: 0
++      end: 45
++    - source: logger.info
++      style: secondary
++      start: 0
++      end: 11
++    - source: new_password
++      style: secondary
++      start: 32
++      end: 44
++    - source: new_password
++      style: secondary
++      start: 32
++      end: 44
++  "logger.info(f\"Reset link: {reset_link}\")\n":
++    labels:
++    - source: "logger.info(f\"Reset link: {reset_link}\")"
++      style: primary
++      start: 0
++      end: 40
++    - source: logger.info
++      style: secondary
++      start: 0
++      end: 11
++    - source: reset_link
++      style: secondary
++      start: 27
++      end: 37
++    - source: reset_link
++      style: secondary
++      start: 27
++      end: 37
++  "logging.error(\"body %s\", body)\n":
++    labels:
++    - source: logging.error("body %s", body)
++      style: primary
++      start: 0
++      end: 30
++    - source: logging.error
++      style: secondary
++      start: 0
++      end: 13
++    - source: body
++      style: secondary
++      start: 25
++      end: 29
++    - source: body
++      style: secondary
++      start: 25
++      end: 29
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-session-outside-deps-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-session-outside-deps-snapshot.yml
+new file mode 100644
+index 0000000..ba6d256
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-session-outside-deps-snapshot.yml
+@@ -0,0 +1,42 @@
++id: gen-no-session-outside-deps
++snapshots:
++  "SessionLocal = sessionmaker(bind=engine)\n":
++    labels:
++    - source: sessionmaker(bind=engine)
++      style: primary
++      start: 15
++      end: 40
++    - source: sessionmaker
++      style: secondary
++      start: 15
++      end: 27
++  "def f():\n    with Session(engine) as session:\n        pass\n":
++    labels:
++    - source: Session(engine)
++      style: primary
++      start: 18
++      end: 33
++    - source: Session
++      style: secondary
++      start: 18
++      end: 25
++  "engine = create_engine(str(settings.DATABASE_URL))\n":
++    labels:
++    - source: create_engine(str(settings.DATABASE_URL))
++      style: primary
++      start: 9
++      end: 50
++    - source: create_engine
++      style: secondary
++      start: 9
++      end: 22
++  "s = sqlmodel.Session(engine)\n":
++    labels:
++    - source: sqlmodel.Session(engine)
++      style: primary
++      start: 4
++      end: 28
++    - source: sqlmodel.Session
++      style: secondary
++      start: 4
++      end: 20
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-password-hashing-in-security-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-password-hashing-in-security-snapshot.yml
+new file mode 100644
+index 0000000..a534789
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-password-hashing-in-security-snapshot.yml
+@@ -0,0 +1,72 @@
++id: gen-password-hashing-in-security
++snapshots:
++  "from passlib.context import CryptContext\n":
++    labels:
++    - source: from passlib.context import CryptContext
++      style: primary
++      start: 0
++      end: 40
++    - source: passlib.context
++      style: secondary
++      start: 5
++      end: 20
++  "from pwdlib import PasswordHash\n":
++    labels:
++    - source: from pwdlib import PasswordHash
++      style: primary
++      start: 0
++      end: 31
++    - source: pwdlib
++      style: secondary
++      start: 5
++      end: 11
++  "from pwdlib.hashers.argon2 import Argon2Hasher\n":
++    labels:
++    - source: from pwdlib.hashers.argon2 import Argon2Hasher
++      style: primary
++      start: 0
++      end: 46
++    - source: pwdlib.hashers.argon2
++      style: secondary
++      start: 5
++      end: 26
++  "import argon2\n":
++    labels:
++    - source: import argon2
++      style: primary
++      start: 0
++      end: 13
++    - source: argon2
++      style: secondary
++      start: 7
++      end: 13
++  "import bcrypt\n":
++    labels:
++    - source: import bcrypt
++      style: primary
++      start: 0
++      end: 13
++    - source: bcrypt
++      style: secondary
++      start: 7
++      end: 13
++  "import hashlib\n":
++    labels:
++    - source: import hashlib
++      style: primary
++      start: 0
++      end: 14
++    - source: hashlib
++      style: secondary
++      start: 7
++      end: 14
++  "import hashlib as h\n":
++    labels:
++    - source: import hashlib as h
++      style: primary
++      start: 0
++      end: 19
++    - source: hashlib
++      style: secondary
++      start: 7
++      end: 14
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-playwright-no-css-selectors-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-playwright-no-css-selectors-snapshot.yml
+new file mode 100644
+index 0000000..b174656
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-playwright-no-css-selectors-snapshot.yml
+@@ -0,0 +1,110 @@
++id: gen-playwright-no-css-selectors
++snapshots:
++  "await page.$(\".menu\")\n":
++    labels:
++    - source: "\".menu\""
++      style: primary
++      start: 13
++      end: 20
++    - source: page.$
++      style: secondary
++      start: 6
++      end: 12
++    - source: page.$(".menu")
++      style: secondary
++      start: 6
++      end: 21
++    - source: (".menu")
++      style: secondary
++      start: 12
++      end: 21
++  "await page.locator(\".btn-primary\").click()\n":
++    labels:
++    - source: "\".btn-primary\""
++      style: primary
++      start: 19
++      end: 33
++    - source: page.locator
++      style: secondary
++      start: 6
++      end: 18
++    - source: page.locator(".btn-primary")
++      style: secondary
++      start: 6
++      end: 34
++    - source: (".btn-primary")
++      style: secondary
++      start: 18
++      end: 34
++  "await page.locator(\"[class='toast']\").isVisible()\n":
++    labels:
++    - source: "\"[class='toast']\""
++      style: primary
++      start: 19
++      end: 36
++    - source: page.locator
++      style: secondary
++      start: 6
++      end: 18
++    - source: page.locator("[class='toast']")
++      style: secondary
++      start: 6
++      end: 37
++    - source: ("[class='toast']")
++      style: secondary
++      start: 18
++      end: 37
++  "await page.locator(\"button.submit\").click()\n":
++    labels:
++    - source: "\"button.submit\""
++      style: primary
++      start: 19
++      end: 34
++    - source: page.locator
++      style: secondary
++      start: 6
++      end: 18
++    - source: page.locator("button.submit")
++      style: secondary
++      start: 6
++      end: 35
++    - source: ("button.submit")
++      style: secondary
++      start: 18
++      end: 35
++  "await page.locator(\"form > .error\").isVisible()\n":
++    labels:
++    - source: "\"form > .error\""
++      style: primary
++      start: 19
++      end: 34
++    - source: page.locator
++      style: secondary
++      start: 6
++      end: 18
++    - source: page.locator("form > .error")
++      style: secondary
++      start: 6
++      end: 35
++    - source: ("form > .error")
++      style: secondary
++      start: 18
++      end: 35
++  "await page.waitForSelector(\".spinner\")\n":
++    labels:
++    - source: "\".spinner\""
++      style: primary
++      start: 27
++      end: 37
++    - source: page.waitForSelector
++      style: secondary
++      start: 6
++      end: 26
++    - source: page.waitForSelector(".spinner")
++      style: secondary
++      start: 6
++      end: 38
++    - source: (".spinner")
++      style: secondary
++      start: 26
++      end: 38
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-relationship-back-populates-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-relationship-back-populates-snapshot.yml
+new file mode 100644
+index 0000000..d3b5eb3
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-relationship-back-populates-snapshot.yml
+@@ -0,0 +1,22 @@
++id: gen-relationship-back-populates
++snapshots:
++  "class Item(ItemBase, table=True):\n    owner: User | None = Relationship()\n":
++    labels:
++    - source: Relationship()
++      style: primary
++      start: 59
++      end: 73
++    - source: Relationship
++      style: secondary
++      start: 59
++      end: 71
++  "class User(UserBase, table=True):\n    items: list[Item] = Relationship(cascade_delete=True)\n":
++    labels:
++    - source: Relationship(cascade_delete=True)
++      style: primary
++      start: 58
++      end: 91
++    - source: Relationship
++      style: secondary
++      start: 58
++      end: 70
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-route-response-model-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-route-response-model-snapshot.yml
+new file mode 100644
+index 0000000..4957ace
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-route-response-model-snapshot.yml
+@@ -0,0 +1,20 @@
++id: gen-route-response-model
++snapshots:
++  "@api_router.get(\"/health-check/\")\nasync def health_check() -> bool:\n    return True\n":
++    labels:
++    - source: "@api_router.get(\"/health-check/\")"
++      style: primary
++      start: 0
++      end: 33
++  "@router.delete(\"/{id}\")\ndef delete_item(id: uuid.UUID) -> Message:\n    pass\n":
++    labels:
++    - source: "@router.delete(\"/{id}\")"
++      style: primary
++      start: 0
++      end: 23
++  "@router.post(\"/login/access-token\")\ndef login_access_token() -> Token:\n    pass\n":
++    labels:
++    - source: "@router.post(\"/login/access-token\")"
++      style: primary
++      start: 0
++      end: 35
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-router-prefix-tags-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-router-prefix-tags-snapshot.yml
+new file mode 100644
+index 0000000..9b00c35
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-router-prefix-tags-snapshot.yml
+@@ -0,0 +1,42 @@
++id: gen-router-prefix-tags
++snapshots:
++  "router = APIRouter()\n":
++    labels:
++    - source: APIRouter()
++      style: primary
++      start: 9
++      end: 20
++    - source: APIRouter
++      style: secondary
++      start: 9
++      end: 18
++  "router = APIRouter(prefix=\"/items\")\n":
++    labels:
++    - source: APIRouter(prefix="/items")
++      style: primary
++      start: 9
++      end: 35
++    - source: APIRouter
++      style: secondary
++      start: 9
++      end: 18
++  "router = APIRouter(tags=[\"login\"])\n":
++    labels:
++    - source: APIRouter(tags=["login"])
++      style: primary
++      start: 9
++      end: 34
++    - source: APIRouter
++      style: secondary
++      start: 9
++      end: 18
++  "router = fastapi.APIRouter()\n":
++    labels:
++    - source: fastapi.APIRouter()
++      style: primary
++      start: 9
++      end: 28
++    - source: fastapi.APIRouter
++      style: secondary
++      start: 9
++      end: 26
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-settings-singleton-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-settings-singleton-snapshot.yml
+new file mode 100644
+index 0000000..6c698ec
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-settings-singleton-snapshot.yml
+@@ -0,0 +1,64 @@
++id: gen-settings-singleton
++snapshots:
++  "from .config import Settings\n":
++    labels:
++    - source: from .config import Settings
++      style: primary
++      start: 0
++      end: 28
++    - source: .config
++      style: secondary
++      start: 5
++      end: 12
++    - source: Settings
++      style: secondary
++      start: 20
++      end: 28
++  "from app.core.config import Settings\n":
++    labels:
++    - source: from app.core.config import Settings
++      style: primary
++      start: 0
++      end: 36
++    - source: app.core.config
++      style: secondary
++      start: 5
++      end: 20
++    - source: Settings
++      style: secondary
++      start: 28
++      end: 36
++  "from app.core.config import settings, Settings\n":
++    labels:
++    - source: from app.core.config import settings, Settings
++      style: primary
++      start: 0
++      end: 46
++    - source: app.core.config
++      style: secondary
++      start: 5
++      end: 20
++    - source: Settings
++      style: secondary
++      start: 38
++      end: 46
++  "s = Settings()\n":
++    labels:
++    - source: Settings()
++      style: primary
++      start: 4
++      end: 14
++    - source: Settings
++      style: secondary
++      start: 4
++      end: 12
++  "s = config.Settings(_env_file=\".env\")\n":
++    labels:
++    - source: config.Settings(_env_file=".env")
++      style: primary
++      start: 4
++      end: 37
++    - source: config.Settings
++      style: secondary
++      start: 4
++      end: 19
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-status-constants-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-status-constants-snapshot.yml
+new file mode 100644
+index 0000000..01ba965
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-status-constants-snapshot.yml
+@@ -0,0 +1,48 @@
++id: gen-status-constants
++snapshots:
++  "@router.post(\"/test-email/\", status_code=201)\ndef test_email() -> Message:\n    pass\n":
++    labels:
++    - source: status_code=201
++      style: primary
++      start: 29
++      end: 44
++    - source: status_code
++      style: secondary
++      start: 29
++      end: 40
++    - source: "201"
++      style: secondary
++      start: 41
++      end: 44
++  "raise HTTPException(403, \"Not enough permissions\")\n":
++    labels:
++    - source: "403"
++      style: primary
++      start: 20
++      end: 23
++    - source: HTTPException
++      style: secondary
++      start: 6
++      end: 19
++    - source: HTTPException(403, "Not enough permissions")
++      style: secondary
++      start: 6
++      end: 50
++    - source: (403, "Not enough permissions")
++      style: secondary
++      start: 19
++      end: 50
++  "raise HTTPException(status_code=404, detail=\"Item not found\")\n":
++    labels:
++    - source: status_code=404
++      style: primary
++      start: 20
++      end: 35
++    - source: status_code
++      style: secondary
++      start: 20
++      end: 31
++    - source: "404"
++      style: secondary
++      start: 32
++      end: 35
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-str-field-max-length-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-str-field-max-length-snapshot.yml
+new file mode 100644
+index 0000000..b0cf06d
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-str-field-max-length-snapshot.yml
+@@ -0,0 +1,50 @@
++id: gen-str-field-max-length
++snapshots:
++  "class ItemBase(SQLModel):\n    title: str = Field(min_length=1)\n":
++    labels:
++    - source: "title: str = Field(min_length=1)"
++      style: primary
++      start: 30
++      end: 62
++    - source: Field(min_length=1)
++      style: secondary
++      start: 43
++      end: 62
++    - source: str
++      style: secondary
++      start: 37
++      end: 40
++  "class User(UserBase, table=True):\n    hashed_password: str\n":
++    labels:
++    - source: "hashed_password: str"
++      style: primary
++      start: 38
++      end: 58
++    - source: (UserBase, table=True)
++      style: secondary
++      start: 10
++      end: 32
++    - source: |-
++        class User(UserBase, table=True):
++            hashed_password: str
++      style: secondary
++      start: 0
++      end: 58
++    - source: str
++      style: secondary
++      start: 55
++      end: 58
++  "class UserUpdate(SQLModel):\n    email: EmailStr | None = Field(default=None)\n":
++    labels:
++    - source: "email: EmailStr | None = Field(default=None)"
++      style: primary
++      start: 32
++      end: 76
++    - source: Field(default=None)
++      style: secondary
++      start: 57
++      end: 76
++    - source: EmailStr | None
++      style: secondary
++      start: 39
++      end: 54
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-table-created-at-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-table-created-at-snapshot.yml
+new file mode 100644
+index 0000000..32a5744
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-table-created-at-snapshot.yml
+@@ -0,0 +1,15 @@
++id: gen-table-created-at
++snapshots:
++  "class Tag(SQLModel, table=True):\n    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)\n    name: str = Field(max_length=255)\n":
++    labels:
++    - source: |-
++        class Tag(SQLModel, table=True):
++            id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
++            name: str = Field(max_length=255)
++      style: primary
++      start: 0
++      end: 142
++    - source: (SQLModel, table=True)
++      style: secondary
++      start: 9
++      end: 31
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-timestamp-utc-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-timestamp-utc-snapshot.yml
+new file mode 100644
+index 0000000..949646b
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-timestamp-utc-snapshot.yml
+@@ -0,0 +1,44 @@
++id: gen-timestamp-utc
++snapshots:
++  "class Item(ItemBase, table=True):\n    created_at: datetime = Field(default_factory=datetime.now)\n":
++    labels:
++    - source: default_factory=datetime.now
++      style: primary
++      start: 67
++      end: 95
++    - source: default_factory
++      style: secondary
++      start: 67
++      end: 82
++    - source: datetime.now
++      style: secondary
++      start: 83
++      end: 95
++  "class Item(ItemBase, table=True):\n    created_at: datetime = Field(default_factory=datetime.utcnow)\n":
++    labels:
++    - source: default_factory=datetime.utcnow
++      style: primary
++      start: 67
++      end: 98
++    - source: default_factory
++      style: secondary
++      start: 67
++      end: 82
++    - source: datetime.utcnow
++      style: secondary
++      start: 83
++      end: 98
++  "class Item(ItemBase, table=True):\n    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))\n":
++    labels:
++    - source: "default_factory=lambda: datetime.now(UTC)"
++      style: primary
++      start: 67
++      end: 108
++    - source: default_factory
++      style: secondary
++      start: 67
++      end: 82
++    - source: "lambda: datetime.now(UTC)"
++      style: secondary
++      start: 83
++      end: 108
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-uuid-id-params-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-uuid-id-params-snapshot.yml
+new file mode 100644
+index 0000000..4b5ad7e
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-uuid-id-params-snapshot.yml
+@@ -0,0 +1,32 @@
++id: gen-uuid-id-params
++snapshots:
++  "def f(*, owner_id: str | None = None):\n    pass\n":
++    labels:
++    - source: "owner_id: str | None = None"
++      style: primary
++      start: 9
++      end: 36
++    - source: str | None
++      style: secondary
++      start: 19
++      end: 29
++  "def read_item(session: SessionDep, id: str) -> Any:\n    pass\n":
++    labels:
++    - source: "id: str"
++      style: primary
++      start: 35
++      end: 42
++    - source: str
++      style: secondary
++      start: 39
++      end: 42
++  "def read_user_by_id(user_id: int, session: SessionDep) -> Any:\n    pass\n":
++    labels:
++    - source: "user_id: int"
++      style: primary
++      start: 20
++      end: 32
++    - source: int
++      style: secondary
++      start: 29
++      end: 32
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-uuid-primary-key-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-uuid-primary-key-snapshot.yml
+new file mode 100644
+index 0000000..a9f294a
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-uuid-primary-key-snapshot.yml
+@@ -0,0 +1,38 @@
++id: gen-uuid-primary-key
++snapshots:
++  "class Item(ItemBase, table=True):\n    id: int | None = Field(default=None, primary_key=True)\n":
++    labels:
++    - source: "id: int | None = Field(default=None, primary_key=True)"
++      style: primary
++      start: 38
++      end: 92
++    - source: primary_key=True
++      style: secondary
++      start: 75
++      end: 91
++    - source: primary_key=True
++      style: secondary
++      start: 75
++      end: 91
++    - source: Field(default=None, primary_key=True)
++      style: secondary
++      start: 55
++      end: 92
++  "class Item(ItemBase, table=True):\n    id: uuid.UUID = Field(primary_key=True)\n":
++    labels:
++    - source: "id: uuid.UUID = Field(primary_key=True)"
++      style: primary
++      start: 38
++      end: 77
++    - source: primary_key=True
++      style: secondary
++      start: 60
++      end: 76
++    - source: primary_key=True
++      style: secondary
++      start: 60
++      end: 76
++    - source: Field(primary_key=True)
++      style: secondary
++      start: 54
++      end: 77
+diff --git a/ast-grep/rule-tests/gen-core-no-api-imports-test.yml b/ast-grep/rule-tests/gen-core-no-api-imports-test.yml
+new file mode 100644
+index 0000000..69d2b9a
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-core-no-api-imports-test.yml
+@@ -0,0 +1,21 @@
++id: gen-core-no-api-imports
++valid:
++  - |
++    from app.core.config import settings
++  - |
++    from app import crud
++  - |
++    from app.models import User
++  - |
++    from . import security
++invalid:
++  - |
++    from app.api.deps import SessionDep
++  - |
++    from app.api import deps
++  - |
++    import app.api.main
++  - |
++    from app import api
++  - |
++    from ..api.deps import CurrentUser
+diff --git a/ast-grep/rule-tests/gen-cors-no-wildcard-origin-test.yml b/ast-grep/rule-tests/gen-cors-no-wildcard-origin-test.yml
+new file mode 100644
+index 0000000..a11aec9
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-cors-no-wildcard-origin-test.yml
+@@ -0,0 +1,15 @@
++id: gen-cors-no-wildcard-origin
++valid:
++  - |
++    app.add_middleware(CORSMiddleware, allow_origins=[settings.FRONTEND_HOST], allow_methods=["*"], allow_headers=["*"])
++  - |
++    app.add_middleware(CORSMiddleware, allow_origins=settings.all_cors_origins)
++invalid:
++  - |
++    app.add_middleware(CORSMiddleware, allow_origins=["*"])
++  - |
++    app.add_middleware(CORSMiddleware, allow_origins="*")
++  - |
++    app.add_middleware(CORSMiddleware, allow_origins=[settings.FRONTEND_HOST, "*"])
++  - |
++    app.add_middleware(CORSMiddleware, allow_origin_regex=".*")
+diff --git a/ast-grep/rule-tests/gen-count-in-database-test.yml b/ast-grep/rule-tests/gen-count-in-database-test.yml
+new file mode 100644
+index 0000000..5aeb2de
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-count-in-database-test.yml
+@@ -0,0 +1,11 @@
++id: gen-count-in-database
++valid:
++  - |
++    count = session.exec(select(func.count()).select_from(Item)).one()
++  - |
++    n = len(items)
++invalid:
++  - |
++    count = len(session.exec(select(Item)).all())
++  - |
++    count = len(result.all())
+diff --git a/ast-grep/rule-tests/gen-crud-dependencies-test.yml b/ast-grep/rule-tests/gen-crud-dependencies-test.yml
+new file mode 100644
+index 0000000..11bafa6
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-crud-dependencies-test.yml
+@@ -0,0 +1,29 @@
++id: gen-crud-dependencies
++valid:
++  - |
++    from app.models import Item, User
++  - |
++    from app.core.security import get_password_hash
++  - |
++    from app.core import security
++  - |
++    import app.models
++  - |
++    from sqlmodel import Session, select
++  - |
++    import uuid
++invalid:
++  - |
++    from app.core.config import settings
++  - |
++    from app.api.deps import SessionDep
++  - |
++    from app import utils
++  - |
++    from app.core import security, db
++  - |
++    import app.utils
++  - |
++    from .utils import send_email
++  - |
++    import app.utils as u
+diff --git a/ast-grep/rule-tests/gen-crud-keyword-session-test.yml b/ast-grep/rule-tests/gen-crud-keyword-session-test.yml
+new file mode 100644
+index 0000000..74da26f
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-crud-keyword-session-test.yml
+@@ -0,0 +1,18 @@
++id: gen-crud-keyword-session
++valid:
++  - |
++    def create_user(*, session: Session, user_create: UserCreate) -> User:
++        pass
++  - |
++    def get_user_by_email(*, session: Session, email: str) -> User | None:
++        pass
++invalid:
++  - |
++    def create_user(session: Session, user_create: UserCreate) -> User:
++        pass
++  - |
++    def get_item(item_id: uuid.UUID, session: Session, *, lock: bool = False) -> Item:
++        pass
++  - |
++    def get_item(session, item_id):
++        pass
+diff --git a/ast-grep/rule-tests/gen-http-exception-detail-test.yml b/ast-grep/rule-tests/gen-http-exception-detail-test.yml
+new file mode 100644
+index 0000000..401ce7d
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-http-exception-detail-test.yml
+@@ -0,0 +1,13 @@
++id: gen-http-exception-detail
++valid:
++  - |
++    raise HTTPException(status_code=404, detail="Item not found")
++  - |
++    raise fastapi.HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
++invalid:
++  - |
++    raise HTTPException(status_code=404)
++  - |
++    raise HTTPException(404, "Item not found")
++  - |
++    raise fastapi.HTTPException(status_code=400)
+diff --git a/ast-grep/rule-tests/gen-jinja-autoescape-test.yml b/ast-grep/rule-tests/gen-jinja-autoescape-test.yml
+new file mode 100644
+index 0000000..058d542
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-jinja-autoescape-test.yml
+@@ -0,0 +1,15 @@
++id: gen-jinja-autoescape
++valid:
++  - |
++    template = Template(template_str, autoescape=True)
++  - |
++    env = Environment(loader=loader, autoescape=select_autoescape())
++  - |
++    name = string.Template("$x")
++invalid:
++  - |
++    template: Template = Template(template_str)
++  - |
++    env = Environment(loader=loader)
++  - |
++    env = jinja2.Environment(autoescape=False)
+diff --git a/ast-grep/rule-tests/gen-keyword-only-params-test.yml b/ast-grep/rule-tests/gen-keyword-only-params-test.yml
+new file mode 100644
+index 0000000..9fffb28
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-keyword-only-params-test.yml
+@@ -0,0 +1,32 @@
++id: gen-keyword-only-params
++valid:
++  - |
++    def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -> Item:
++        pass
++  - |
++    def verify_password(plain_password: str, hashed_password: str) -> bool:
++        pass
++  - |
++    def read_items(session: SessionDep, *, skip: int = 0, limit: int = 100) -> Any:
++        pass
++  - |
++    class Settings:
++        def _check_default_secret(self, var_name: str, value: str | None) -> None:
++            pass
++  - |
++    def f(a, b, *args, c):
++        pass
++  - |
++    def f(a, b, *args: str):
++        pass
++invalid:
++  - |
++    def generate_reset_password_email(email_to: str, email: str, token: str) -> EmailData:
++        pass
++  - |
++    def read_items(session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100) -> Any:
++        pass
++  - |
++    class A:
++        def m(self, a, b, c):
++            pass
+diff --git a/ast-grep/rule-tests/gen-models-dependencies-test.yml b/ast-grep/rule-tests/gen-models-dependencies-test.yml
+new file mode 100644
+index 0000000..4e99249
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-models-dependencies-test.yml
+@@ -0,0 +1,21 @@
++id: gen-models-dependencies
++valid:
++  - |
++    from sqlmodel import Field, Relationship, SQLModel
++  - |
++    from pydantic import EmailStr
++  - |
++    from app.models.base import TimestampMixin
++  - |
++    import app.models.item as item_models
++invalid:
++  - |
++    from .utils import get_datetime_utc
++  - |
++    from app.core.config import settings
++  - |
++    from app import crud
++  - |
++    import app.core.security
++  - |
++    from app.utils import get_datetime_utc
+diff --git a/ast-grep/rule-tests/gen-no-bare-collection-response-test.yml b/ast-grep/rule-tests/gen-no-bare-collection-response-test.yml
+new file mode 100644
+index 0000000..09aa4d5
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-bare-collection-response-test.yml
+@@ -0,0 +1,26 @@
++id: gen-no-bare-collection-response
++valid:
++  - |
++    @router.get("/", response_model=ItemsPublic)
++    def read_items(session: SessionDep) -> Any:
++        pass
++  - |
++    @router.get("/health-check/")
++    async def health_check() -> bool:
++        return True
++  - |
++    def helper() -> list[str]:
++        return []
++invalid:
++  - |
++    @router.get("/")
++    def read_items(session: SessionDep) -> list[ItemPublic]:
++        pass
++  - |
++    @router.get("/stats")
++    def stats() -> dict[str, int]:
++        pass
++  - |
++    @router.get("/", response_model=list[ItemPublic])
++    def read_items(session: SessionDep) -> Any:
++        pass
+diff --git a/ast-grep/rule-tests/gen-no-db-access-in-routes-test.yml b/ast-grep/rule-tests/gen-no-db-access-in-routes-test.yml
+new file mode 100644
+index 0000000..3411d92
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-db-access-in-routes-test.yml
+@@ -0,0 +1,19 @@
++id: gen-no-db-access-in-routes
++valid:
++  - |
++    user = crud.get_user_by_email(session=session, email=user_in.email)
++  - |
++    item = crud.create_item(session=session, item_in=item_in, owner_id=current_user.id)
++  - |
++    value = settings.get("x")
++invalid:
++  - |
++    item = session.get(Item, id)
++  - |
++    items = session.exec(statement).all()
++  - |
++    session.add(item)
++  - |
++    session.commit()
++  - |
++    session.delete(item)
+diff --git a/ast-grep/rule-tests/gen-no-db-mocks-in-tests-test.yml b/ast-grep/rule-tests/gen-no-db-mocks-in-tests-test.yml
+new file mode 100644
+index 0000000..15f1e71
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-db-mocks-in-tests-test.yml
+@@ -0,0 +1,20 @@
++id: gen-no-db-mocks-in-tests
++valid:
++  - |
++    with patch("app.utils.send_email", return_value=None):
++        pass
++  - |
++    patch("app.core.config.settings.SMTP_HOST", "smtp.example.com")
++  - |
++    r = client.patch(f"{settings.API_V1_STR}/users/me", json=data)
++invalid:
++  - |
++    patch("app.api.deps.get_db")
++  - |
++    patch("app.crud.get_user_by_email", return_value=None)
++  - |
++    mocker.patch("sqlmodel.Session.exec")
++  - |
++    patch.object(session, "commit")
++  - |
++    mock.patch("app.core.db.engine")
+diff --git a/ast-grep/rule-tests/gen-no-delete-in-loop-test.yml b/ast-grep/rule-tests/gen-no-delete-in-loop-test.yml
+new file mode 100644
+index 0000000..476107e
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-delete-in-loop-test.yml
+@@ -0,0 +1,15 @@
++id: gen-no-delete-in-loop
++valid:
++  - |
++    statement = delete(Item).where(col(Item.owner_id) == user_id)
++    session.exec(statement)
++    session.delete(user)
++invalid:
++  - |
++    for item in items:
++        session.delete(item)
++  - |
++    def f():
++        for item in user.items:
++            if item.done:
++                session.delete(item)
+diff --git a/ast-grep/rule-tests/gen-no-env-outside-settings-test.yml b/ast-grep/rule-tests/gen-no-env-outside-settings-test.yml
+new file mode 100644
+index 0000000..1236272
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-env-outside-settings-test.yml
+@@ -0,0 +1,25 @@
++id: gen-no-env-outside-settings
++valid:
++  - |
++    from app.core.config import settings
++  - |
++    url = settings.DATABASE_URL
++  - |
++    import os.path
++  - |
++    environ = {}
++invalid:
++  - |
++    x = os.environ["SECRET_KEY"]
++  - |
++    x = os.environ.get("SECRET_KEY")
++  - |
++    x = os.getenv("SECRET_KEY", "")
++  - |
++    from os import getenv
++  - |
++    from os import path, environ
++  - |
++    from dotenv import load_dotenv
++  - |
++    import dotenv
+diff --git a/ast-grep/rule-tests/gen-no-imports-from-routes-test.yml b/ast-grep/rule-tests/gen-no-imports-from-routes-test.yml
+new file mode 100644
+index 0000000..4734308
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-imports-from-routes-test.yml
+@@ -0,0 +1,27 @@
++id: gen-no-imports-from-routes
++valid:
++  - |
++    from app.api.deps import SessionDep
++  - |
++    from app.api import deps
++  - |
++    from app import crud
++  - |
++    from app.api.routers_helpers import x
++invalid:
++  - |
++    from app.api.routes import items
++  - |
++    from app.api.routes.items import read_items
++  - |
++    import app.api.routes.users
++  - |
++    from app.api import routes
++  - |
++    from app.api import deps, routes
++  - |
++    from .routes import items
++  - |
++    from ..routes.items import router
++  - |
++    import app.api.routes.items as items_routes
+diff --git a/ast-grep/rule-tests/gen-no-jwt-in-routes-test.yml b/ast-grep/rule-tests/gen-no-jwt-in-routes-test.yml
+new file mode 100644
+index 0000000..d352a07
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-jwt-in-routes-test.yml
+@@ -0,0 +1,17 @@
++id: gen-no-jwt-in-routes
++valid:
++  - |
++    from app.api.deps import CurrentUser
++  - |
++    from app.core import security
++  - |
++    from app.utils import verify_password_reset_token
++invalid:
++  - |
++    import jwt
++  - |
++    import jwt as pyjwt
++  - |
++    from jwt.exceptions import InvalidTokenError
++  - |
++    from jwt import decode
+diff --git a/ast-grep/rule-tests/gen-no-manual-validation-error-test.yml b/ast-grep/rule-tests/gen-no-manual-validation-error-test.yml
+new file mode 100644
+index 0000000..89c1bee
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-manual-validation-error-test.yml
+@@ -0,0 +1,15 @@
++id: gen-no-manual-validation-error
++valid:
++  - |
++    raise HTTPException(status_code=400, detail="The user with this email already exists in the system.")
++  - |
++    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
++invalid:
++  - |
++    raise HTTPException(status_code=422, detail="Invalid email")
++  - |
++    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid email")
++  - |
++    raise RequestValidationError(errors=[])
++  - |
++    raise fastapi.exceptions.RequestValidationError([])
+diff --git a/ast-grep/rule-tests/gen-no-raw-sql-test.yml b/ast-grep/rule-tests/gen-no-raw-sql-test.yml
+new file mode 100644
+index 0000000..c8ab62e
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-raw-sql-test.yml
+@@ -0,0 +1,19 @@
++id: gen-no-raw-sql
++valid:
++  - |
++    user = session.exec(select(User).where(User.email == email)).first()
++  - |
++    from sqlmodel import Session, col, func, select
++  - |
++    template_str = path.read_text()
++invalid:
++  - |
++    from sqlalchemy import text
++  - |
++    from sqlmodel import select, text
++  - |
++    session.execute(sqlalchemy.text("SELECT 1"))
++  - |
++    rows = session.query(User).all()
++  - |
++    session.exec(sa.text("DELETE FROM item"))
+diff --git a/ast-grep/rule-tests/gen-no-sensitive-logging-test.yml b/ast-grep/rule-tests/gen-no-sensitive-logging-test.yml
+new file mode 100644
+index 0000000..3e97aa5
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-sensitive-logging-test.yml
+@@ -0,0 +1,19 @@
++id: gen-no-sensitive-logging
++valid:
++  - |
++    logger.info(f"send email result: {response}")
++  - |
++    logger.info("Creating initial data")
++  - |
++    logger.warning("Login failed for user %s", user.id)
++invalid:
++  - |
++    logger.info("password: %s", password)
++  - |
++    logger.debug(f"token {token}")
++  - |
++    logger.info("reset %s", user_in.new_password)
++  - |
++    logging.error("body %s", body)
++  - |
++    logger.info(f"Reset link: {reset_link}")
+diff --git a/ast-grep/rule-tests/gen-no-session-outside-deps-test.yml b/ast-grep/rule-tests/gen-no-session-outside-deps-test.yml
+new file mode 100644
+index 0000000..fcd9e2d
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-session-outside-deps-test.yml
+@@ -0,0 +1,18 @@
++id: gen-no-session-outside-deps
++valid:
++  - |
++    def read_items(session: SessionDep) -> Any:
++        return crud.get_items(session=session)
++  - |
++    from sqlmodel import Session
++invalid:
++  - |
++    def f():
++        with Session(engine) as session:
++            pass
++  - |
++    engine = create_engine(str(settings.DATABASE_URL))
++  - |
++    SessionLocal = sessionmaker(bind=engine)
++  - |
++    s = sqlmodel.Session(engine)
+diff --git a/ast-grep/rule-tests/gen-password-hashing-in-security-test.yml b/ast-grep/rule-tests/gen-password-hashing-in-security-test.yml
+new file mode 100644
+index 0000000..9427c39
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-password-hashing-in-security-test.yml
+@@ -0,0 +1,21 @@
++id: gen-password-hashing-in-security
++valid:
++  - |
++    from app.core.security import get_password_hash, verify_password
++  - |
++    from app.core import security
++invalid:
++  - |
++    from pwdlib import PasswordHash
++  - |
++    from pwdlib.hashers.argon2 import Argon2Hasher
++  - |
++    import bcrypt
++  - |
++    import hashlib
++  - |
++    from passlib.context import CryptContext
++  - |
++    import argon2
++  - |
++    import hashlib as h
+diff --git a/ast-grep/rule-tests/gen-playwright-no-css-selectors-test.yml b/ast-grep/rule-tests/gen-playwright-no-css-selectors-test.yml
+new file mode 100644
+index 0000000..0e78f7d
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-playwright-no-css-selectors-test.yml
+@@ -0,0 +1,25 @@
++id: gen-playwright-no-css-selectors
++valid:
++  - |
++    await page.getByRole("button", { name: "Log In" }).click()
++  - |
++    await page.locator("form").getByText(email, { exact: true }).click()
++  - |
++    await expect(page.locator("html")).toHaveClass(/dark/)
++  - |
++    await page.locator("body").click()
++  - |
++    await page.getByText("Version 1.2").click()
++invalid:
++  - |
++    await page.locator(".btn-primary").click()
++  - |
++    await page.locator("button.submit").click()
++  - |
++    await page.locator("form > .error").isVisible()
++  - |
++    await page.locator("[class='toast']").isVisible()
++  - |
++    await page.$(".menu")
++  - |
++    await page.waitForSelector(".spinner")
+diff --git a/ast-grep/rule-tests/gen-relationship-back-populates-test.yml b/ast-grep/rule-tests/gen-relationship-back-populates-test.yml
+new file mode 100644
+index 0000000..14c9e5f
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-relationship-back-populates-test.yml
+@@ -0,0 +1,15 @@
++id: gen-relationship-back-populates
++valid:
++  - |
++    class Item(ItemBase, table=True):
++        owner: User | None = Relationship(back_populates="items")
++  - |
++    class User(UserBase, table=True):
++        items: list[Item] = Relationship(back_populates="owner", cascade_delete=True)
++invalid:
++  - |
++    class Item(ItemBase, table=True):
++        owner: User | None = Relationship()
++  - |
++    class User(UserBase, table=True):
++        items: list[Item] = Relationship(cascade_delete=True)
+diff --git a/ast-grep/rule-tests/gen-route-response-model-test.yml b/ast-grep/rule-tests/gen-route-response-model-test.yml
+new file mode 100644
+index 0000000..68a4d19
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-route-response-model-test.yml
+@@ -0,0 +1,31 @@
++id: gen-route-response-model
++valid:
++  - |
++    @router.get("/{id}", response_model=ItemPublic)
++    def read_item(id: uuid.UUID) -> Any:
++        pass
++  - |
++    @router.patch(
++        "/{user_id}",
++        dependencies=[Depends(get_current_active_superuser)],
++        response_model=UserPublic,
++    )
++    def update_user() -> Any:
++        pass
++  - |
++    @app.middleware("http")
++    async def mw(request, call_next):
++        pass
++invalid:
++  - |
++    @router.delete("/{id}")
++    def delete_item(id: uuid.UUID) -> Message:
++        pass
++  - |
++    @router.post("/login/access-token")
++    def login_access_token() -> Token:
++        pass
++  - |
++    @api_router.get("/health-check/")
++    async def health_check() -> bool:
++        return True
+diff --git a/ast-grep/rule-tests/gen-router-prefix-tags-test.yml b/ast-grep/rule-tests/gen-router-prefix-tags-test.yml
+new file mode 100644
+index 0000000..f2e3d38
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-router-prefix-tags-test.yml
+@@ -0,0 +1,15 @@
++id: gen-router-prefix-tags
++valid:
++  - |
++    router = APIRouter(prefix="/items", tags=["items"])
++  - |
++    router = APIRouter(tags=["private"], prefix="/private")
++invalid:
++  - |
++    router = APIRouter()
++  - |
++    router = APIRouter(tags=["login"])
++  - |
++    router = APIRouter(prefix="/items")
++  - |
++    router = fastapi.APIRouter()
+diff --git a/ast-grep/rule-tests/gen-settings-singleton-test.yml b/ast-grep/rule-tests/gen-settings-singleton-test.yml
+new file mode 100644
+index 0000000..f559dbf
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-settings-singleton-test.yml
+@@ -0,0 +1,19 @@
++id: gen-settings-singleton
++valid:
++  - |
++    from app.core.config import settings
++  - |
++    name = settings.PROJECT_NAME
++  - |
++    from app.core.config import settings as s
++invalid:
++  - |
++    from app.core.config import Settings
++  - |
++    from app.core.config import settings, Settings
++  - |
++    from .config import Settings
++  - |
++    s = Settings()
++  - |
++    s = config.Settings(_env_file=".env")
+diff --git a/ast-grep/rule-tests/gen-status-constants-test.yml b/ast-grep/rule-tests/gen-status-constants-test.yml
+new file mode 100644
+index 0000000..f30f0ef
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-status-constants-test.yml
+@@ -0,0 +1,19 @@
++id: gen-status-constants
++valid:
++  - |
++    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
++  - |
++    @router.post("/test-email/", status_code=status.HTTP_201_CREATED)
++    def test_email() -> Message:
++        pass
++  - |
++    assert r.status_code == 404
++invalid:
++  - |
++    raise HTTPException(status_code=404, detail="Item not found")
++  - |
++    @router.post("/test-email/", status_code=201)
++    def test_email() -> Message:
++        pass
++  - |
++    raise HTTPException(403, "Not enough permissions")
+diff --git a/ast-grep/rule-tests/gen-str-field-max-length-test.yml b/ast-grep/rule-tests/gen-str-field-max-length-test.yml
+new file mode 100644
+index 0000000..627aa0e
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-str-field-max-length-test.yml
+@@ -0,0 +1,23 @@
++id: gen-str-field-max-length
++valid:
++  - |
++    class ItemBase(SQLModel):
++        title: str = Field(min_length=1, max_length=255)
++        description: str | None = Field(default=None, max_length=255)
++  - |
++    class Message(SQLModel):
++        message: str
++  - |
++    class User(UserBase, table=True):
++        id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
++        is_active: bool = True
++invalid:
++  - |
++    class ItemBase(SQLModel):
++        title: str = Field(min_length=1)
++  - |
++    class UserUpdate(SQLModel):
++        email: EmailStr | None = Field(default=None)
++  - |
++    class User(UserBase, table=True):
++        hashed_password: str
+diff --git a/ast-grep/rule-tests/gen-table-created-at-test.yml b/ast-grep/rule-tests/gen-table-created-at-test.yml
+new file mode 100644
+index 0000000..e2198c9
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-table-created-at-test.yml
+@@ -0,0 +1,14 @@
++id: gen-table-created-at
++valid:
++  - |
++    class Item(ItemBase, table=True):
++        id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
++        created_at: datetime | None = Field(default_factory=get_datetime_utc)
++  - |
++    class ItemPublic(ItemBase):
++        id: uuid.UUID
++invalid:
++  - |
++    class Tag(SQLModel, table=True):
++        id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
++        name: str = Field(max_length=255)
+diff --git a/ast-grep/rule-tests/gen-timestamp-utc-test.yml b/ast-grep/rule-tests/gen-timestamp-utc-test.yml
+new file mode 100644
+index 0000000..48a0025
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-timestamp-utc-test.yml
+@@ -0,0 +1,18 @@
++id: gen-timestamp-utc
++valid:
++  - |
++    class Item(ItemBase, table=True):
++        created_at: datetime | None = Field(default_factory=get_datetime_utc)
++  - |
++    class Item(ItemBase, table=True):
++        title: str = Field(default="x", max_length=255)
++invalid:
++  - |
++    class Item(ItemBase, table=True):
++        created_at: datetime = Field(default_factory=datetime.utcnow)
++  - |
++    class Item(ItemBase, table=True):
++        created_at: datetime = Field(default_factory=datetime.now)
++  - |
++    class Item(ItemBase, table=True):
++        created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+diff --git a/ast-grep/rule-tests/gen-uuid-id-params-test.yml b/ast-grep/rule-tests/gen-uuid-id-params-test.yml
+new file mode 100644
+index 0000000..3f9726f
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-uuid-id-params-test.yml
+@@ -0,0 +1,24 @@
++id: gen-uuid-id-params
++valid:
++  - |
++    def read_item(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) -> Any:
++        pass
++  - |
++    def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -> Item:
++        pass
++  - |
++    def get_user_by_email(*, session: Session, email: str) -> User | None:
++        pass
++  - |
++    def f(valid: str, paid: int):
++        pass
++invalid:
++  - |
++    def read_item(session: SessionDep, id: str) -> Any:
++        pass
++  - |
++    def read_user_by_id(user_id: int, session: SessionDep) -> Any:
++        pass
++  - |
++    def f(*, owner_id: str | None = None):
++        pass
+diff --git a/ast-grep/rule-tests/gen-uuid-primary-key-test.yml b/ast-grep/rule-tests/gen-uuid-primary-key-test.yml
+new file mode 100644
+index 0000000..ca6d3dd
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-uuid-primary-key-test.yml
+@@ -0,0 +1,15 @@
++id: gen-uuid-primary-key
++valid:
++  - |
++    class Item(ItemBase, table=True):
++        id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
++  - |
++    class Item(ItemBase, table=True):
++        owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE")
++invalid:
++  - |
++    class Item(ItemBase, table=True):
++        id: int | None = Field(default=None, primary_key=True)
++  - |
++    class Item(ItemBase, table=True):
++        id: uuid.UUID = Field(primary_key=True)
+diff --git a/ast-grep/rules/gen-core-no-api-imports.yml b/ast-grep/rules/gen-core-no-api-imports.yml
+new file mode 100644
+index 0000000..a277e38
+--- /dev/null
++++ b/ast-grep/rules/gen-core-no-api-imports.yml
+@@ -0,0 +1,18 @@
++# docs/architecture.md "Dependency rules": core must not import from api.
++id: gen-core-no-api-imports
++language: python
++severity: error
++message: app.core must not import from app.api.
++note: Move what both need into core, models.py or utils.py.
++files:
++  - backend/app/core/**/*.py
++rule:
++  any:
++    - kind: import_statement
++      has: { kind: dotted_name, regex: '^app\.api(\.|$)', stopBy: end }
++    - kind: import_from_statement
++      has: { field: module_name, regex: '^(app\.api|\.\.api)(\.|$)' }
++    - kind: import_from_statement
++      all:
++        - has: { field: module_name, regex: '^(app|\.\.)$' }
++        - has: { kind: dotted_name, regex: '^api$', stopBy: end }
+diff --git a/ast-grep/rules/gen-cors-no-wildcard-origin.yml b/ast-grep/rules/gen-cors-no-wildcard-origin.yml
+new file mode 100644
+index 0000000..ab2dee7
+--- /dev/null
++++ b/ast-grep/rules/gen-cors-no-wildcard-origin.yml
+@@ -0,0 +1,19 @@
++# docs/security.md "Transport and CORS".
++id: gen-cors-no-wildcard-origin
++language: python
++severity: error
++message: Do not allow every CORS origin.
++note: Origins come from `settings.BACKEND_CORS_ORIGINS` and `settings.FRONTEND_HOST`.
++files:
++  - backend/app/**/*.py
++rule:
++  kind: keyword_argument
++  any:
++    - all:
++        - has: { field: name, regex: '^allow_origins$' }
++        - any:
++            - has: { field: value, kind: string, regex: '^[rbuf]*["'']\*["'']$' }
++            - has: { field: value, has: { kind: string, regex: '^[rbuf]*["'']\*["'']$', stopBy: end } }
++    - all:
++        - has: { field: name, regex: '^allow_origin_regex$' }
++        - has: { field: value, regex: '^[rbuf]*["'']\.\*["'']$' }
+diff --git a/ast-grep/rules/gen-count-in-database.yml b/ast-grep/rules/gen-count-in-database.yml
+new file mode 100644
+index 0000000..0dfb252
+--- /dev/null
++++ b/ast-grep/rules/gen-count-in-database.yml
+@@ -0,0 +1,12 @@
++# docs/database.md "Sessions": count in the database.
++id: gen-count-in-database
++language: python
++severity: error
++message: Count rows with `func.count()` in the query, not by loading them.
++note: '`session.exec(select(func.count()).select_from(Item)).one()`'
++files:
++  - backend/app/**/*.py
++ignores:
++  - backend/app/alembic/**
++rule:
++  pattern: len($Q.all())
+diff --git a/ast-grep/rules/gen-crud-dependencies.yml b/ast-grep/rules/gen-crud-dependencies.yml
+new file mode 100644
+index 0000000..23c43fc
+--- /dev/null
++++ b/ast-grep/rules/gen-crud-dependencies.yml
+@@ -0,0 +1,19 @@
++# docs/architecture.md "Dependency rules": crud depends on models and core.security only.
++id: gen-crud-dependencies
++language: python
++severity: error
++message: crud may import only from app.models and app.core.security.
++note: Pass anything else in as an argument, or move the shared type into models.py.
++files:
++  - backend/app/crud.py
++rule:
++  any:
++    - kind: import_statement
++      has: { kind: dotted_name, regex: '^app(\.|$)', stopBy: end }
++      not: { regex: '^import\s+app\.(models|core\.security)(\s+as\s+\w+)?$' }
++    - kind: import_from_statement
++      has: { field: module_name, regex: '^(app(\.|$)|\.)' }
++      not:
++        any:
++          - has: { field: module_name, regex: '^(app)?\.(models|core\.security)$' }
++          - regex: '^from\s+(app)?\.core\s+import\s+security(\s+as\s+\w+)?$'
+diff --git a/ast-grep/rules/gen-crud-keyword-session.yml b/ast-grep/rules/gen-crud-keyword-session.yml
+new file mode 100644
+index 0000000..b1ec0aa
+--- /dev/null
++++ b/ast-grep/rules/gen-crud-keyword-session.yml
+@@ -0,0 +1,13 @@
++# docs/backend.md "CRUD layer". Edit `files` for another layout.
++id: gen-crud-keyword-session
++language: python
++severity: error
++message: CRUD functions take the session as a keyword-only argument.
++note: 'Put `*` first: `def get_user_by_email(*, session: Session, email: str)`.'
++files:
++  - backend/app/crud.py
++rule:
++  any: [{ kind: identifier }, { kind: typed_parameter }, { kind: default_parameter }, { kind: typed_default_parameter }]
++  regex: '^session\b'
++  inside: { kind: parameters }
++  not: { follows: { kind: keyword_separator, stopBy: end } }
+diff --git a/ast-grep/rules/gen-http-exception-detail.yml b/ast-grep/rules/gen-http-exception-detail.yml
+new file mode 100644
+index 0000000..0434a81
+--- /dev/null
++++ b/ast-grep/rules/gen-http-exception-detail.yml
+@@ -0,0 +1,15 @@
++# docs/api.md "Status codes and errors", docs/backend.md "Errors".
++id: gen-http-exception-detail
++language: python
++severity: error
++message: Raise `HTTPException` with a `detail=` keyword; the frontend shows it in a toast.
++note: Use a short, user-facing text, the same wording as other endpoints for the same situation.
++files:
++  - backend/app/**/*.py
++rule:
++  kind: call
++  has: { field: function, regex: '(^|\.)HTTPException$' }
++  not:
++    has:
++      field: arguments
++      has: { kind: keyword_argument, has: { field: name, regex: '^detail$' } }
+diff --git a/ast-grep/rules/gen-jinja-autoescape.yml b/ast-grep/rules/gen-jinja-autoescape.yml
+new file mode 100644
+index 0000000..451a113
+--- /dev/null
++++ b/ast-grep/rules/gen-jinja-autoescape.yml
+@@ -0,0 +1,15 @@
++# docs/security.md "Input handling": escape user content in emails.
++id: gen-jinja-autoescape
++language: python
++severity: warning
++message: Jinja templates must escape user content; pass `autoescape=True`.
++note: '`jinja2.Template` and `Environment` do not escape by default. Check that the rendered email still looks right before changing it.'
++files:
++  - backend/app/**/*.py
++rule:
++  kind: call
++  has: { field: function, regex: '^(jinja2\.)?(Template|Environment)$' }
++  not:
++    has:
++      field: arguments
++      has: { kind: keyword_argument, regex: '^autoescape\s*=\s*(?:[^F]|F[^a])' }
+diff --git a/ast-grep/rules/gen-keyword-only-params.yml b/ast-grep/rules/gen-keyword-only-params.yml
+new file mode 100644
+index 0000000..a9788bd
+--- /dev/null
++++ b/ast-grep/rules/gen-keyword-only-params.yml
+@@ -0,0 +1,21 @@
++# docs/backend.md "General": keyword-only arguments past two parameters, as crud.py does.
++id: gen-keyword-only-params
++language: python
++severity: warning
++message: Make the parameters keyword-only (`*`) when a function has more than two.
++note: 'Example: `def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID)`. Call sites then pass names.'
++files:
++  - backend/app/**/*.py
++ignores:
++  - backend/app/alembic/**
++rule:
++  kind: parameters
++  inside: { kind: function_definition }
++  not:
++    has:
++      any: [{ kind: keyword_separator }, { kind: list_splat_pattern }, { kind: typed_parameter, has: { kind: list_splat_pattern } }]
++  any:
++    - all:
++        - has: { nthChild: 3, not: { kind: comment } }
++        - not: { has: { nthChild: 1, regex: '^(self|cls)\b' } }
++    - has: { nthChild: 4, not: { kind: comment } }
+diff --git a/ast-grep/rules/gen-models-dependencies.yml b/ast-grep/rules/gen-models-dependencies.yml
+new file mode 100644
+index 0000000..3904c7d
+--- /dev/null
++++ b/ast-grep/rules/gen-models-dependencies.yml
+@@ -0,0 +1,16 @@
++# docs/architecture.md "Dependency rules": models depend on nothing in the app except other models.
++id: gen-models-dependencies
++language: python
++severity: error
++message: Models import nothing from the application except other models.
++note: Shared types belong in models.py; keep settings, crud and security out of it.
++files:
++  - backend/app/models.py
++rule:
++  any:
++    - kind: import_statement
++      has: { kind: dotted_name, regex: '^app(\.|$)', stopBy: end }
++      not: { has: { kind: dotted_name, regex: '^app\.models(\.|$)', stopBy: end } }
++    - kind: import_from_statement
++      has: { field: module_name, regex: '^(app(\.|$)|\.)' }
++      not: { has: { field: module_name, regex: '^(app\.models|\.models)(\.|$)' } }
+diff --git a/ast-grep/rules/gen-no-bare-collection-response.yml b/ast-grep/rules/gen-no-bare-collection-response.yml
+new file mode 100644
+index 0000000..13ef643
+--- /dev/null
++++ b/ast-grep/rules/gen-no-bare-collection-response.yml
+@@ -0,0 +1,20 @@
++# docs/api.md "Responses": lists return { data, count }. Edit `files` for another layout.
++id: gen-no-bare-collection-response
++language: python
++severity: error
++message: Endpoints do not return bare lists or dictionaries.
++note: Return a wrapper with `data` and `count` (like `ItemsPublic`), or a named response schema.
++files:
++  - backend/app/api/routes/**/*.py
++rule:
++  any:
++    - kind: function_definition
++      inside:
++        kind: decorated_definition
++        has: { kind: decorator, regex: '^@\w*router\.(get|post|put|patch|delete)\(' }
++      has: { field: return_type, regex: '^(list|dict|List|Dict)(\[|$)' }
++    - kind: keyword_argument
++      inside: { kind: decorator, stopBy: end, regex: '^@\w*router\.(get|post|put|patch|delete)\(' }
++      all:
++        - has: { field: name, regex: '^response_model$' }
++        - has: { field: value, regex: '^(list|dict|List|Dict)(\[|$)' }
+diff --git a/ast-grep/rules/gen-no-db-access-in-routes.yml b/ast-grep/rules/gen-no-db-access-in-routes.yml
+new file mode 100644
+index 0000000..0318c75
+--- /dev/null
++++ b/ast-grep/rules/gen-no-db-access-in-routes.yml
+@@ -0,0 +1,11 @@
++# docs/backend.md "Routes": database access goes through app/crud.py. Edit `files` for another layout.
++id: gen-no-db-access-in-routes
++language: python
++severity: warning
++message: Route handlers do not call the session directly; database access goes through app/crud.py.
++note: 'Call an existing crud function, or add one (`*, session: Session`, commits and refreshes its own change).'
++files:
++  - backend/app/api/routes/**/*.py
++rule:
++  kind: call
++  has: { field: function, regex: '^(session|db)\.(exec|get|add|delete|commit)$' }
+diff --git a/ast-grep/rules/gen-no-db-mocks-in-tests.yml b/ast-grep/rules/gen-no-db-mocks-in-tests.yml
+new file mode 100644
+index 0000000..1036b7b
+--- /dev/null
++++ b/ast-grep/rules/gen-no-db-mocks-in-tests.yml
+@@ -0,0 +1,17 @@
++# docs/testing.md "Backend": do not mock the database. Edit `files` for another layout.
++id: gen-no-db-mocks-in-tests
++language: python
++severity: error
++message: Do not mock the database in tests; mock only external services such as email sending.
++note: Use the `db` fixture and the helpers in tests/utils to create real rows.
++files:
++  - backend/tests/**/*.py
++rule:
++  kind: call
++  all:
++    - has: { field: function, regex: '^((unittest\.)?mock\.)?patch(\.object)?$|^mocker\.patch(\.object)?$' }
++    - has:
++        field: arguments
++        has:
++          nthChild: 1
++          regex: '(?i)(session|engine|(^|[^a-z])db([^a-z]|$)|crud)'
+diff --git a/ast-grep/rules/gen-no-delete-in-loop.yml b/ast-grep/rules/gen-no-delete-in-loop.yml
+new file mode 100644
+index 0000000..f7f2bae
+--- /dev/null
++++ b/ast-grep/rules/gen-no-delete-in-loop.yml
+@@ -0,0 +1,16 @@
++# docs/database.md "Queries".
++id: gen-no-delete-in-loop
++language: python
++severity: error
++message: Delete many rows with one `delete(...)` statement instead of a loop.
++note: '`session.exec(delete(Item).where(col(Item.owner_id) == user_id))`'
++files:
++  - backend/app/**/*.py
++ignores:
++  - backend/app/alembic/**
++rule:
++  kind: call
++  has: { field: function, regex: '^(session|db)\.delete$' }
++  inside:
++    stopBy: end
++    any: [{ kind: for_statement }, { kind: while_statement }, { kind: list_comprehension }, { kind: generator_expression }]
+diff --git a/ast-grep/rules/gen-no-env-outside-settings.yml b/ast-grep/rules/gen-no-env-outside-settings.yml
+new file mode 100644
+index 0000000..fe471f8
+--- /dev/null
++++ b/ast-grep/rules/gen-no-env-outside-settings.yml
+@@ -0,0 +1,22 @@
++# docs/architecture.md "Configuration". Edit `files`/`ignores` for another layout.
++id: gen-no-env-outside-settings
++language: python
++severity: error
++message: Read configuration through `settings`, not environment variables.
++note: Add a typed field to `Settings` in app/core/config.py and use `from app.core.config import settings`.
++files:
++  - backend/app/**/*.py
++ignores:
++  - backend/app/core/config.py
++rule:
++  any:
++    - pattern: os.environ
++    - pattern: os.environb
++    - pattern: os.getenv
++    - kind: import_from_statement
++      has: { field: module_name, regex: '^os$' }
++      regex: '\b(environ|environb|getenv|getenvb)\b'
++    - kind: import_from_statement
++      has: { field: module_name, regex: '^dotenv(\.|$)' }
++    - kind: import_statement
++      has: { kind: dotted_name, regex: '^dotenv(\.|$)', stopBy: end }
+diff --git a/ast-grep/rules/gen-no-imports-from-routes.yml b/ast-grep/rules/gen-no-imports-from-routes.yml
+new file mode 100644
+index 0000000..df58a14
+--- /dev/null
++++ b/ast-grep/rules/gen-no-imports-from-routes.yml
+@@ -0,0 +1,20 @@
++# docs/architecture.md "Dependency rules": nothing depends on routes. Edit `ignores` for another layout.
++id: gen-no-imports-from-routes
++language: python
++severity: error
++message: Nothing depends on route modules; only app/api/main.py includes them.
++note: Move shared code into deps.py, crud.py, models.py or utils.py.
++files:
++  - backend/app/**/*.py
++ignores:
++  - backend/app/api/main.py
++rule:
++  any:
++    - kind: import_statement
++      has: { kind: dotted_name, regex: '^app\.api\.routes(\.|$)', stopBy: end }
++    - kind: import_from_statement
++      has: { field: module_name, regex: '^(app\.api\.routes|\.+routes)(\.|$)' }
++    - kind: import_from_statement
++      all:
++        - has: { field: module_name, regex: '^(app\.api|\.)$' }
++        - has: { kind: dotted_name, regex: '^routes$', stopBy: end }
+diff --git a/ast-grep/rules/gen-no-jwt-in-routes.yml b/ast-grep/rules/gen-no-jwt-in-routes.yml
+new file mode 100644
+index 0000000..417e278
+--- /dev/null
++++ b/ast-grep/rules/gen-no-jwt-in-routes.yml
+@@ -0,0 +1,14 @@
++# docs/security.md "Authentication", docs/backend.md "Routes". Edit `files` for another layout.
++id: gen-no-jwt-in-routes
++language: python
++severity: error
++message: Never decode or create tokens in a route.
++note: Use the `CurrentUser` dependency for the current user, and the token helpers in app/core/security.py or app/utils.py.
++files:
++  - backend/app/api/routes/**/*.py
++rule:
++  any:
++    - kind: import_statement
++      has: { kind: dotted_name, regex: '^jwt(\.|$)', stopBy: end }
++    - kind: import_from_statement
++      has: { field: module_name, regex: '^jwt(\.|$)' }
+diff --git a/ast-grep/rules/gen-no-manual-validation-error.yml b/ast-grep/rules/gen-no-manual-validation-error.yml
+new file mode 100644
+index 0000000..5d215ce
+--- /dev/null
++++ b/ast-grep/rules/gen-no-manual-validation-error.yml
+@@ -0,0 +1,16 @@
++# docs/api.md "Status codes and errors": 422 comes from FastAPI and Pydantic.
++id: gen-no-manual-validation-error
++language: python
++severity: error
++message: Do not build validation errors (422) by hand.
++note: Constrain the Pydantic schema or the parameter type and let FastAPI return 422; use 400 for business-rule violations.
++files:
++  - backend/app/**/*.py
++rule:
++  any:
++    - kind: call
++      has: { field: function, regex: '(^|\.)(RequestValidationError|ValidationException)$' }
++    - kind: keyword_argument
++      all:
++        - has: { field: name, regex: '^status_code$' }
++        - has: { field: value, regex: '^(422|(status\.)?HTTP_422_\w+)$' }
+diff --git a/ast-grep/rules/gen-no-raw-sql.yml b/ast-grep/rules/gen-no-raw-sql.yml
+new file mode 100644
+index 0000000..ff66072
+--- /dev/null
++++ b/ast-grep/rules/gen-no-raw-sql.yml
+@@ -0,0 +1,20 @@
++# docs/database.md "Sessions" and "Queries". Edit `ignores` for another layout.
++id: gen-no-raw-sql
++language: python
++severity: error
++message: Use `select(...)` statements with `session.exec`; avoid raw SQL.
++note: Build the query with SQLModel `select`, `func` and `delete`; values stay parameters.
++files:
++  - backend/app/**/*.py
++ignores:
++  - backend/app/alembic/**
++rule:
++  any:
++    - kind: import_from_statement
++      all:
++        - has: { field: module_name, regex: '^(sqlalchemy|sqlmodel)(\.|$)' }
++        - has: { kind: dotted_name, regex: '^text$', stopBy: end }
++    - kind: call
++      has: { field: function, regex: '^(sqlalchemy|sqlmodel|sa)\.text$' }
++    - kind: call
++      has: { field: function, regex: '^(session|db|conn|connection)\.(execute|query|exec_driver_sql)$' }
+diff --git a/ast-grep/rules/gen-no-sensitive-logging.yml b/ast-grep/rules/gen-no-sensitive-logging.yml
+new file mode 100644
+index 0000000..8094b29
+--- /dev/null
++++ b/ast-grep/rules/gen-no-sensitive-logging.yml
+@@ -0,0 +1,18 @@
++# docs/backend.md "Logging", docs/security.md "Secrets".
++id: gen-no-sensitive-logging
++language: python
++severity: error
++message: Never log passwords, tokens, secrets or request bodies.
++note: Log an id or the outcome instead of the value.
++files:
++  - backend/app/**/*.py
++rule:
++  kind: call
++  all:
++    - has: { field: function, regex: '^(logger|logging|log|_logger|LOGGER)\.(debug|info|warning|warn|error|exception|critical|log)$' }
++    - has:
++        field: arguments
++        has:
++          stopBy: end
++          kind: identifier
++          regex: '(?i)(password|passwd|token|secret|api_key|^body$|reset_link)'
+diff --git a/ast-grep/rules/gen-no-session-outside-deps.yml b/ast-grep/rules/gen-no-session-outside-deps.yml
+new file mode 100644
+index 0000000..8dc156e
+--- /dev/null
++++ b/ast-grep/rules/gen-no-session-outside-deps.yml
+@@ -0,0 +1,16 @@
++# docs/database.md "Sessions", docs/backend.md "Routes". Edit `ignores` for another layout.
++id: gen-no-session-outside-deps
++language: python
++severity: error
++message: Do not create a database engine or session in application code.
++note: Take the request-scoped session from `SessionDep` (app/api/deps.py); the engine lives in app/core/db.py.
++files:
++  - backend/app/**/*.py
++ignores:
++  - backend/app/core/db.py
++  - backend/app/api/deps.py
++  - backend/app/initial_data.py
++  - backend/app/alembic/**
++rule:
++  kind: call
++  has: { field: function, regex: '(^|\.)(Session|create_engine|sessionmaker)$' }
+diff --git a/ast-grep/rules/gen-password-hashing-in-security.yml b/ast-grep/rules/gen-password-hashing-in-security.yml
+new file mode 100644
+index 0000000..9299b59
+--- /dev/null
++++ b/ast-grep/rules/gen-password-hashing-in-security.yml
+@@ -0,0 +1,16 @@
++# docs/security.md "Authentication". Edit `ignores` for another layout.
++id: gen-password-hashing-in-security
++language: python
++severity: error
++message: Hash and verify passwords only through app/core/security.py.
++note: Call `get_password_hash` and `verify_password` from app.core.security instead of a hashing library.
++files:
++  - backend/app/**/*.py
++ignores:
++  - backend/app/core/security.py
++rule:
++  any:
++    - kind: import_statement
++      has: { kind: dotted_name, regex: '^(pwdlib|passlib|bcrypt|argon2|hashlib)(\.|$)', stopBy: end }
++    - kind: import_from_statement
++      has: { field: module_name, regex: '^(pwdlib|passlib|bcrypt|argon2|hashlib)(\.|$)' }
+diff --git a/ast-grep/rules/gen-playwright-no-css-selectors.yml b/ast-grep/rules/gen-playwright-no-css-selectors.yml
+new file mode 100644
+index 0000000..042d1c4
+--- /dev/null
++++ b/ast-grep/rules/gen-playwright-no-css-selectors.yml
+@@ -0,0 +1,16 @@
++# docs/testing.md "Frontend": role and label selectors, not CSS classes. Edit `files` for another layout.
++id: gen-playwright-no-css-selectors
++language: typescript
++severity: error
++message: Select elements by role or label, not by CSS class.
++note: Use `page.getByRole(...)`, `getByLabel(...)` or `getByText(...)` instead of a class selector.
++files:
++  - frontend/tests/**/*.ts
++rule:
++  kind: string
++  inside:
++    kind: arguments
++    inside:
++      kind: call_expression
++      has: { field: function, regex: '(^|\.)(locator|\$\$?|waitForSelector|\$eval|\$\$eval)$' }
++  regex: '(^["''`]|[\s>+~,(a-zA-Z0-9\]])\.[A-Za-z_-]|\[class[~*^$|]?='
+diff --git a/ast-grep/rules/gen-relationship-back-populates.yml b/ast-grep/rules/gen-relationship-back-populates.yml
+new file mode 100644
+index 0000000..8edc722
+--- /dev/null
++++ b/ast-grep/rules/gen-relationship-back-populates.yml
+@@ -0,0 +1,13 @@
++# docs/database.md "Tables".
++id: gen-relationship-back-populates
++language: python
++severity: error
++message: Relationships declare `back_populates` on both sides.
++note: '`items: list["Item"] = Relationship(back_populates="owner")` and `owner: User | None = Relationship(back_populates="items")`'
++files:
++  - backend/app/models.py
++  - backend/app/models/**/*.py
++rule:
++  kind: call
++  has: { field: function, regex: '(^|\.)Relationship$' }
++  not: { has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: '^back_populates$' } } } }
+diff --git a/ast-grep/rules/gen-route-response-model.yml b/ast-grep/rules/gen-route-response-model.yml
+new file mode 100644
+index 0000000..712dc50
+--- /dev/null
++++ b/ast-grep/rules/gen-route-response-model.yml
+@@ -0,0 +1,16 @@
++# docs/api.md "Responses", docs/backend.md "Routes". Edit `files` for another layout.
++id: gen-route-response-model
++language: python
++severity: warning
++message: Declare `response_model` on every endpoint.
++note: It keeps the OpenAPI schema and the generated frontend client accurate.
++files:
++  - backend/app/api/routes/**/*.py
++rule:
++  kind: decorator
++  regex: '^@\w*router\.(get|post|put|patch|delete)\('
++  not:
++    has:
++      stopBy: end
++      kind: keyword_argument
++      has: { field: name, regex: '^response_model$' }
+diff --git a/ast-grep/rules/gen-router-prefix-tags.yml b/ast-grep/rules/gen-router-prefix-tags.yml
+new file mode 100644
+index 0000000..3277cd2
+--- /dev/null
++++ b/ast-grep/rules/gen-router-prefix-tags.yml
+@@ -0,0 +1,16 @@
++# docs/backend.md "Routes". Edit `files` for another layout.
++id: gen-router-prefix-tags
++language: python
++severity: warning
++message: Create a resource router with `APIRouter(prefix=..., tags=[...])`.
++note: The tag drives the operation id and the service name in the generated client.
++files:
++  - backend/app/api/routes/**/*.py
++rule:
++  kind: call
++  has: { field: function, regex: '(^|\.)APIRouter$' }
++  any:
++    - kind: call
++      not: { has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: '^prefix$' } } } }
++    - kind: call
++      not: { has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: '^tags$' } } } }
+diff --git a/ast-grep/rules/gen-settings-singleton.yml b/ast-grep/rules/gen-settings-singleton.yml
+new file mode 100644
+index 0000000..faece64
+--- /dev/null
++++ b/ast-grep/rules/gen-settings-singleton.yml
+@@ -0,0 +1,18 @@
++# docs/backend.md "Settings". Edit `files`/`ignores` for another layout.
++id: gen-settings-singleton
++language: python
++severity: error
++message: Use the shared `settings` object instead of creating or importing `Settings`.
++note: '`from app.core.config import settings` - settings are read once at startup.'
++files:
++  - backend/app/**/*.py
++ignores:
++  - backend/app/core/config.py
++rule:
++  any:
++    - kind: call
++      has: { field: function, regex: '(^|\.)Settings$' }
++    - kind: import_from_statement
++      all:
++        - has: { field: module_name, regex: '^(app\.core\.config|\.+(core\.)?config)$' }
++        - has: { kind: dotted_name, regex: '^Settings$', stopBy: end }
+diff --git a/ast-grep/rules/gen-status-constants.yml b/ast-grep/rules/gen-status-constants.yml
+new file mode 100644
+index 0000000..d2741aa
+--- /dev/null
++++ b/ast-grep/rules/gen-status-constants.yml
+@@ -0,0 +1,19 @@
++# docs/api.md "Status codes and errors".
++id: gen-status-constants
++language: python
++severity: warning
++message: Use `fastapi.status` constants instead of integer status codes.
++note: '`from fastapi import status`, then `status_code=status.HTTP_404_NOT_FOUND`.'
++files:
++  - backend/app/**/*.py
++rule:
++  any:
++    - kind: keyword_argument
++      all:
++        - has: { field: name, regex: '^status_code$' }
++        - has: { field: value, kind: integer }
++    - kind: integer
++      nthChild: 1
++      inside:
++        kind: argument_list
++        inside: { kind: call, has: { field: function, regex: '(^|\.)HTTPException$' } }
+diff --git a/ast-grep/rules/gen-str-field-max-length.yml b/ast-grep/rules/gen-str-field-max-length.yml
+new file mode 100644
+index 0000000..c639293
+--- /dev/null
++++ b/ast-grep/rules/gen-str-field-max-length.yml
+@@ -0,0 +1,26 @@
++# docs/backend.md "Models and schemas". Edit `files` for another layout.
++id: gen-str-field-max-length
++language: python
++severity: warning
++message: String fields declare `max_length` matching the database column.
++note: 'Use `Field(max_length=255)`, the same length as the column in the migration.'
++files:
++  - backend/app/models.py
++  - backend/app/models/**/*.py
++rule:
++  kind: assignment
++  has: { field: type, regex: '^(str|EmailStr)(\s*\|\s*None)?$' }
++  any:
++    - kind: assignment
++      has:
++        field: right
++        kind: call
++        regex: '^Field\('
++        not: { has: { field: arguments, has: { kind: keyword_argument, has: { field: name, regex: '^max_length$' } } } }
++    - all:
++        - kind: assignment
++        - not: { has: { field: right, regex: '.' } }
++        - inside:
++            kind: class_definition
++            stopBy: end
++            has: { field: superclasses, regex: 'table\s*=\s*True' }
+diff --git a/ast-grep/rules/gen-table-created-at.yml b/ast-grep/rules/gen-table-created-at.yml
+new file mode 100644
+index 0000000..d6175cf
+--- /dev/null
++++ b/ast-grep/rules/gen-table-created-at.yml
+@@ -0,0 +1,16 @@
++# docs/database.md "Tables".
++id: gen-table-created-at
++language: python
++severity: error
++message: Every table has a `created_at` field set by `get_datetime_utc`.
++note: '`created_at: datetime | None = Field(default_factory=get_datetime_utc)`'
++files:
++  - backend/app/models.py
++  - backend/app/models/**/*.py
++rule:
++  kind: class_definition
++  has: { field: superclasses, regex: 'table\s*=\s*True' }
++  not:
++    has:
++      field: body
++      has: { kind: expression_statement, has: { kind: assignment, has: { field: left, regex: '^created_at$' } } }
+diff --git a/ast-grep/rules/gen-timestamp-utc.yml b/ast-grep/rules/gen-timestamp-utc.yml
+new file mode 100644
+index 0000000..bce1bcd
+--- /dev/null
++++ b/ast-grep/rules/gen-timestamp-utc.yml
+@@ -0,0 +1,15 @@
++# docs/backend.md "Models and schemas", docs/database.md "Tables".
++id: gen-timestamp-utc
++language: python
++severity: error
++message: Stored timestamps use `get_datetime_utc` so every time is timezone-aware UTC.
++note: '`created_at: datetime | None = Field(default_factory=get_datetime_utc)`'
++files:
++  - backend/app/models.py
++  - backend/app/models/**/*.py
++rule:
++  kind: keyword_argument
++  all:
++    - has: { field: name, regex: '^(default|default_factory|server_default)$' }
++    - has: { field: value, regex: '(datetime|utcnow|\bnow\b)' }
++  not: { has: { field: value, regex: '^get_datetime_utc$' } }
+diff --git a/ast-grep/rules/gen-uuid-id-params.yml b/ast-grep/rules/gen-uuid-id-params.yml
+new file mode 100644
+index 0000000..93855af
+--- /dev/null
++++ b/ast-grep/rules/gen-uuid-id-params.yml
+@@ -0,0 +1,18 @@
++# docs/backend.md "General", docs/api.md "Endpoints".
++id: gen-uuid-id-params
++language: python
++severity: error
++message: Type identifier parameters as `uuid.UUID`, not `str` or `int`.
++note: With `uuid.UUID`, an invalid id in a path returns 422 automatically.
++files:
++  - backend/app/**/*.py
++ignores:
++  - backend/app/alembic/**
++rule:
++  any:
++    - kind: typed_parameter
++    - kind: typed_default_parameter
++  has:
++    field: type
++    regex: '^(str|int)(\s*\|\s*None)?$'
++  regex: '^(id|\w+_id)\s*:'
+diff --git a/ast-grep/rules/gen-uuid-primary-key.yml b/ast-grep/rules/gen-uuid-primary-key.yml
+new file mode 100644
+index 0000000..9dd74c2
+--- /dev/null
++++ b/ast-grep/rules/gen-uuid-primary-key.yml
+@@ -0,0 +1,24 @@
++# docs/database.md "Tables".
++id: gen-uuid-primary-key
++language: python
++severity: error
++message: Primary keys are `uuid.UUID` with `default_factory=uuid.uuid4`.
++note: '`id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)`'
++files:
++  - backend/app/models.py
++  - backend/app/models/**/*.py
++rule:
++  kind: assignment
++  has:
++    field: right
++    kind: call
++    regex: '^Field\('
++    has: { field: arguments, has: { kind: keyword_argument, regex: '^primary_key\s*=\s*True$' } }
++  any:
++    - kind: assignment
++      not: { has: { field: type, regex: '^(uuid\.)?UUID$' } }
++    - kind: assignment
++      not:
++        has:
++          field: right
++          has: { field: arguments, has: { kind: keyword_argument, regex: '^default_factory\s*=\s*(uuid\.)?uuid4$' } }
+diff --git a/backend/pyproject.toml b/backend/pyproject.toml
+index 7892d50..50fbf87 100644
+--- a/backend/pyproject.toml
++++ b/backend/pyproject.toml
+@@ -52,6 +52,10 @@ select = [
+     "UP",  # pyupgrade
+     "ARG001", # unused arguments in functions
+     "T201",   # print statements are not allowed
++    "BLE001", # no broad exceptions in routes (docs/backend.md "Errors"), scoped below
++    "LOG015", # module-level logger, not the root logger (docs/backend.md "Logging")
++    "S602", "S604", "S605", # no shell commands from strings (docs/security.md "Input handling")
++    "S608",   # no SQL built from strings (docs/database.md "Queries")
+ ]
+ ignore = [
+     "E501",  # line too long, handled by black
+@@ -60,6 +64,9 @@ ignore = [
+     "B904",  # Allow raising exceptions without from e, for HTTPException
+ ]
+ 
++[tool.ruff.lint.per-file-ignores]
++"!app/api/routes/**" = ["BLE001"]
++
+ [tool.ruff.lint.pyupgrade]
+ # Preserve types, even if a file imports `from __future__ import annotations`.
+ keep-runtime-typing = true
+diff --git a/codemyrules-report.md b/codemyrules-report.md
+new file mode 100644
+index 0000000..11edc4c
+--- /dev/null
++++ b/codemyrules-report.md
+@@ -0,0 +1,310 @@
++# codemyrules report
++
++Date: 2026-11-02.
++Scope: `backend/` (Python, via `backend-pattern-rules`) and `frontend/` (React/TypeScript, via `eslint-pattern-rules`).
++Selection rule given in advance: build every candidate stated in `CLAUDE.md` or `docs/*.md`, including design-shaping ones.
++Do not build general candidates or code-only conventions.
++Nobody was available to answer questions, so every design question below was answered on your behalf, always choosing the safer option (see "Answers given on your behalf").
++
++## Summary
++
++- 32 ast-grep rules with tests and snapshots: 31 Python rules for `backend/` and 1 TypeScript rule for the Playwright tests.
++- 6 Ruff rules enabled in `backend/pyproject.toml`, and 3 Biome rule changes in `frontend/biome.json`.
++- `ast-grep test`: 32 passed, 0 failed.
++- `ast-grep scan`: exits 0, with 76 warnings from 7 rules and no errors.
++- `ruff check app`: clean.
++- `biome lint`: 2 warnings, no errors.
++- Agent docs: 1,874 characters removed from `docs/*.md` (about 468 on-demand tokens), with 31 lines deleted and 11 shortened.
++  The always-loaded root `CLAUDE.md` holds no rule lines and was not changed.
++- Feedback loop installed and smoke-tested.
++- Baseline written to `.claude/codemyrules/baseline.json`.
++- Not run, as you asked: the project's full build and its test suites.
++
++## Setup detected
++
++- Backend: `backend/pyproject.toml` (uv workspace member), with sources in `backend/app` and tests in `backend/tests`.
++  Ruff (pinned 0.16.9 in `uv.lock`), mypy and ty run through `backend/scripts/lint.sh` and pre-commit (`uv run ruff check`).
++- Generated code: Alembic revisions in `backend/app/alembic/versions` (Ruff excludes `alembic`).
++  On the frontend, `frontend/src/client/**` (openapi-ts) and `src/routeTree.gen.ts`; Biome excludes both.
++- Frontend: Biome 2.5.14 (`bun run lint`, pre-commit `local-biome-check`).
++  There is no ESLint, and `node_modules` is not installed.
++- ast-grep: the project did not use it before this run.
++  It runs through `npx -y -p @ast-grep/cli@0.51.0 ast-grep`, with no change to `package.json` or `pyproject.toml`.
++- Decision records: none (`docs/adr/` and `notes/decisions/` do not exist).
++  `CONTRIBUTING.md` has no lintable conventions.
++- Agent docs: root `CLAUDE.md` is always loaded; it links 8 `docs/*.md` files, which load on demand.
++  No `AGENTS.md`, Copilot, Cursor or Windsurf files exist.
++- Previous codemyrules run: none.
++
++## Backend rules (ast-grep, `ast-grep/rules/`, tests in `ast-grep/rule-tests/`)
++
++Why ast-grep: Ruff, the tool the project already runs, cannot scope a banned API to folders with its own message, or express "only through our helper".
++Every rule below needs folder scoping, structure or a tailored message.
++Rules with no open hits are `error`.
++Rules with open hits are `warning`, so CI and the scan stay green.
++
++| Rule | Severity | Open hits | Example hits |
++|---|---|---|---|
++| `gen-no-db-access-in-routes` | warning | 29 in 3 files | `routes/items.py:23`, `routes/private.py:35`, `routes/users.py:43` |
++| `gen-status-constants` | warning | 28 in 5 files | `routes/items.py:55`, `api/deps.py:43`, `routes/utils.py:14` |
++| `gen-keyword-only-params` | warning | 8 in 3 files | `routes/items.py:14`, `utils.py:70`, `routes/users.py:163` |
++| `gen-route-response-model` | warning | 8 in 4 files | `routes/login.py:23`, `routes/items.py:99`, `routes/utils.py:29` |
++| `gen-router-prefix-tags` | warning | 1 | `routes/login.py:20` (`APIRouter(tags=["login"])`, no prefix) |
++| `gen-str-field-max-length` | warning | 1 | `models.py:53` (`hashed_password: str`) |
++| `gen-jinja-autoescape` | warning | 1 | `utils.py:29` (`Template(template_str)`) |
++| `gen-no-env-outside-settings` | error | 0 | |
++| `gen-settings-singleton` | error | 0 | |
++| `gen-no-session-outside-deps` | error | 0 | |
++| `gen-no-jwt-in-routes` | error | 0 | |
++| `gen-password-hashing-in-security` | error | 0 | |
++| `gen-no-imports-from-routes` | error | 0 | |
++| `gen-crud-dependencies` | error | 0 | |
++| `gen-models-dependencies` | error | 0 | |
++| `gen-core-no-api-imports` | error | 0 | |
++| `gen-http-exception-detail` | error | 0 | |
++| `gen-no-manual-validation-error` | error | 0 | |
++| `gen-uuid-id-params` | error | 0 | |
++| `gen-no-bare-collection-response` | error | 0 | |
++| `gen-crud-keyword-session` | error | 0 | |
++| `gen-timestamp-utc` | error | 0 | |
++| `gen-uuid-primary-key` | error | 0 | |
++| `gen-relationship-back-populates` | error | 0 | |
++| `gen-table-created-at` | error | 0 | |
++| `gen-no-raw-sql` | error | 0 | |
++| `gen-no-delete-in-loop` | error | 0 | |
++| `gen-count-in-database` | error | 0 | |
++| `gen-no-sensitive-logging` | error | 0 | |
++| `gen-cors-no-wildcard-origin` | error | 0 | |
++| `gen-no-db-mocks-in-tests` | error | 0 | |
++
++Paths in the table are relative to `backend/app/`.
++Every open hit was checked by hand and is a real violation within the rule's boundary.
++No open hit is in generated code.
++
++Worth knowing about two of these hits:
++- `gen-jinja-autoescape`: `docs/security.md` said "the Jinja templates escape by default".
++  That is not true: `jinja2.Template` has `autoescape=False` by default.
++  The shortened doc line no longer makes that claim.
++  The fix (`autoescape=True`) can change the rendered emails, so the rule gives a `note` and no autofix.
++- `gen-router-prefix-tags`: `login.py` serves several path roots (`/login/...`, `/password-recovery/...`), so it has no single prefix.
++  Either accept it as the one exception (a file in `ignores`) or split the router.
++
++## Backend config change (Ruff, `backend/pyproject.toml`)
++
++```diff
++     "T201",   # print statements are not allowed
+++    "BLE001", # no broad exceptions in routes (docs/backend.md "Errors"), scoped below
+++    "LOG015", # module-level logger, not the root logger (docs/backend.md "Logging")
+++    "S602", "S604", "S605", # no shell commands from strings (docs/security.md "Input handling")
+++    "S608",   # no SQL built from strings (docs/database.md "Queries")
++ ]
+++[tool.ruff.lint.per-file-ignores]
+++"!app/api/routes/**" = ["BLE001"]
++```
++
++Verified with Ruff 0.16.9 (the version in `uv.lock`): `ruff check app` and `ruff check tests` are clean.
++A throwaway probe file showed every new code firing, and BLE001 firing only under `app/api/routes/`.
++
++## Frontend
++
++### Biome config change (`frontend/biome.json`)
++
++```diff
++-        "noExplicitAny": "off",
+++        "noExplicitAny": "warn",
+++      "nursery": {
+++        "noInlineStyles": { "level": "error", "fix": "none" }
+++      },
+++        "noRestrictedGlobals": {
+++          "level": "error",
+++          "options": { "deniedGlobals": { "fetch": "Call the backend through the generated services in src/client (ItemsService, UsersService), never with fetch directly." } }
+++        },
++   overrides **/*.svg:
+++          "nursery": { "noInlineStyles": "off" }
++```
++
++- `noRestrictedGlobals` (`fetch`): 0 hits.
++- `noInlineStyles`: 0 hits in the code Biome checks; `src/components/ui/**` (vendored shadcn) is already excluded from Biome.
++  It is turned off for `*.svg`, which hit 11 times in `public/assets/images`.
++  It uses `fix: "none"` because `bun run lint` runs `--write --unsafe`, which would otherwise rewrite markup without review.
++  Note that this is a nursery rule, so its behaviour may change between Biome releases.
++- `noExplicitAny` at `warn`: 2 hits, `src/utils.ts:5` and `src/components/Sidebar/User.tsx:43`.
++- TS-ignore comments were already covered: `noTsIgnore` is in Biome's recommended preset.
++
++Verified with Biome 2.5.14 (the version in `bun.lock`): `biome lint .` reports 2 warnings and no errors.
++A probe file showed `fetch` and `style={...}` failing.
++
++### Playwright rule (ast-grep, TypeScript)
++
++| Rule | Severity | Open hits |
++|---|---|---|
++| `gen-playwright-no-css-selectors` | error | 0 (the existing `locator("form")`, `"body"` and `"html"` calls are tag selectors and allowed) |
++
++Why ast-grep and not ESLint: the project runs Biome, not ESLint.
++Installing ESLint for one rule would add a second JS linter.
++Biome GritQL plugins have no test harness, while the ast-grep rule shares the backend's tests, snapshots and feedback loop.
++`package.json` was not changed.
++
++## Registration, install and CI
++
++`sgconfig.yml` (new, repo root):
++
++```yaml
++ruleDirs: [ast-grep/rules]
++testConfigs:
++  - testDir: ast-grep/rule-tests
++```
++
++Run it with no install: `npx -y -p @ast-grep/cli@0.51.0 ast-grep test && npx -y -p @ast-grep/cli@0.51.0 ast-grep scan`.
++Recommended CI step, for example in `.github/workflows/pre-commit.yml` or as a local pre-commit hook: the same two commands.
++Add `--error=<rule-id>` to `scan` for a warning rule once its hits are fixed, or promote the rule to `error`.
++
++## Agent-doc cleanup
++
++All edited lines are in `docs/*.md`, which load on demand.
++The always-loaded root `CLAUDE.md` holds no rule lines, so the context paid in every session is unchanged at 334 tokens.
++In total, 1,874 characters were removed (about 468 tokens), only when an agent opens these docs.
++The bigger benefit is not the token count but fewer fix rounds: a broken convention now fails on the line where it happens, with its fix in the message.
++
++Deleted, because the rule's message and note carry the line:
++- `docs/api.md`: uuid path parameters, "do not return bare lists or dictionaries", "do not build 422 by hand", "errors use `HTTPException(detail=...)`".
++- `docs/architecture.md`: "do not read environment variables anywhere else".
++- `docs/backend.md`: uuid identifiers, `response_model` (duplicate of `api.md`), timestamps via `get_datetime_utc`, settings import, broad exceptions in routes, module-level logger, never log secrets.
++- `docs/database.md`: uuid primary keys, `back_populates`, `created_at` on every table, raw SQL, formatted SQL, delete in a loop.
++- `docs/security.md`: never decode tokens in a route, passwords only through `core/security.py`, SQL and shell from user input, never log secrets, CORS `*`.
++- `docs/testing.md`: do not mock the database, role and label selectors.
++
++Shortened to an in-place pointer, because these shape code before it is written, or the rule is a warning and the loop will not show it:
++- `docs/api.md:17`: `response_model` (`gen-route-response-model`).
++- `docs/architecture.md:22`: the import directions in one line, naming the four layering rules.
++- `docs/backend.md`: keyword-only arguments, one router per module, sessions and current user from `deps.py`, crud return types, `max_length`.
++- `docs/database.md`: session from `SessionDep`.
++- `docs/security.md`: "Escape user content in emails (`gen-jinja-autoescape`)", with the incorrect autoescape claim removed.
++- `docs/frontend.md`: generated services (Biome bans `fetch`), and "no inline styles" removed from the styling line.
++
++Kept unchanged:
++- `docs/api.md` status-code line, `docs/backend.md` "routes never call `session.*`" line, and `docs/frontend.md` `any` / TS-ignore line.
++  These are contradicted conventions (see below), so the doc stays the record of the decision until you settle it.
++- Partly covered lines, for example "Raise `HTTPException` with a short, user-facing `detail`" and "Load only what you need".
++
++Where the pointers went: in place, in the `docs/*.md` file that already held the line.
++Better placement, not done because new files were outside the approved writes: a `backend/CLAUDE.md` holding the backend pointers, and a `frontend/CLAUDE.md` for the frontend ones.
++Each would load whenever an agent works in that folder, instead of only when it follows a link.
++
++## Feedback loop (installed)
++
++- Fast tier, after every edit: ast-grep (`npx -y -p @ast-grep/cli@0.51.0 ast-grep scan --json=compact`) on `.py` and `.ts`.
++- Full tier, at the end of each turn: Ruff (`uv run ruff check --output-format=json`) on `.py`.
++- Guard, before every edit: asks you before any new ignore comment, and before edits to `sgconfig.yml`, `ast-grep/**`, `frontend/biome.json`, `.claude/codemyrules/` and `.claude/settings.local.json`.
++- Files: `.claude/codemyrules/{guard,lint-edited,lint-turn,lib}.mjs`, `loop.json`, and the hooks in `.claude/settings.local.json`.
++  Both paths were added to `.git/info/exclude`, so nothing tracked changes.
++- Smoke test: an `os.getenv` probe in `backend/app` was blocked with exit 2 and one finding line.
++  That probe left one `gen-no-env-outside-settings` entry in `.claude/codemyrules/failures.log`.
++  Deleting it needed approval, so delete that file before reading the first `measure.mjs report`.
++- The guard also fired while this report was being written: the report quoted a TypeScript ignore directive.
++  The wording was changed, and no guard setting was touched.
++
++Limits you should know about:
++- Biome is not in the loop, because the loop only reads ESLint, ast-grep and Ruff output.
++  The Biome rules run in `bun run lint`, pre-commit and CI only.
++- `uv` is not on this machine's PATH, so the Ruff tier prints `codemyrules: ruff failed: ...` and counts as clean until `uv` is installed.
++- The loop blocks on errors only.
++  The 7 warning rules (`gen-no-db-access-in-routes`, `gen-status-constants`, `gen-keyword-only-params`, `gen-route-response-model`, `gen-router-prefix-tags`, `gen-str-field-max-length`, `gen-jinja-autoescape`) and Biome `noExplicitAny` will not reach an agent until you promote them.
++  The loop only checks changed lines, so promoting a rule after its old hits are fixed blocks nothing old.
++- Lint settings inside `backend/pyproject.toml` are not guarded.
++  It is a shared build file, so guarding it would prompt on every dependency edit.
++
++## Baseline
++
++`.claude/codemyrules/baseline.json`, recorded 2026-11-02:
++- Always-loaded doc tokens: 334 per session (root `CLAUDE.md`, measured after the cleanup, which did not change it).
++- On-demand doc tokens: 0 as `measure.mjs` counts them.
++  It does not treat the linked `docs/*.md` as agent docs, so they are now about 3,346 tokens (13,382 characters), down from about 3,814.
++- Rules: 41 (32 ast-grep, 6 Ruff, 3 Biome), with 78 open hits: the 76 ast-grep warnings above and the 2 `noExplicitAny` warnings.
++
++A later run of `node .claude/skills/codemyrules/scripts/measure.mjs report .` compares against this baseline.
++A rule that keeps failing in that log needs an up-front pointer in the folder it applies to.
++
++## Contradicted conventions (built on the doc's side, at warning)
++
++| Convention | Doc | Code today | What was built |
++|---|---|---|---|
++| Status codes from `fastapi.status` | `docs/api.md` | 28 integer literals, 1 constant | `gen-status-constants`, warning |
++| Routes never call `session.*`; use `crud.py` | `docs/backend.md` | 29 direct calls in 3 route files, 8 crud calls | `gen-no-db-access-in-routes`, warning |
++| No `any` | `docs/frontend.md` | Biome `noExplicitAny` switched off, 2 uses | `noExplicitAny: "warn"` |
++
++## Conventions not built
++
++From the docs, not lintable with syntax alone:
++- Same error text for the same situation; ownership checks (`owner_id == current_user.id`); 404 vs 403.
++- Deterministic ordering, `limit` everywhere, filtering in the database.
++- Indexes for new queries, migration rules, data protection, superuser-only dependencies.
++- Token lifetimes, the default-secret startup check, never returning table models with secrets (needs types).
++- `useQuery`/`useMutation` invalidation, `handleError`, React Hook Form, disabled submit buttons, dark mode, never editing `src/client`.
++- Test naming, one behaviour per test, own data per test, fixtures and helpers, flaky tests.
++- Process lines in `docs/workflow.md`.
++
++Found only in code, so not built (your instruction): nothing beyond the documented conventions reached a clear majority worth a rule.
++
++## General rules not picked
++
++Hit counts are from Ruff 0.16.9, in the form `app/` + `tests/`:
++- 0 hits: `C901` (complexity 10), `PLR0913`, `PLR0915`, `PLR0911`, `RET505`, `DTZ`, `SIM115`, `S113`, `PT`, `FBT`.
++- `ERA001`: 2 + 1.
++- `PLR2004`: 0 + 50.
++- Ruff `S` (bandit) as a whole: 3 + 168, mostly `S101` assert in tests.
++
++ESLint general rules: not offered, because the project does not run ESLint.
++Biome has equivalents for many of them.
++
++## Scan log
++
++| Signal | Good | Bad | Verdict |
++|---|---|---|---|
++| env reads outside config | n/a | 0 | rule, error |
++| `Session(`/`create_engine` outside deps/db/startup | 3 sanctioned | 0 | rule, error |
++| `jwt` in routes | n/a | 0 | rule, error |
++| hashing libs outside `core/security.py` | 1 file | 0 | rule, error |
++| import directions (routes, crud, models, core) | all | 0 | 4 rules, error |
++| `HTTPException` without `detail` | 30 | 0 | rule, error |
++| integer status codes | 1 | 28 | contradicted, warning |
++| session calls in routes | 8 crud calls | 29 | contradicted, warning |
++| endpoints without `response_model` | 15 | 8 | rule, warning |
++| 3+ params without `*` (app) | about 10 | 8 | rule, warning |
++| str fields without `max_length` | 12 | 1 | rule, warning |
++| Jinja without autoescape | 0 | 1 | rule, warning |
++| root-logger calls, broad except, SQL/shell strings | n/a | 0 | Ruff config |
++| `print` | n/a | 0 | covered (T201) |
++| `Optional`/`List` | n/a | 0 | covered (UP) |
++| mutable defaults | n/a | 0 | covered (B006) |
++| untyped signatures | n/a | n/a | covered (mypy strict) |
++| suppression comments | 4 (2 Ruff, 2 mypy) | | no cluster |
++| frontend `fetch` | 0 | 0 | Biome config |
++| inline styles outside `ui/` | 0 | 0 | Biome config |
++| `any` | | 2 | contradicted, warn |
++| TS-ignore comments | | 0 | covered (noTsIgnore) |
++| Playwright CSS-class selectors | about 250 role/label calls | 0 | rule, error |
++
++## Answers given on your behalf
++
++1. Contradicted conventions (status constants, `session.*` in routes, `any`): enforce the doc at warning level, and keep the doc lines.
++   Reason: your selection asked for every documented convention, and a warning breaks nothing.
++   Alternative: update the docs to match the code, and delete these rules.
++2. `gen-route-response-model`: flags every endpoint without `response_model`, as the doc says.
++   Alternative: accept a typed return annotation (`-> Message`), which FastAPI also uses for the schema; that has 0 hits.
++3. `gen-keyword-only-params`: covers all of `backend/app` except methods' `self`/`cls`, and leaves tests out.
++   Alternative: only `crud.py` and `utils.py`, leaving FastAPI route handlers out.
++4. `gen-str-field-max-length`: flags `Field(...)` calls without `max_length`, plus bare `str` columns in `table=True` classes.
++   Response-only schemas without `Field` (for example `Message`) are left out.
++   Alternative: every `str` field in `models.py`.
++5. `gen-router-prefix-tags` at warning, with `login.py` as an open hit.
++   Alternative: add `login.py` to `ignores` and make the rule an error.
++6. `gen-jinja-autoescape`: a `note` and no autofix.
++   Alternative: an autofix to `autoescape=True` after checking the email templates.
++7. `noInlineStyles`: `fix: "none"`, and off for SVG.
++   Alternative: let Biome fix it unsafely.
++8. Playwright rule written in ast-grep instead of adding ESLint.
++   Alternative: install `eslint` and `typescript-eslint` at exact versions and port the rule to a RuleTester-tested ESLint rule.
++9. Doc pointers shortened in place.
++   Alternative: move them into new `backend/CLAUDE.md` and `frontend/CLAUDE.md` files.
++10. Severity: rules with 0 open hits are `error`, and rules with open hits are `warning`, with promotion once the hits are fixed.
+diff --git a/docs/api.md b/docs/api.md
+index 43843d4..67a9f3f 100644
+--- a/docs/api.md
++++ b/docs/api.md
+@@ -9,22 +9,18 @@ The frontend uses the client generated from the OpenAPI schema, so the schema is
+ - `GET` lists support `skip` and `limit` query parameters with a default limit of 100.
+ - `POST` creates and returns the created object; `PUT` and `PATCH` update and return the updated object.
+ - `DELETE` returns a `Message` with a short confirmation.
+-- Path parameters for identifiers are typed `uuid.UUID`, so invalid ids return 422 automatically.
+ - Give every endpoint a clear function name; it becomes the operation id and the method name in the generated client.
+ 
+ ## Responses
+ 
+-- Every endpoint declares `response_model`.
++- Every endpoint declares `response_model` (`gen-route-response-model`).
+ - Lists return `{ "data": [...], "count": n }`, where `count` is the total number of matching rows, not the page size.
+-- Do not return bare lists or dictionaries.
+ - Optional fields are `None`, not missing.
+ 
+ ## Status codes and errors
+ 
+ - `404` when the object does not exist or is not visible to the current user, `403` when it exists but the user may not change it, `400` for business-rule violations such as a duplicate email.
+-- Validation errors (422) come from FastAPI and Pydantic; do not build them by hand.
+ - Status codes come from `from fastapi import status` (for example `status.HTTP_404_NOT_FOUND`), never integer literals like `status_code=404`.
+-- Errors use `HTTPException(detail=...)`; the frontend reads `detail` and shows it to the user.
+ - Keep the same error text for the same situation across endpoints.
+ 
+ ## Pagination and filtering
+diff --git a/docs/architecture.md b/docs/architecture.md
+index c694c30..99b8900 100644
+--- a/docs/architecture.md
++++ b/docs/architecture.md
+@@ -19,10 +19,7 @@ The frontend is a single-page app in `frontend/` that talks to the backend only
+ 
+ ## Dependency rules
+ 
+-- Routes depend on `deps`, `crud`, `models` and `core`; nothing depends on routes.
+-- `crud` depends on `models` and `core.security` only.
+-- `models` depend on nothing in the application except other models.
+-- `core` must not import from `api`.
++- Routes depend on `deps`, `crud`, `models` and `core`; nothing imports routes, `crud` imports only `models` and `core.security`, `models` only other models, `core` never `api` (enforced by the `gen-*-dependencies`, `gen-no-imports-from-routes` and `gen-core-no-api-imports` rules).
+ - Keep circular imports out: shared types go into `models.py`, shared helpers into `utils.py`.
+ 
+ ## Frontend modules
+@@ -35,7 +32,6 @@ The frontend is a single-page app in `frontend/` that talks to the backend only
+ ## Configuration
+ 
+ - All configuration comes from environment variables, read once in `Settings`; the root `.env` file is for local development only.
+-- Do not read environment variables anywhere else; add a field to `Settings`.
+ - Feature switches are settings with a safe default.
+ 
+ ## When in doubt
+diff --git a/docs/backend.md b/docs/backend.md
+index 29edab8..5ad2a5c 100644
+--- a/docs/backend.md
++++ b/docs/backend.md
+@@ -9,15 +9,13 @@ Formatting and import order are enforced by Ruff; types are checked by mypy. Thi
+ - Python 3.10+ syntax: `X | None` instead of `Optional[X]`, built-in generics (`list[str]`).
+ - Type every function signature; avoid `Any` except where FastAPI or SQLModel force it.
+ - Keep functions small and named after what they do; prefer early returns over nested conditions.
+-- Use keyword-only arguments (`*`) for functions with more than two parameters, as `crud.py` does.
++- Keyword-only arguments (`*`) past two parameters (`gen-keyword-only-params`).
+ - No mutable default arguments.
+-- Use `uuid.UUID` for identifiers in signatures, not strings.
+ 
+ ## Routes
+ 
+-- One router per resource module, created with `APIRouter(prefix=..., tags=[...])`.
+-- Declare `response_model` on every endpoint so the OpenAPI schema and the generated client stay accurate.
+-- Use the shared dependencies from `deps.py` (`SessionDep`, `CurrentUser`) instead of creating sessions or decoding tokens in a route.
++- One router per resource module (`gen-router-prefix-tags`).
++- Sessions and the current user come from `deps.py` (`SessionDep`, `CurrentUser`; enforced by `gen-no-session-outside-deps`, `gen-no-jwt-in-routes`).
+ - Superuser-only endpoints use `dependencies=[Depends(get_current_active_superuser)]`.
+ - Database access goes through functions in `app/crud.py`; route handlers in `app/api/routes` never call `session.exec`, `session.get`, `session.add`, `session.delete` or `session.commit` themselves. Add a crud function when none fits.
+ - Keep route handlers short: validate the request, check permissions, call the layer below, return the response model.
+@@ -25,7 +23,7 @@ Formatting and import order are enforced by Ruff; types are checked by mypy. Thi
+ 
+ ## CRUD layer
+ 
+-- Functions in `crud.py` take the session as a keyword argument (`*, session: Session`) and return models or `None`.
++- Functions in `crud.py` return models or `None` (keyword-only session: `gen-crud-keyword-session`).
+ - Name them after the operation and the entity: `create_item`, `get_user_by_email`, `update_user`.
+ - A function commits its own change and refreshes the object it returns.
+ - Keep query logic in one place: if two places need the same query, they call the same function.
+@@ -35,12 +33,10 @@ Formatting and import order are enforced by Ruff; types are checked by mypy. Thi
+ - Table models extend the `...Base` schema and set `table=True`.
+ - Request schemas (`...Create`, `...Update`) and response schemas (`...Public`) are separate classes; never return a table model that contains secrets such as `hashed_password`.
+ - List responses use a wrapper with `data` and `count` (`ItemsPublic`, `UsersPublic`).
+-- String fields declare `max_length` matching the database column.
+-- Timestamps use `get_datetime_utc()` so every stored time is timezone-aware UTC.
++- String fields declare `max_length` matching the database column (`gen-str-field-max-length`).
+ 
+ ## Settings
+ 
+-- Read settings through `from app.core.config import settings`.
+ - New settings get a type, a safe default where possible, and a line in `.env` for local development.
+ - Secrets have no default and fail at startup if missing in production.
+ 
+@@ -49,10 +45,7 @@ Formatting and import order are enforced by Ruff; types are checked by mypy. Thi
+ - Raise `HTTPException` with a short, user-facing `detail`; the frontend shows it in a toast.
+ - Use the same wording for the same situation across endpoints (`"Item not found"`, `"Not enough permissions"`).
+ - Never leak internal details (SQL, stack traces, other users' data) in error messages.
+-- Do not catch broad exceptions in routes; let unexpected errors become a 500 and be logged.
+ 
+ ## Logging
+ 
+-- Use the standard `logging` module with a module-level logger; never `print`.
+ - Log state changes worth keeping at info level, problems at warning level, and errors with the exception.
+-- Never log passwords, tokens or full request bodies.
+diff --git a/docs/database.md b/docs/database.md
+index 88a8b64..111e7aa 100644
+--- a/docs/database.md
++++ b/docs/database.md
+@@ -5,17 +5,13 @@ PostgreSQL in all environments, accessed through SQLModel (SQLAlchemy 2 undernea
+ ## Tables
+ 
+ - Table models live in `app/models.py` with `table=True`.
+-- Primary keys are `uuid.UUID` with `default_factory=uuid.uuid4`.
+ - Foreign keys declare `ondelete="CASCADE"` where child rows must not outlive their parent, as items do for users.
+-- Relationships use `Relationship(back_populates=...)` on both sides.
+-- Every table has `created_at` set by `get_datetime_utc`.
+ 
+ ## Sessions
+ 
+-- The request-scoped session comes from the `SessionDep` dependency; never create an engine or session in application code.
++- The request-scoped session comes from `SessionDep` (`gen-no-session-outside-deps`).
+ - Scripts and startup code use `with Session(engine) as session:`.
+ - Load only what you need: select columns or use `func.count()` for counts instead of loading all rows.
+-- Use `select(...)` statements with `session.exec`; avoid raw SQL.
+ 
+ ## Migrations
+ 
+@@ -27,9 +23,7 @@ PostgreSQL in all environments, accessed through SQLModel (SQLAlchemy 2 undernea
+ ## Queries
+ 
+ - Filter in the database, not in Python.
+-- Use parameters for all values; never format values into SQL strings.
+ - Add an index in the same merge request as a new query that filters or orders on an unindexed column.
+-- Deleting many rows uses a single `delete(...)` statement instead of a loop.
+ 
+ ## Data protection
+ 
+diff --git a/docs/frontend.md b/docs/frontend.md
+index 36e2c0f..71d35a0 100644
+--- a/docs/frontend.md
++++ b/docs/frontend.md
+@@ -11,7 +11,7 @@ React with TypeScript, built with Vite, routed with TanStack Router and fed by T
+ 
+ ## Data fetching
+ 
+-- Call the backend only through the generated services (`ItemsService`, `UsersService`), never with `fetch` directly.
++- Call the backend only through the generated services (`ItemsService`, `UsersService`; Biome `noRestrictedGlobals` bans `fetch`).
+ - Wrap reads in `useQuery` with a stable `queryKey`, and writes in `useMutation` that invalidates the affected queries.
+ - Show backend errors with `handleError`, which reads `detail` from the response.
+ 
+@@ -22,7 +22,7 @@ React with TypeScript, built with Vite, routed with TanStack Router and fed by T
+ 
+ ## Styling
+ 
+-- Tailwind utility classes and the shared `ui/` components; no inline styles.
++- Tailwind utility classes and the shared `ui/` components.
+ - Support light and dark mode through the theme provider.
+ 
+ ## Quality
+diff --git a/docs/security.md b/docs/security.md
+index 2ba6604..89c7968 100644
+--- a/docs/security.md
++++ b/docs/security.md
+@@ -4,8 +4,6 @@
+ 
+ - Login uses OAuth2 password flow at `/login/access-token` and returns a JWT signed with `settings.SECRET_KEY`.
+ - Tokens expire after `ACCESS_TOKEN_EXPIRE_MINUTES`; do not extend lifetimes in code.
+-- The current user comes from the `CurrentUser` dependency; never decode tokens in a route.
+-- Passwords are hashed with the functions in `core/security.py`; never hash or compare passwords by hand.
+ - Password reset tokens are created and verified with the helpers in `utils.py`.
+ 
+ ## Authorization
+@@ -18,18 +16,15 @@
+ ## Input handling
+ 
+ - Validate input with Pydantic schemas; constrain lengths and formats there.
+-- Never build SQL or shell commands from user input.
+-- Escape user content in emails; the Jinja templates escape by default.
++- Escape user content in emails (`gen-jinja-autoescape`).
+ 
+ ## Secrets
+ 
+ - Secrets come from environment variables; `.env` contains only local development values marked `changethis`.
+ - The app refuses to start in production with default secrets; keep that check.
+-- Never log secrets, tokens or password reset links.
+ 
+ ## Transport and CORS
+ 
+-- CORS origins come from `BACKEND_CORS_ORIGINS` and `FRONTEND_HOST`; do not allow `*`.
+ - Traefik terminates TLS in deployment; the app itself never serves plain HTTP publicly.
+ 
+ ## Dependencies
+diff --git a/docs/testing.md b/docs/testing.md
+index 1e0c00b..16a9410 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -10,7 +10,6 @@ Every change comes with tests at the level where the behaviour lives.
+ - Create test data with the helpers in `tests/utils/` (`create_random_user`, `create_random_item`, `random_email`).
+ - Assert on status codes and on the JSON body; check that permissions are enforced for normal users and superusers.
+ - Each test creates its own data; never depend on data from another test.
+-- Do not mock the database; mock only external services such as email sending.
+ 
+ ## Naming
+ 
+@@ -20,7 +19,6 @@ Every change comes with tests at the level where the behaviour lives.
+ ## Frontend
+ 
+ - End-to-end tests use Playwright in `frontend/tests` and run against the full stack with Docker Compose.
+-- Use role and label selectors, not CSS classes.
+ - Each test logs in through the stored auth state set up in `auth.setup.ts`.
+ 
+ ## Coverage and quality
+diff --git a/frontend/biome.json b/frontend/biome.json
+index bcde1ab..5e1f495 100644
+--- a/frontend/biome.json
++++ b/frontend/biome.json
+@@ -18,10 +18,21 @@
+     "rules": {
+       "preset": "recommended",
+       "suspicious": {
+-        "noExplicitAny": "off",
++        "noExplicitAny": "warn",
+         "noArrayIndexKey": "off"
+       },
++      "nursery": {
++        "noInlineStyles": { "level": "error", "fix": "none" }
++      },
+       "style": {
++        "noRestrictedGlobals": {
++          "level": "error",
++          "options": {
++            "deniedGlobals": {
++              "fetch": "Call the backend through the generated services in src/client (ItemsService, UsersService), never with fetch directly."
++            }
++          }
++        },
+         "noNonNullAssertion": "off",
+         "noParameterAssign": "error",
+         "useSelfClosingElements": "error",
+@@ -50,6 +61,9 @@
+         "rules": {
+           "a11y": {
+             "noSvgWithoutTitle": "off"
++          },
++          "nursery": {
++            "noInlineStyles": "off"
+           }
+         }
+       }
+diff --git a/sgconfig.yml b/sgconfig.yml
+new file mode 100644
+index 0000000..315291c
+--- /dev/null
++++ b/sgconfig.yml
+@@ -0,0 +1,3 @@
++ruleDirs: [ast-grep/rules]
++testConfigs:
++  - testDir: ast-grep/rule-tests

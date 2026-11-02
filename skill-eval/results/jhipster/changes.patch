@@ -1,0 +1,3536 @@
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-admin-resources-preauthorize-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-admin-resources-preauthorize-snapshot.yml
+new file mode 100644
+index 00000000..ce5099f8
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-admin-resources-preauthorize-snapshot.yml
+@@ -0,0 +1,72 @@
++id: gen-admin-resources-preauthorize
++snapshots:
++  "@RestController\n@RequestMapping(\"/api/admin\")\nclass UserResource { @DeleteMapping(\"/users/{login}\") public ResponseEntity<Void> deleteUser(@PathVariable String login) { return null; } }\n":
++    labels:
++      - source: '@DeleteMapping("/users/{login}") public ResponseEntity<Void> deleteUser(@PathVariable String login) { return null; }'
++        style: primary
++        start: 67
++        end: 183
++      - source: '@RequestMapping("/api/admin")'
++        style: secondary
++        start: 16
++        end: 45
++      - source: |-
++          @RestController
++          @RequestMapping("/api/admin")
++        style: secondary
++        start: 0
++        end: 45
++      - source: |-
++          @RestController
++          @RequestMapping("/api/admin")
++          class UserResource { @DeleteMapping("/users/{login}") public ResponseEntity<Void> deleteUser(@PathVariable String login) { return null; } }
++        style: secondary
++        start: 0
++        end: 185
++      - source: DeleteMapping
++        style: secondary
++        start: 68
++        end: 81
++      - source: '@DeleteMapping("/users/{login}")'
++        style: secondary
++        start: 67
++        end: 99
++      - source: '@DeleteMapping("/users/{login}") public'
++        style: secondary
++        start: 67
++        end: 106
++  "@RestController\n@RequestMapping(value = \"/api/admin/reports\")\nclass ReportResource { @GetMapping public Report get() { return null; } }\n":
++    labels:
++      - source: '@GetMapping public Report get() { return null; }'
++        style: primary
++        start: 85
++        end: 133
++      - source: '@RequestMapping(value = "/api/admin/reports")'
++        style: secondary
++        start: 16
++        end: 61
++      - source: |-
++          @RestController
++          @RequestMapping(value = "/api/admin/reports")
++        style: secondary
++        start: 0
++        end: 61
++      - source: |-
++          @RestController
++          @RequestMapping(value = "/api/admin/reports")
++          class ReportResource { @GetMapping public Report get() { return null; } }
++        style: secondary
++        start: 0
++        end: 135
++      - source: GetMapping
++        style: secondary
++        start: 86
++        end: 96
++      - source: '@GetMapping'
++        style: secondary
++        start: 85
++        end: 96
++      - source: '@GetMapping public'
++        style: secondary
++        start: 85
++        end: 103
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-assertj-assertions-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-assertj-assertions-snapshot.yml
+new file mode 100644
+index 00000000..e3850987
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-assertj-assertions-snapshot.yml
+@@ -0,0 +1,20 @@
++id: gen-assertj-assertions
++snapshots:
++  import org.junit.Assert;:
++    labels:
++      - source: import org.junit.Assert;
++        style: primary
++        start: 0
++        end: 24
++  import static org.junit.jupiter.api.Assertions.*;:
++    labels:
++      - source: import static org.junit.jupiter.api.Assertions.*;
++        style: primary
++        start: 0
++        end: 49
++  import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;:
++    labels:
++      - source: import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
++        style: primary
++        start: 0
++        end: 66
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-boolean-method-naming-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-boolean-method-naming-snapshot.yml
+new file mode 100644
+index 00000000..074ff5d0
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-boolean-method-naming-snapshot.yml
+@@ -0,0 +1,22 @@
++id: gen-boolean-method-naming
++snapshots:
++  "class A { boolean activated() { return activated; } }\n":
++    labels:
++      - source: boolean activated() { return activated; }
++        style: primary
++        start: 10
++        end: 51
++      - source: boolean
++        style: secondary
++        start: 10
++        end: 17
++  "class A { private boolean removeNonActivatedUser(User existingUser) { return true; } }\n":
++    labels:
++      - source: private boolean removeNonActivatedUser(User existingUser) { return true; }
++        style: primary
++        start: 10
++        end: 84
++      - source: boolean
++        style: secondary
++        start: 18
++        end: 25
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-cache-name-constants-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-cache-name-constants-snapshot.yml
+new file mode 100644
+index 00000000..0c57b917
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-cache-name-constants-snapshot.yml
+@@ -0,0 +1,48 @@
++id: gen-cache-name-constants
++snapshots:
++  "class S { void f() { cacheManager.getCache(\"usersByLogin\").evictIfPresent(login); } }\n":
++    labels:
++      - source: '"usersByLogin"'
++        style: primary
++        start: 43
++        end: 57
++      - source: getCache
++        style: secondary
++        start: 34
++        end: 42
++      - source: cacheManager.getCache("usersByLogin")
++        style: secondary
++        start: 21
++        end: 58
++      - source: ("usersByLogin")
++        style: secondary
++        start: 42
++        end: 58
++  "interface R { @Cacheable(\"usersByLogin\") Optional<User> f(String login); }\n":
++    labels:
++      - source: '"usersByLogin"'
++        style: primary
++        start: 25
++        end: 39
++      - source: Cacheable
++        style: secondary
++        start: 15
++        end: 24
++      - source: '@Cacheable("usersByLogin")'
++        style: secondary
++        start: 14
++        end: 40
++  "interface R { @Cacheable(cacheNames = \"usersByLogin\") Optional<User> f(String login); }\n":
++    labels:
++      - source: '"usersByLogin"'
++        style: primary
++        start: 38
++        end: 52
++      - source: Cacheable
++        style: secondary
++        start: 15
++        end: 24
++      - source: '@Cacheable(cacheNames = "usersByLogin")'
++        style: secondary
++        start: 14
++        end: 53
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-dto-suffix-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-dto-suffix-snapshot.yml
+new file mode 100644
+index 00000000..c8aa59bb
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-dto-suffix-snapshot.yml
+@@ -0,0 +1,32 @@
++id: gen-dto-suffix
++snapshots:
++  "public class UserData implements Serializable {}\n":
++    labels:
++      - source: public class UserData implements Serializable {}
++        style: primary
++        start: 0
++        end: 48
++      - source: |
++          public class UserData implements Serializable {}
++        style: secondary
++        start: 0
++        end: 49
++      - source: UserData
++        style: secondary
++        start: 13
++        end: 21
++  "public record LabelView(Long id) {}\n":
++    labels:
++      - source: public record LabelView(Long id) {}
++        style: primary
++        start: 0
++        end: 35
++      - source: |
++          public record LabelView(Long id) {}
++        style: secondary
++        start: 0
++        end: 36
++      - source: LabelView
++        style: secondary
++        start: 14
++        end: 23
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-lazy-associations-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-lazy-associations-snapshot.yml
+new file mode 100644
+index 00000000..86886a0b
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-lazy-associations-snapshot.yml
+@@ -0,0 +1,28 @@
++id: gen-lazy-associations
++snapshots:
++  "class Operation { @ManyToMany(fetch = FetchType.EAGER) private Set<Label> labels; }\n":
++    labels:
++      - source: FetchType.EAGER
++        style: primary
++        start: 38
++        end: 53
++  "class Operation { @ManyToOne private BankAccount bankAccount; }\n":
++    labels:
++      - source: '@ManyToOne'
++        style: primary
++        start: 18
++        end: 28
++      - source: ManyToOne
++        style: secondary
++        start: 19
++        end: 28
++  "class Operation { @OneToOne(optional = false) private Detail detail; }\n":
++    labels:
++      - source: '@OneToOne(optional = false)'
++        style: primary
++        start: 18
++        end: 45
++      - source: OneToOne
++        style: secondary
++        start: 19
++        end: 27
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-logger-declaration-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-logger-declaration-snapshot.yml
+new file mode 100644
+index 00000000..3bb2a479
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-logger-declaration-snapshot.yml
+@@ -0,0 +1,32 @@
++id: gen-logger-declaration
++snapshots:
++  "class A { private final Logger log = LoggerFactory.getLogger(A.class); }\n":
++    labels:
++      - source: private final Logger log = LoggerFactory.getLogger(A.class);
++        style: primary
++        start: 10
++        end: 70
++      - source: Logger
++        style: secondary
++        start: 24
++        end: 30
++  "class A { private static final Logger logger = LoggerFactory.getLogger(A.class); }\n":
++    labels:
++      - source: private static final Logger logger = LoggerFactory.getLogger(A.class);
++        style: primary
++        start: 10
++        end: 80
++      - source: Logger
++        style: secondary
++        start: 31
++        end: 37
++  "class A { static final Logger LOG = LoggerFactory.getLogger(A.class); }\n":
++    labels:
++      - source: static final Logger LOG = LoggerFactory.getLogger(A.class);
++        style: primary
++        start: 10
++        end: 69
++      - source: Logger
++        style: secondary
++        start: 23
++        end: 29
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-logging-via-slf4j-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-logging-via-slf4j-snapshot.yml
+new file mode 100644
+index 00000000..458da93c
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-logging-via-slf4j-snapshot.yml
+@@ -0,0 +1,20 @@
++id: gen-logging-via-slf4j
++snapshots:
++  "class A { void f() { System.err.printf(\"%s\", x); } }\n":
++    labels:
++      - source: System.err.printf("%s", x)
++        style: primary
++        start: 21
++        end: 47
++  "class A { void f() { System.out.println(\"Started\"); } }\n":
++    labels:
++      - source: System.out.println("Started")
++        style: primary
++        start: 21
++        end: 50
++  "class A { void f() { try { g(); } catch (IOException e) { e.printStackTrace(); } } }\n":
++    labels:
++      - source: e.printStackTrace()
++        style: primary
++        start: 58
++        end: 77
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-broad-catch-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-broad-catch-snapshot.yml
+new file mode 100644
+index 00000000..e6d8fb45
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-broad-catch-snapshot.yml
+@@ -0,0 +1,32 @@
++id: gen-no-broad-catch
++snapshots:
++  "class A { void f() { try { g(); } catch (Exception e) { throw new IllegalStateException(e); } } }\n":
++    labels:
++      - source: Exception
++        style: primary
++        start: 41
++        end: 50
++      - source: Exception
++        style: secondary
++        start: 41
++        end: 50
++  "class A { void f() { try { g(); } catch (IOException | RuntimeException e) { h(e); } } }\n":
++    labels:
++      - source: IOException | RuntimeException
++        style: primary
++        start: 41
++        end: 71
++      - source: RuntimeException
++        style: secondary
++        start: 55
++        end: 71
++  "class A { void f() { try { g(); } catch (Throwable t) { h(t); } } }\n":
++    labels:
++      - source: Throwable
++        style: primary
++        start: 41
++        end: 50
++      - source: Throwable
++        style: secondary
++        start: 41
++        end: 50
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-empty-catch-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-empty-catch-snapshot.yml
+new file mode 100644
+index 00000000..2ba1e1eb
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-empty-catch-snapshot.yml
+@@ -0,0 +1,38 @@
++id: gen-no-empty-catch
++snapshots:
++  "class A { void f() { try { g(); } catch (MailException e) {\n  // ignore\n} } }\n":
++    labels:
++      - source: |-
++          catch (MailException e) {
++            // ignore
++          }
++        style: primary
++        start: 34
++        end: 73
++      - source: |-
++          {
++            // ignore
++          }
++        style: secondary
++        start: 58
++        end: 73
++  "class A { void f() { try { g(); } catch (MailException e) { /* nothing */ } } }\n":
++    labels:
++      - source: catch (MailException e) { /* nothing */ }
++        style: primary
++        start: 34
++        end: 75
++      - source: '{ /* nothing */ }'
++        style: secondary
++        start: 58
++        end: 75
++  "class A { void f() { try { g(); } catch (MailException e) {} } }\n":
++    labels:
++      - source: catch (MailException e) {}
++        style: primary
++        start: 34
++        end: 60
++      - source: '{}'
++        style: secondary
++        start: 58
++        end: 60
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-error-string-body-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-error-string-body-snapshot.yml
+new file mode 100644
+index 00000000..0c5b3c9c
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-error-string-body-snapshot.yml
+@@ -0,0 +1,38 @@
++id: gen-no-error-string-body
++snapshots:
++  "class R { ResponseEntity<String> f() { return ResponseEntity.badRequest().body(\"Invalid id\"); } }\n":
++    labels:
++      - source: ResponseEntity.badRequest().body("Invalid id")
++        style: primary
++        start: 46
++        end: 92
++      - source: ResponseEntity.badRequest()
++        style: secondary
++        start: 46
++        end: 73
++      - source: '"Invalid id"'
++        style: secondary
++        start: 79
++        end: 91
++      - source: '"Invalid id"'
++        style: secondary
++        start: 79
++        end: 91
++  "class R { ResponseEntity<String> f() { return ResponseEntity.status(HttpStatus.CONFLICT).body(\"Login already used\"); } }\n":
++    labels:
++      - source: ResponseEntity.status(HttpStatus.CONFLICT).body("Login already used")
++        style: primary
++        start: 46
++        end: 115
++      - source: ResponseEntity.status(HttpStatus.CONFLICT)
++        style: secondary
++        start: 46
++        end: 88
++      - source: '"Login already used"'
++        style: secondary
++        start: 94
++        end: 114
++      - source: '"Login already used"'
++        style: secondary
++        start: 94
++        end: 114
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-field-injection-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-field-injection-snapshot.yml
+new file mode 100644
+index 00000000..60cb9e1d
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-field-injection-snapshot.yml
+@@ -0,0 +1,58 @@
++id: gen-no-field-injection
++snapshots:
++  "class A { @Autowired private UserRepository userRepository; }\n":
++    labels:
++      - source: '@Autowired private UserRepository userRepository;'
++        style: primary
++        start: 10
++        end: 59
++      - source: '@Autowired'
++        style: secondary
++        start: 10
++        end: 20
++      - source: '@Autowired private'
++        style: secondary
++        start: 10
++        end: 28
++  "class A { @Autowired(required = false) private BuildProperties buildProperties; }\n":
++    labels:
++      - source: '@Autowired(required = false) private BuildProperties buildProperties;'
++        style: primary
++        start: 10
++        end: 79
++      - source: '@Autowired(required = false)'
++        style: secondary
++        start: 10
++        end: 38
++      - source: '@Autowired(required = false) private'
++        style: secondary
++        start: 10
++        end: 46
++  "class A { @Inject private MailService mailService; }\n":
++    labels:
++      - source: '@Inject private MailService mailService;'
++        style: primary
++        start: 10
++        end: 50
++      - source: '@Inject'
++        style: secondary
++        start: 10
++        end: 17
++      - source: '@Inject private'
++        style: secondary
++        start: 10
++        end: 25
++  "class A { @org.springframework.beans.factory.annotation.Autowired UserRepository userRepository; }\n":
++    labels:
++      - source: '@org.springframework.beans.factory.annotation.Autowired UserRepository userRepository;'
++        style: primary
++        start: 10
++        end: 96
++      - source: '@org.springframework.beans.factory.annotation.Autowired'
++        style: secondary
++        start: 10
++        end: 65
++      - source: '@org.springframework.beans.factory.annotation.Autowired'
++        style: secondary
++        start: 10
++        end: 65
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-log-concatenation-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-log-concatenation-snapshot.yml
+new file mode 100644
+index 00000000..a436da31
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-log-concatenation-snapshot.yml
+@@ -0,0 +1,56 @@
++id: gen-no-log-concatenation
++snapshots:
++  "class A { void f() { LOG.debug(\"Request to get User : \" + login); } }\n":
++    labels:
++      - source: 'LOG.debug("Request to get User : " + login)'
++        style: primary
++        start: 21
++        end: 64
++      - source: login
++        style: secondary
++        start: 58
++        end: 63
++      - source: '"Request to get User : " + login'
++        style: secondary
++        start: 31
++        end: 63
++      - source: '"Request to get User : " + login'
++        style: secondary
++        start: 31
++        end: 63
++  "class A { void f() { LOG.warn(\"Failed for \" + user.getLogin(), e); } }\n":
++    labels:
++      - source: LOG.warn("Failed for " + user.getLogin(), e)
++        style: primary
++        start: 21
++        end: 65
++      - source: user.getLogin()
++        style: secondary
++        start: 46
++        end: 61
++      - source: '"Failed for " + user.getLogin()'
++        style: secondary
++        start: 30
++        end: 61
++      - source: '"Failed for " + user.getLogin()'
++        style: secondary
++        start: 30
++        end: 61
++  "class A { void f() { log.info(\"a\" + B.C + \"d\"); } }\n":
++    labels:
++      - source: log.info("a" + B.C + "d")
++        style: primary
++        start: 21
++        end: 46
++      - source: B.C
++        style: secondary
++        start: 36
++        end: 39
++      - source: '"a" + B.C + "d"'
++        style: secondary
++        start: 30
++        end: 45
++      - source: '"a" + B.C + "d"'
++        style: secondary
++        start: 30
++        end: 45
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-manual-threads-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-manual-threads-snapshot.yml
+new file mode 100644
+index 00000000..fd6d31d3
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-manual-threads-snapshot.yml
+@@ -0,0 +1,20 @@
++id: gen-no-manual-threads
++snapshots:
++  "class A { ExecutorService e = Executors.newFixedThreadPool(4); }\n":
++    labels:
++      - source: Executors.newFixedThreadPool(4)
++        style: primary
++        start: 30
++        end: 61
++  "class A { Object e = new ThreadPoolExecutor(1, 2, 3, TimeUnit.SECONDS, queue); }\n":
++    labels:
++      - source: new ThreadPoolExecutor(1, 2, 3, TimeUnit.SECONDS, queue)
++        style: primary
++        start: 21
++        end: 77
++  "class A { void f() { new Thread(() -> g()).start(); } }\n":
++    labels:
++      - source: new Thread(() -> g())
++        style: primary
++        start: 21
++        end: 42
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-null-collection-return-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-null-collection-return-snapshot.yml
+new file mode 100644
+index 00000000..9d1f4cf4
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-null-collection-return-snapshot.yml
+@@ -0,0 +1,40 @@
++id: gen-no-null-collection-return
++snapshots:
++  "class A { List<UserDTO> f(List<User> users) { if (users == null) { return null; } return users.stream().map(UserDTO::new).toList(); } }\n":
++    labels:
++      - source: return null;
++        style: primary
++        start: 67
++        end: 79
++      - source: List<UserDTO>
++        style: secondary
++        start: 10
++        end: 23
++      - source: >-
++          List<UserDTO> f(List<User> users) { if (users == null) { return null; } return
++          users.stream().map(UserDTO::new).toList(); }
++        style: secondary
++        start: 10
++        end: 133
++      - source: 'null'
++        style: secondary
++        start: 74
++        end: 78
++  "class A { Set<Authority> f() { return null; } }\n":
++    labels:
++      - source: return null;
++        style: primary
++        start: 31
++        end: 43
++      - source: Set<Authority>
++        style: secondary
++        start: 10
++        end: 24
++      - source: Set<Authority> f() { return null; }
++        style: secondary
++        start: 10
++        end: 45
++      - source: 'null'
++        style: secondary
++        start: 38
++        end: 42
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-optional-field-or-param-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-optional-field-or-param-snapshot.yml
+new file mode 100644
+index 00000000..8e5df7f5
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-optional-field-or-param-snapshot.yml
+@@ -0,0 +1,32 @@
++id: gen-no-optional-field-or-param
++snapshots:
++  "class A { private Optional<String> name; }\n":
++    labels:
++      - source: private Optional<String> name;
++        style: primary
++        start: 10
++        end: 40
++      - source: Optional<String>
++        style: secondary
++        start: 18
++        end: 34
++  "class A { private java.util.Optional<String> name; }\n":
++    labels:
++      - source: private java.util.Optional<String> name;
++        style: primary
++        start: 10
++        end: 50
++      - source: java.util.Optional<String>
++        style: secondary
++        start: 18
++        end: 44
++  "interface R { Optional<Operation> fetchBagRelationships(Optional<Operation> operation); }\n":
++    labels:
++      - source: Optional<Operation> operation
++        style: primary
++        start: 56
++        end: 85
++      - source: Optional<Operation>
++        style: secondary
++        start: 56
++        end: 75
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-query-concatenation-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-query-concatenation-snapshot.yml
+new file mode 100644
+index 00000000..63591abf
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-query-concatenation-snapshot.yml
+@@ -0,0 +1,48 @@
++id: gen-no-query-concatenation
++snapshots:
++  "class A { void f() { em.createQuery(\"select u from User u where u.login = '\" + login + \"'\"); } }\n":
++    labels:
++      - source: em.createQuery("select u from User u where u.login = '" + login + "'")
++        style: primary
++        start: 21
++        end: 91
++      - source: createQuery
++        style: secondary
++        start: 24
++        end: 35
++      - source: login
++        style: secondary
++        start: 79
++        end: 84
++      - source: '"select u from User u where u.login = ''" + login + "''"'
++        style: secondary
++        start: 36
++        end: 90
++      - source: '"select u from User u where u.login = ''" + login + "''"'
++        style: secondary
++        start: 36
++        end: 90
++  "class A { void f() { jdbcTemplate.query(\"select * from jhi_user where email = '\" + user.getEmail() + \"'\", mapper); } }\n":
++    labels:
++      - source: >-
++          jdbcTemplate.query("select * from jhi_user where email = '" + user.getEmail() +
++          "'", mapper)
++        style: primary
++        start: 21
++        end: 113
++      - source: query
++        style: secondary
++        start: 34
++        end: 39
++      - source: user.getEmail()
++        style: secondary
++        start: 83
++        end: 98
++      - source: '"select * from jhi_user where email = ''" + user.getEmail() + "''"'
++        style: secondary
++        start: 40
++        end: 104
++      - source: '"select * from jhi_user where email = ''" + user.getEmail() + "''"'
++        style: secondary
++        start: 40
++        end: 104
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-role-literals-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-role-literals-snapshot.yml
+new file mode 100644
+index 00000000..7a1ade53
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-role-literals-snapshot.yml
+@@ -0,0 +1,14 @@
++id: gen-no-role-literals
++snapshots:
++  "class A { @PreAuthorize(\"hasAnyAuthority('ROLE_ADMIN')\") void f() {} }\n":
++    labels:
++      - source: '"hasAnyAuthority(''ROLE_ADMIN'')"'
++        style: primary
++        start: 24
++        end: 55
++  "class A { boolean f() { return hasAuthority(\"ROLE_USER\"); } }\n":
++    labels:
++      - source: '"ROLE_USER"'
++        style: primary
++        start: 44
++        end: 55
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-security-context-in-services-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-security-context-in-services-snapshot.yml
+new file mode 100644
+index 00000000..14b99b3a
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-security-context-in-services-snapshot.yml
+@@ -0,0 +1,14 @@
++id: gen-no-security-context-in-services
++snapshots:
++  "class S { Object f() { return SecurityContextHolder.getContext().getAuthentication(); } }\n":
++    labels:
++      - source: SecurityContextHolder
++        style: primary
++        start: 30
++        end: 51
++  "class S { Object f() { return org.springframework.security.core.context.SecurityContextHolder.getContext(); } }\n":
++    labels:
++      - source: SecurityContextHolder
++        style: primary
++        start: 72
++        end: 93
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-sensitive-logging-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-sensitive-logging-snapshot.yml
+new file mode 100644
+index 00000000..0095c591
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-sensitive-logging-snapshot.yml
+@@ -0,0 +1,90 @@
++id: gen-no-sensitive-logging
++snapshots:
++  "class A { void f() { LOG.debug(\"Activating user for activation key {}\", key); } }\n":
++    labels:
++      - source: LOG.debug("Activating user for activation key {}", key)
++        style: primary
++        start: 21
++        end: 76
++      - source: LOG
++        style: secondary
++        start: 21
++        end: 24
++      - source: debug
++        style: secondary
++        start: 25
++        end: 30
++      - source: key
++        style: secondary
++        start: 72
++        end: 75
++      - source: key
++        style: secondary
++        start: 72
++        end: 75
++  "class A { void f() { LOG.debug(\"Reset for {}\", user.getResetKey()); } }\n":
++    labels:
++      - source: LOG.debug("Reset for {}", user.getResetKey())
++        style: primary
++        start: 21
++        end: 66
++      - source: LOG
++        style: secondary
++        start: 21
++        end: 24
++      - source: debug
++        style: secondary
++        start: 25
++        end: 30
++      - source: user.getResetKey()
++        style: secondary
++        start: 47
++        end: 65
++      - source: user.getResetKey()
++        style: secondary
++        start: 47
++        end: 65
++  "class A { void f() { LOG.debug(\"pw {}\", password); } }\n":
++    labels:
++      - source: LOG.debug("pw {}", password)
++        style: primary
++        start: 21
++        end: 49
++      - source: LOG
++        style: secondary
++        start: 21
++        end: 24
++      - source: debug
++        style: secondary
++        start: 25
++        end: 30
++      - source: password
++        style: secondary
++        start: 40
++        end: 48
++      - source: password
++        style: secondary
++        start: 40
++        end: 48
++  "class A { void f() { LOG.info(\"Token {}\", jwtToken); } }\n":
++    labels:
++      - source: LOG.info("Token {}", jwtToken)
++        style: primary
++        start: 21
++        end: 51
++      - source: LOG
++        style: secondary
++        start: 21
++        end: 24
++      - source: info
++        style: secondary
++        start: 25
++        end: 29
++      - source: jwtToken
++        style: secondary
++        start: 42
++        end: 50
++      - source: jwtToken
++        style: secondary
++        start: 42
++        end: 50
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-no-thread-sleep-in-tests-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-no-thread-sleep-in-tests-snapshot.yml
+new file mode 100644
+index 00000000..d35ed552
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-no-thread-sleep-in-tests-snapshot.yml
+@@ -0,0 +1,14 @@
++id: gen-no-thread-sleep-in-tests
++snapshots:
++  "class T { void t() throws Exception { Thread.sleep(1000); } }\n":
++    labels:
++      - source: Thread.sleep(1000)
++        style: primary
++        start: 38
++        end: 56
++  "class T { void t() throws Exception { TimeUnit.SECONDS.sleep(1); } }\n":
++    labels:
++      - source: TimeUnit.SECONDS.sleep(1)
++        style: primary
++        start: 38
++        end: 63
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-not-found-via-response-util-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-not-found-via-response-util-snapshot.yml
+new file mode 100644
+index 00000000..2baa9429
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-not-found-via-response-util-snapshot.yml
+@@ -0,0 +1,14 @@
++id: gen-not-found-via-response-util
++snapshots:
++  "class R { ResponseEntity<Label> f() { return ResponseEntity.notFound().build(); } }\n":
++    labels:
++      - source: ResponseEntity.notFound()
++        style: primary
++        start: 45
++        end: 70
++  "class R { ResponseEntity<Label> f() { return new ResponseEntity<>(HttpStatus.NOT_FOUND); } }\n":
++    labels:
++      - source: HttpStatus.NOT_FOUND
++        style: primary
++        start: 66
++        end: 86
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-paged-list-endpoints-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-paged-list-endpoints-snapshot.yml
+new file mode 100644
+index 00000000..ce771434
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-paged-list-endpoints-snapshot.yml
+@@ -0,0 +1,46 @@
++id: gen-paged-list-endpoints
++snapshots:
++  "class R { @GetMapping(\"\") public List<Label> getAllLabels() { return null; } }\n":
++    labels:
++      - source: '@GetMapping("") public List<Label> getAllLabels() { return null; }'
++        style: primary
++        start: 10
++        end: 76
++      - source: List<Label>
++        style: secondary
++        start: 33
++        end: 44
++      - source: GetMapping
++        style: secondary
++        start: 11
++        end: 21
++      - source: '@GetMapping("")'
++        style: secondary
++        start: 10
++        end: 25
++      - source: '@GetMapping("") public'
++        style: secondary
++        start: 10
++        end: 32
++  "class R { @GetMapping(\"\") public ResponseEntity<List<Operation>> getAll(@RequestParam boolean eagerload) { return null; } }\n":
++    labels:
++      - source: '@GetMapping("") public ResponseEntity<List<Operation>> getAll(@RequestParam boolean eagerload) { return null; }'
++        style: primary
++        start: 10
++        end: 121
++      - source: ResponseEntity<List<Operation>>
++        style: secondary
++        start: 33
++        end: 64
++      - source: GetMapping
++        style: secondary
++        start: 11
++        end: 21
++      - source: '@GetMapping("")'
++        style: secondary
++        start: 10
++        end: 25
++      - source: '@GetMapping("") public'
++        style: secondary
++        start: 10
++        end: 32
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-password-encoder-bean-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-password-encoder-bean-snapshot.yml
+new file mode 100644
+index 00000000..82fd1cd1
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-password-encoder-bean-snapshot.yml
+@@ -0,0 +1,18 @@
++id: gen-password-encoder-bean
++snapshots:
++  "class S { String f(String raw) { return new BCryptPasswordEncoder().encode(raw); } }\n":
++    labels:
++      - source: new BCryptPasswordEncoder()
++        style: primary
++        start: 40
++        end: 67
++      - source: BCryptPasswordEncoder
++        style: secondary
++        start: 44
++        end: 65
++  "class S { byte[] f(String raw) throws Exception { return MessageDigest.getInstance(\"SHA-256\").digest(raw.getBytes()); } }\n":
++    labels:
++      - source: MessageDigest.getInstance("SHA-256")
++        style: primary
++        start: 57
++        end: 93
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-properties-via-application-properties-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-properties-via-application-properties-snapshot.yml
+new file mode 100644
+index 00000000..35c035ce
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-properties-via-application-properties-snapshot.yml
+@@ -0,0 +1,38 @@
++id: gen-properties-via-application-properties
++snapshots:
++  "class A { @Value(\"${application.mail.enabled}\") private boolean mailEnabled; }\n":
++    labels:
++      - source: '@Value("${application.mail.enabled}")'
++        style: primary
++        start: 10
++        end: 47
++      - source: Value
++        style: secondary
++        start: 11
++        end: 16
++      - source: '"${application.mail.enabled}"'
++        style: secondary
++        start: 17
++        end: 46
++      - source: '"${application.mail.enabled}"'
++        style: secondary
++        start: 17
++        end: 46
++  "class A { A(@Value(\"${application.feature.x:false}\") boolean x) {} }\n":
++    labels:
++      - source: '@Value("${application.feature.x:false}")'
++        style: primary
++        start: 12
++        end: 52
++      - source: Value
++        style: secondary
++        start: 13
++        end: 18
++      - source: '"${application.feature.x:false}"'
++        style: secondary
++        start: 19
++        end: 51
++      - source: '"${application.feature.x:false}"'
++        style: secondary
++        start: 19
++        end: 51
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-repository-extends-jparepository-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-repository-extends-jparepository-snapshot.yml
+new file mode 100644
+index 00000000..7d734b89
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-repository-extends-jparepository-snapshot.yml
+@@ -0,0 +1,22 @@
++id: gen-repository-extends-jparepository
++snapshots:
++  'public interface LabelRepository extends CrudRepository<Label, Long> {}':
++    labels:
++      - source: public interface LabelRepository extends CrudRepository<Label, Long> {}
++        style: primary
++        start: 0
++        end: 71
++      - source: LabelRepository
++        style: secondary
++        start: 17
++        end: 32
++  'public interface LabelRepository {}':
++    labels:
++      - source: public interface LabelRepository {}
++        style: primary
++        start: 0
++        end: 35
++      - source: LabelRepository
++        style: secondary
++        start: 17
++        end: 32
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-resource-naming-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-resource-naming-snapshot.yml
+new file mode 100644
+index 00000000..752b07d8
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-resource-naming-snapshot.yml
+@@ -0,0 +1,22 @@
++id: gen-resource-naming
++snapshots:
++  "@RestController\nclass AuthenticateController {}\n":
++    labels:
++      - source: |-
++          @RestController
++          class AuthenticateController {}
++        style: primary
++        start: 0
++        end: 47
++      - source: RestController
++        style: secondary
++        start: 1
++        end: 15
++      - source: '@RestController'
++        style: secondary
++        start: 0
++        end: 15
++      - source: '@RestController'
++        style: secondary
++        start: 0
++        end: 15
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-scheduled-cron-from-properties-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-scheduled-cron-from-properties-snapshot.yml
+new file mode 100644
+index 00000000..169ca762
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-scheduled-cron-from-properties-snapshot.yml
+@@ -0,0 +1,46 @@
++id: gen-scheduled-cron-from-properties
++snapshots:
++  "class A { @Scheduled(cron = \"0 0 1 * * ?\") public void removeNotActivatedUsers() {} }\n":
++    labels:
++      - source: cron = "0 0 1 * * ?"
++        style: primary
++        start: 21
++        end: 41
++      - source: cron
++        style: secondary
++        start: 21
++        end: 25
++      - source: '"0 0 1 * * ?"'
++        style: secondary
++        start: 28
++        end: 41
++      - source: Scheduled
++        style: secondary
++        start: 11
++        end: 20
++      - source: '@Scheduled(cron = "0 0 1 * * ?")'
++        style: secondary
++        start: 10
++        end: 42
++  "class A { @Scheduled(zone = \"UTC\", cron = \"0 0 1 * * ?\") void f() {} }\n":
++    labels:
++      - source: cron = "0 0 1 * * ?"
++        style: primary
++        start: 35
++        end: 55
++      - source: cron
++        style: secondary
++        start: 35
++        end: 39
++      - source: '"0 0 1 * * ?"'
++        style: secondary
++        start: 42
++        end: 55
++      - source: Scheduled
++        style: secondary
++        start: 11
++        end: 20
++      - source: '@Scheduled(zone = "UTC", cron = "0 0 1 * * ?")'
++        style: secondary
++        start: 10
++        end: 56
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-specific-service-exceptions-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-specific-service-exceptions-snapshot.yml
+new file mode 100644
+index 00000000..93f41477
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-specific-service-exceptions-snapshot.yml
+@@ -0,0 +1,30 @@
++id: gen-specific-service-exceptions
++snapshots:
++  "class S { void f() throws Exception { throw new Exception(\"x\"); } }\n":
++    labels:
++      - source: throw new Exception("x");
++        style: primary
++        start: 38
++        end: 63
++      - source: Exception
++        style: secondary
++        start: 48
++        end: 57
++      - source: new Exception("x")
++        style: secondary
++        start: 44
++        end: 62
++  "class S { void f() { throw new RuntimeException(\"Email already used\"); } }\n":
++    labels:
++      - source: throw new RuntimeException("Email already used");
++        style: primary
++        start: 21
++        end: 70
++      - source: RuntimeException
++        style: secondary
++        start: 31
++        end: 47
++      - source: new RuntimeException("Email already used")
++        style: secondary
++        start: 27
++        end: 69
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-time-through-clock-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-time-through-clock-snapshot.yml
+new file mode 100644
+index 00000000..07463150
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-time-through-clock-snapshot.yml
+@@ -0,0 +1,26 @@
++id: gen-time-through-clock
++snapshots:
++  "class A { Object f() { return java.time.LocalDateTime.now(); } }\n":
++    labels:
++      - source: java.time.LocalDateTime.now()
++        style: primary
++        start: 30
++        end: 59
++  "class A { boolean f(User user) { return user.getResetDate().isAfter(Instant.now().minus(1, ChronoUnit.DAYS)); } }\n":
++    labels:
++      - source: Instant.now()
++        style: primary
++        start: 68
++        end: 81
++  "class A { long f() { return System.currentTimeMillis(); } }\n":
++    labels:
++      - source: System.currentTimeMillis()
++        style: primary
++        start: 28
++        end: 54
++  "class A { private Instant createdDate = Instant.now(); }\n":
++    labels:
++      - source: Instant.now()
++        style: primary
++        start: 40
++        end: 53
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-transactional-in-services-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-transactional-in-services-snapshot.yml
+new file mode 100644
+index 00000000..e8ed1b5a
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-transactional-in-services-snapshot.yml
+@@ -0,0 +1,22 @@
++id: gen-transactional-in-services
++snapshots:
++  "@RestController @Transactional class R {}\n":
++    labels:
++      - source: '@Transactional'
++        style: primary
++        start: 16
++        end: 30
++      - source: Transactional
++        style: secondary
++        start: 17
++        end: 30
++  "class R { @Transactional(readOnly = true) void f() {} }\n":
++    labels:
++      - source: '@Transactional(readOnly = true)'
++        style: primary
++        start: 10
++        end: 41
++      - source: Transactional
++        style: secondary
++        start: 11
++        end: 24
+diff --git a/ast-grep/rule-tests/__snapshots__/gen-valid-request-body-snapshot.yml b/ast-grep/rule-tests/__snapshots__/gen-valid-request-body-snapshot.yml
+new file mode 100644
+index 00000000..85ae1a3b
+--- /dev/null
++++ b/ast-grep/rule-tests/__snapshots__/gen-valid-request-body-snapshot.yml
+@@ -0,0 +1,56 @@
++id: gen-valid-request-body
++snapshots:
++  "class R { void changePassword(@RequestBody PasswordChangeDTO passwordChangeDto) {} }\n":
++    labels:
++      - source: '@RequestBody PasswordChangeDTO passwordChangeDto'
++        style: primary
++        start: 30
++        end: 78
++      - source: RequestBody
++        style: secondary
++        start: 31
++        end: 42
++      - source: '@RequestBody'
++        style: secondary
++        start: 30
++        end: 42
++      - source: '@RequestBody'
++        style: secondary
++        start: 30
++        end: 42
++  "class R { void f(@PathVariable(value = \"id\", required = false) final Long id, @NotNull @RequestBody Label label) {} }\n":
++    labels:
++      - source: '@NotNull @RequestBody Label label'
++        style: primary
++        start: 78
++        end: 111
++      - source: RequestBody
++        style: secondary
++        start: 88
++        end: 99
++      - source: '@RequestBody'
++        style: secondary
++        start: 87
++        end: 99
++      - source: '@NotNull @RequestBody'
++        style: secondary
++        start: 78
++        end: 99
++  "class R { void f(@RequestBody @Email @Size(min = 5, max = 254) String mail) {} }\n":
++    labels:
++      - source: '@RequestBody @Email @Size(min = 5, max = 254) String mail'
++        style: primary
++        start: 17
++        end: 74
++      - source: RequestBody
++        style: secondary
++        start: 18
++        end: 29
++      - source: '@RequestBody'
++        style: secondary
++        start: 17
++        end: 29
++      - source: '@RequestBody @Email @Size(min = 5, max = 254)'
++        style: secondary
++        start: 17
++        end: 62
+diff --git a/ast-grep/rule-tests/gen-admin-resources-preauthorize-test.yml b/ast-grep/rule-tests/gen-admin-resources-preauthorize-test.yml
+new file mode 100644
+index 00000000..d4f629ab
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-admin-resources-preauthorize-test.yml
+@@ -0,0 +1,24 @@
++id: gen-admin-resources-preauthorize
++valid:
++  - |
++    @RestController
++    @RequestMapping("/api/admin")
++    class UserResource {
++      @GetMapping("/users")
++      @PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")")
++      public ResponseEntity<List<AdminUserDTO>> getAllUsers(Pageable pageable) { return null; }
++      private boolean onlyContainsAllowedProperties(Pageable pageable) { return true; }
++    }
++  - |
++    @RestController
++    @RequestMapping("/api")
++    class AccountResource { @GetMapping("/account") public AdminUserDTO getAccount() { return null; } }
++invalid:
++  - |
++    @RestController
++    @RequestMapping("/api/admin")
++    class UserResource { @DeleteMapping("/users/{login}") public ResponseEntity<Void> deleteUser(@PathVariable String login) { return null; } }
++  - |
++    @RestController
++    @RequestMapping(value = "/api/admin/reports")
++    class ReportResource { @GetMapping public Report get() { return null; } }
+diff --git a/ast-grep/rule-tests/gen-assertj-assertions-test.yml b/ast-grep/rule-tests/gen-assertj-assertions-test.yml
+new file mode 100644
+index 00000000..966d0ff7
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-assertj-assertions-test.yml
+@@ -0,0 +1,8 @@
++id: gen-assertj-assertions
++valid:
++  - import static org.assertj.core.api.Assertions.assertThat;
++  - import static org.assertj.core.api.Assertions.assertThatNoException;
++invalid:
++  - import static org.junit.jupiter.api.Assertions.*;
++  - import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
++  - import org.junit.Assert;
+diff --git a/ast-grep/rule-tests/gen-boolean-method-naming-test.yml b/ast-grep/rule-tests/gen-boolean-method-naming-test.yml
+new file mode 100644
+index 00000000..20f7ee69
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-boolean-method-naming-test.yml
+@@ -0,0 +1,13 @@
++id: gen-boolean-method-naming
++valid:
++  - |
++    class A { boolean isActivated() { return activated; } }
++  - |
++    class A { public boolean hasAuthority(String a) { return true; } }
++  - |
++    class A { public boolean equals(Object o) { return true; } }
++invalid:
++  - |
++    class A { private boolean removeNonActivatedUser(User existingUser) { return true; } }
++  - |
++    class A { boolean activated() { return activated; } }
+diff --git a/ast-grep/rule-tests/gen-cache-name-constants-test.yml b/ast-grep/rule-tests/gen-cache-name-constants-test.yml
+new file mode 100644
+index 00000000..77cfec9c
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-cache-name-constants-test.yml
+@@ -0,0 +1,13 @@
++id: gen-cache-name-constants
++valid:
++  - |
++    interface R { @Cacheable(cacheNames = USERS_BY_LOGIN_CACHE, unless = "#result == null") Optional<User> f(String login); }
++  - |
++    class S { void f() { cacheManager.getCache(UserRepository.USERS_BY_LOGIN_CACHE).evictIfPresent(login); } }
++invalid:
++  - |
++    interface R { @Cacheable(cacheNames = "usersByLogin") Optional<User> f(String login); }
++  - |
++    interface R { @Cacheable("usersByLogin") Optional<User> f(String login); }
++  - |
++    class S { void f() { cacheManager.getCache("usersByLogin").evictIfPresent(login); } }
+diff --git a/ast-grep/rule-tests/gen-dto-suffix-test.yml b/ast-grep/rule-tests/gen-dto-suffix-test.yml
+new file mode 100644
+index 00000000..d65d2554
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-dto-suffix-test.yml
+@@ -0,0 +1,11 @@
++id: gen-dto-suffix
++valid:
++  - |
++    public class UserDTO implements Serializable { static class Inner {} }
++  - |
++    public record LabelDTO(Long id, String label) {}
++invalid:
++  - |
++    public class UserData implements Serializable {}
++  - |
++    public record LabelView(Long id) {}
+diff --git a/ast-grep/rule-tests/gen-lazy-associations-test.yml b/ast-grep/rule-tests/gen-lazy-associations-test.yml
+new file mode 100644
+index 00000000..1ce12c75
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-lazy-associations-test.yml
+@@ -0,0 +1,15 @@
++id: gen-lazy-associations
++valid:
++  - |
++    class Operation { @ManyToOne(fetch = FetchType.LAZY) private BankAccount bankAccount; }
++  - |
++    class Operation { @ManyToMany(fetch = FetchType.LAZY) private Set<Label> labels; }
++  - |
++    class User { @ManyToMany private Set<Authority> authorities; }
++invalid:
++  - |
++    class Operation { @ManyToOne private BankAccount bankAccount; }
++  - |
++    class Operation { @OneToOne(optional = false) private Detail detail; }
++  - |
++    class Operation { @ManyToMany(fetch = FetchType.EAGER) private Set<Label> labels; }
+diff --git a/ast-grep/rule-tests/gen-logger-declaration-test.yml b/ast-grep/rule-tests/gen-logger-declaration-test.yml
+new file mode 100644
+index 00000000..f3aed610
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-logger-declaration-test.yml
+@@ -0,0 +1,13 @@
++id: gen-logger-declaration
++valid:
++  - |
++    class A { private static final Logger LOG = LoggerFactory.getLogger(A.class); }
++  - |
++    class A { private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(A.class); }
++invalid:
++  - |
++    class A { private final Logger log = LoggerFactory.getLogger(A.class); }
++  - |
++    class A { private static final Logger logger = LoggerFactory.getLogger(A.class); }
++  - |
++    class A { static final Logger LOG = LoggerFactory.getLogger(A.class); }
+diff --git a/ast-grep/rule-tests/gen-logging-via-slf4j-test.yml b/ast-grep/rule-tests/gen-logging-via-slf4j-test.yml
+new file mode 100644
+index 00000000..3778e39b
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-logging-via-slf4j-test.yml
+@@ -0,0 +1,11 @@
++id: gen-logging-via-slf4j
++valid:
++  - |
++    class A { void f() { LOG.info("Started"); } }
++invalid:
++  - |
++    class A { void f() { System.out.println("Started"); } }
++  - |
++    class A { void f() { System.err.printf("%s", x); } }
++  - |
++    class A { void f() { try { g(); } catch (IOException e) { e.printStackTrace(); } } }
+diff --git a/ast-grep/rule-tests/gen-no-broad-catch-test.yml b/ast-grep/rule-tests/gen-no-broad-catch-test.yml
+new file mode 100644
+index 00000000..6daddf75
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-broad-catch-test.yml
+@@ -0,0 +1,11 @@
++id: gen-no-broad-catch
++valid:
++  - |
++    class A { void f() { try { g(); } catch (MailException e) { LOG.warn("Email could not be sent", e); } } }
++invalid:
++  - |
++    class A { void f() { try { g(); } catch (Exception e) { throw new IllegalStateException(e); } } }
++  - |
++    class A { void f() { try { g(); } catch (IOException | RuntimeException e) { h(e); } } }
++  - |
++    class A { void f() { try { g(); } catch (Throwable t) { h(t); } } }
+diff --git a/ast-grep/rule-tests/gen-no-empty-catch-test.yml b/ast-grep/rule-tests/gen-no-empty-catch-test.yml
+new file mode 100644
+index 00000000..42dd688a
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-empty-catch-test.yml
+@@ -0,0 +1,13 @@
++id: gen-no-empty-catch
++valid:
++  - |
++    class A { void f() { try { g(); } catch (MailException e) { LOG.warn("Email could not be sent to user '{}'", to, e); } } }
++invalid:
++  - |
++    class A { void f() { try { g(); } catch (MailException e) {} } }
++  - |
++    class A { void f() { try { g(); } catch (MailException e) {
++      // ignore
++    } } }
++  - |
++    class A { void f() { try { g(); } catch (MailException e) { /* nothing */ } } }
+diff --git a/ast-grep/rule-tests/gen-no-error-string-body-test.yml b/ast-grep/rule-tests/gen-no-error-string-body-test.yml
+new file mode 100644
+index 00000000..6ceb29b6
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-error-string-body-test.yml
+@@ -0,0 +1,11 @@
++id: gen-no-error-string-body
++valid:
++  - |
++    class R { ResponseEntity<Label> f(Label l) { return ResponseEntity.ok().body(l); } }
++  - |
++    class R { void f() { throw new BadRequestAlertException("A new label cannot already have an ID", ENTITY_NAME, "idexists"); } }
++invalid:
++  - |
++    class R { ResponseEntity<String> f() { return ResponseEntity.badRequest().body("Invalid id"); } }
++  - |
++    class R { ResponseEntity<String> f() { return ResponseEntity.status(HttpStatus.CONFLICT).body("Login already used"); } }
+diff --git a/ast-grep/rule-tests/gen-no-field-injection-test.yml b/ast-grep/rule-tests/gen-no-field-injection-test.yml
+new file mode 100644
+index 00000000..828cfb91
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-field-injection-test.yml
+@@ -0,0 +1,15 @@
++id: gen-no-field-injection
++valid:
++  - |
++    class A { private final UserRepository userRepository; A(UserRepository userRepository) { this.userRepository = userRepository; } }
++  - |
++    class A { @Autowired(required = false) public void setGitProperties(GitProperties gitProperties) { this.gitProperties = gitProperties; } }
++invalid:
++  - |
++    class A { @Autowired private UserRepository userRepository; }
++  - |
++    class A { @Autowired(required = false) private BuildProperties buildProperties; }
++  - |
++    class A { @org.springframework.beans.factory.annotation.Autowired UserRepository userRepository; }
++  - |
++    class A { @Inject private MailService mailService; }
+diff --git a/ast-grep/rule-tests/gen-no-log-concatenation-test.yml b/ast-grep/rule-tests/gen-no-log-concatenation-test.yml
+new file mode 100644
+index 00000000..aac9fba7
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-log-concatenation-test.yml
+@@ -0,0 +1,15 @@
++id: gen-no-log-concatenation
++valid:
++  - |
++    class A { void f() { LOG.debug("Request to get User : {}", login); } }
++  - |
++    class A { void f() { LOG.error("You have misconfigured your application! It should not run " + "with both profiles."); } }
++  - |
++    class A { void f() { list.add("a" + b); } }
++invalid:
++  - |
++    class A { void f() { LOG.debug("Request to get User : " + login); } }
++  - |
++    class A { void f() { LOG.warn("Failed for " + user.getLogin(), e); } }
++  - |
++    class A { void f() { log.info("a" + B.C + "d"); } }
+diff --git a/ast-grep/rule-tests/gen-no-manual-threads-test.yml b/ast-grep/rule-tests/gen-no-manual-threads-test.yml
+new file mode 100644
+index 00000000..1a2bbb85
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-manual-threads-test.yml
+@@ -0,0 +1,13 @@
++id: gen-no-manual-threads
++valid:
++  - |
++    class A { @Async void f() { g(); } }
++  - |
++    class A { Executor f() { return new ThreadPoolTaskExecutor(); } }
++invalid:
++  - |
++    class A { void f() { new Thread(() -> g()).start(); } }
++  - |
++    class A { ExecutorService e = Executors.newFixedThreadPool(4); }
++  - |
++    class A { Object e = new ThreadPoolExecutor(1, 2, 3, TimeUnit.SECONDS, queue); }
+diff --git a/ast-grep/rule-tests/gen-no-null-collection-return-test.yml b/ast-grep/rule-tests/gen-no-null-collection-return-test.yml
+new file mode 100644
+index 00000000..a39e0da3
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-null-collection-return-test.yml
+@@ -0,0 +1,13 @@
++id: gen-no-null-collection-return
++valid:
++  - |
++    class A { List<UserDTO> f() { return List.of(); } }
++  - |
++    class A { UserDTO f(User user) { if (user == null) { return null; } return new UserDTO(user); } }
++  - |
++    class A { List<X> f() { return items.stream().map(i -> { if (i == null) { return null; } return i; }).toList(); } }
++invalid:
++  - |
++    class A { List<UserDTO> f(List<User> users) { if (users == null) { return null; } return users.stream().map(UserDTO::new).toList(); } }
++  - |
++    class A { Set<Authority> f() { return null; } }
+diff --git a/ast-grep/rule-tests/gen-no-optional-field-or-param-test.yml b/ast-grep/rule-tests/gen-no-optional-field-or-param-test.yml
+new file mode 100644
+index 00000000..81bb2e3a
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-optional-field-or-param-test.yml
+@@ -0,0 +1,13 @@
++id: gen-no-optional-field-or-param
++valid:
++  - |
++    interface R { Optional<User> findOneByLogin(String login); }
++  - |
++    class A { void f() { Optional<User> user = repo.findOneByLogin(login); } }
++invalid:
++  - |
++    interface R { Optional<Operation> fetchBagRelationships(Optional<Operation> operation); }
++  - |
++    class A { private Optional<String> name; }
++  - |
++    class A { private java.util.Optional<String> name; }
+diff --git a/ast-grep/rule-tests/gen-no-query-concatenation-test.yml b/ast-grep/rule-tests/gen-no-query-concatenation-test.yml
+new file mode 100644
+index 00000000..1296b848
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-query-concatenation-test.yml
+@@ -0,0 +1,11 @@
++id: gen-no-query-concatenation
++valid:
++  - |
++    class A { void f() { em.createQuery("select u from User u where u.login = :login", User.class).setParameter("login", login); } }
++  - |
++    class A { void f() { em.createQuery("select operation from Operation operation " + "left join fetch operation.labels", Operation.class); } }
++invalid:
++  - |
++    class A { void f() { em.createQuery("select u from User u where u.login = '" + login + "'"); } }
++  - |
++    class A { void f() { jdbcTemplate.query("select * from jhi_user where email = '" + user.getEmail() + "'", mapper); } }
+diff --git a/ast-grep/rule-tests/gen-no-role-literals-test.yml b/ast-grep/rule-tests/gen-no-role-literals-test.yml
+new file mode 100644
+index 00000000..c7c710a6
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-role-literals-test.yml
+@@ -0,0 +1,11 @@
++id: gen-no-role-literals
++valid:
++  - |
++    class A { @PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")") void f() {} }
++  - |
++    class A { String s = "ROLES"; }
++invalid:
++  - |
++    class A { @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')") void f() {} }
++  - |
++    class A { boolean f() { return hasAuthority("ROLE_USER"); } }
+diff --git a/ast-grep/rule-tests/gen-no-security-context-in-services-test.yml b/ast-grep/rule-tests/gen-no-security-context-in-services-test.yml
+new file mode 100644
+index 00000000..196afb0e
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-security-context-in-services-test.yml
+@@ -0,0 +1,9 @@
++id: gen-no-security-context-in-services
++valid:
++  - |
++    class S { Optional<String> f() { return SecurityUtils.getCurrentUserLogin(); } }
++invalid:
++  - |
++    class S { Object f() { return SecurityContextHolder.getContext().getAuthentication(); } }
++  - |
++    class S { Object f() { return org.springframework.security.core.context.SecurityContextHolder.getContext(); } }
+diff --git a/ast-grep/rule-tests/gen-no-sensitive-logging-test.yml b/ast-grep/rule-tests/gen-no-sensitive-logging-test.yml
+new file mode 100644
+index 00000000..c0de0931
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-sensitive-logging-test.yml
+@@ -0,0 +1,17 @@
++id: gen-no-sensitive-logging
++valid:
++  - |
++    class A { void f() { LOG.debug("REST request to change password"); } }
++  - |
++    class A { void f() { LOG.debug("Changed password for User: {}", user); } }
++  - |
++    class A { void f() { LOG.debug("Sending password reset email to '{}'", user.getEmail()); } }
++invalid:
++  - |
++    class A { void f() { LOG.debug("Activating user for activation key {}", key); } }
++  - |
++    class A { void f() { LOG.debug("Reset for {}", user.getResetKey()); } }
++  - |
++    class A { void f() { LOG.info("Token {}", jwtToken); } }
++  - |
++    class A { void f() { LOG.debug("pw {}", password); } }
+diff --git a/ast-grep/rule-tests/gen-no-thread-sleep-in-tests-test.yml b/ast-grep/rule-tests/gen-no-thread-sleep-in-tests-test.yml
+new file mode 100644
+index 00000000..44457886
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-no-thread-sleep-in-tests-test.yml
+@@ -0,0 +1,9 @@
++id: gen-no-thread-sleep-in-tests
++valid:
++  - |
++    class T { void t() { await().atMost(Duration.ofSeconds(5)).until(() -> done); } }
++invalid:
++  - |
++    class T { void t() throws Exception { Thread.sleep(1000); } }
++  - |
++    class T { void t() throws Exception { TimeUnit.SECONDS.sleep(1); } }
+diff --git a/ast-grep/rule-tests/gen-not-found-via-response-util-test.yml b/ast-grep/rule-tests/gen-not-found-via-response-util-test.yml
+new file mode 100644
+index 00000000..d444896f
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-not-found-via-response-util-test.yml
+@@ -0,0 +1,9 @@
++id: gen-not-found-via-response-util
++valid:
++  - |
++    class R { ResponseEntity<Label> f(Long id) { return ResponseUtil.wrapOrNotFound(labelRepository.findById(id)); } }
++invalid:
++  - |
++    class R { ResponseEntity<Label> f() { return ResponseEntity.notFound().build(); } }
++  - |
++    class R { ResponseEntity<Label> f() { return new ResponseEntity<>(HttpStatus.NOT_FOUND); } }
+diff --git a/ast-grep/rule-tests/gen-paged-list-endpoints-test.yml b/ast-grep/rule-tests/gen-paged-list-endpoints-test.yml
+new file mode 100644
+index 00000000..650da475
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-paged-list-endpoints-test.yml
+@@ -0,0 +1,11 @@
++id: gen-paged-list-endpoints
++valid:
++  - |
++    class R { @GetMapping("/users") public ResponseEntity<List<AdminUserDTO>> getAllUsers(@ParameterObject Pageable pageable) { return null; } }
++  - |
++    class R { @PostMapping("/x") public List<X> f() { return null; } }
++invalid:
++  - |
++    class R { @GetMapping("") public List<Label> getAllLabels() { return null; } }
++  - |
++    class R { @GetMapping("") public ResponseEntity<List<Operation>> getAll(@RequestParam boolean eagerload) { return null; } }
+diff --git a/ast-grep/rule-tests/gen-password-encoder-bean-test.yml b/ast-grep/rule-tests/gen-password-encoder-bean-test.yml
+new file mode 100644
+index 00000000..e5292652
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-password-encoder-bean-test.yml
+@@ -0,0 +1,9 @@
++id: gen-password-encoder-bean
++valid:
++  - |
++    class S { String f(String raw) { return passwordEncoder.encode(raw); } }
++invalid:
++  - |
++    class S { byte[] f(String raw) throws Exception { return MessageDigest.getInstance("SHA-256").digest(raw.getBytes()); } }
++  - |
++    class S { String f(String raw) { return new BCryptPasswordEncoder().encode(raw); } }
+diff --git a/ast-grep/rule-tests/gen-properties-via-application-properties-test.yml b/ast-grep/rule-tests/gen-properties-via-application-properties-test.yml
+new file mode 100644
+index 00000000..c80e5e1e
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-properties-via-application-properties-test.yml
+@@ -0,0 +1,11 @@
++id: gen-properties-via-application-properties
++valid:
++  - |
++    class A { @Value("${jhipster.clientApp.name:jhipsterSampleApplication}") private String applicationName; }
++  - |
++    class A { A(ApplicationProperties applicationProperties) {} }
++invalid:
++  - |
++    class A { @Value("${application.mail.enabled}") private boolean mailEnabled; }
++  - |
++    class A { A(@Value("${application.feature.x:false}") boolean x) {} }
+diff --git a/ast-grep/rule-tests/gen-repository-extends-jparepository-test.yml b/ast-grep/rule-tests/gen-repository-extends-jparepository-test.yml
+new file mode 100644
+index 00000000..8c9fab2f
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-repository-extends-jparepository-test.yml
+@@ -0,0 +1,8 @@
++id: gen-repository-extends-jparepository
++valid:
++  - public interface LabelRepository extends JpaRepository<Label, Long> {}
++  - public interface OperationRepository extends OperationRepositoryWithBagRelationships, JpaRepository<Operation, Long> {}
++  - public interface OperationRepositoryWithBagRelationships {}
++invalid:
++  - public interface LabelRepository extends CrudRepository<Label, Long> {}
++  - public interface LabelRepository {}
+diff --git a/ast-grep/rule-tests/gen-resource-naming-test.yml b/ast-grep/rule-tests/gen-resource-naming-test.yml
+new file mode 100644
+index 00000000..0a9ea400
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-resource-naming-test.yml
+@@ -0,0 +1,11 @@
++id: gen-resource-naming
++valid:
++  - |
++    @RestController
++    class LabelResource {}
++  - |
++    class SomeHelper {}
++invalid:
++  - |
++    @RestController
++    class AuthenticateController {}
+diff --git a/ast-grep/rule-tests/gen-scheduled-cron-from-properties-test.yml b/ast-grep/rule-tests/gen-scheduled-cron-from-properties-test.yml
+new file mode 100644
+index 00000000..88d8877b
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-scheduled-cron-from-properties-test.yml
+@@ -0,0 +1,11 @@
++id: gen-scheduled-cron-from-properties
++valid:
++  - |
++    class A { @Scheduled(cron = "${application.cleanup.cron}") void f() {} }
++  - |
++    class A { @Other(cron = "0 0 1 * * ?") void f() {} }
++invalid:
++  - |
++    class A { @Scheduled(cron = "0 0 1 * * ?") public void removeNotActivatedUsers() {} }
++  - |
++    class A { @Scheduled(zone = "UTC", cron = "0 0 1 * * ?") void f() {} }
+diff --git a/ast-grep/rule-tests/gen-specific-service-exceptions-test.yml b/ast-grep/rule-tests/gen-specific-service-exceptions-test.yml
+new file mode 100644
+index 00000000..ee2dc25e
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-specific-service-exceptions-test.yml
+@@ -0,0 +1,9 @@
++id: gen-specific-service-exceptions
++valid:
++  - |
++    class S { void f() { throw new EmailAlreadyUsedException(); } }
++invalid:
++  - |
++    class S { void f() { throw new RuntimeException("Email already used"); } }
++  - |
++    class S { void f() throws Exception { throw new Exception("x"); } }
+diff --git a/ast-grep/rule-tests/gen-time-through-clock-test.yml b/ast-grep/rule-tests/gen-time-through-clock-test.yml
+new file mode 100644
+index 00000000..c575e6f9
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-time-through-clock-test.yml
+@@ -0,0 +1,17 @@
++id: gen-time-through-clock
++valid:
++  - |
++    class A { Instant f() { return Instant.now(clock); } }
++  - |
++    class A { LocalDate f() { return LocalDate.now(clock); } }
++  - |
++    class A { Object f() { return registry.now(); } }
++invalid:
++  - |
++    class A { boolean f(User user) { return user.getResetDate().isAfter(Instant.now().minus(1, ChronoUnit.DAYS)); } }
++  - |
++    class A { private Instant createdDate = Instant.now(); }
++  - |
++    class A { Object f() { return java.time.LocalDateTime.now(); } }
++  - |
++    class A { long f() { return System.currentTimeMillis(); } }
+diff --git a/ast-grep/rule-tests/gen-transactional-in-services-test.yml b/ast-grep/rule-tests/gen-transactional-in-services-test.yml
+new file mode 100644
+index 00000000..8a422736
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-transactional-in-services-test.yml
+@@ -0,0 +1,9 @@
++id: gen-transactional-in-services
++valid:
++  - |
++    @RestController class R { ResponseEntity<Void> f() { return null; } }
++invalid:
++  - |
++    @RestController @Transactional class R {}
++  - |
++    class R { @Transactional(readOnly = true) void f() {} }
+diff --git a/ast-grep/rule-tests/gen-valid-request-body-test.yml b/ast-grep/rule-tests/gen-valid-request-body-test.yml
+new file mode 100644
+index 00000000..ecf7f75b
+--- /dev/null
++++ b/ast-grep/rule-tests/gen-valid-request-body-test.yml
+@@ -0,0 +1,13 @@
++id: gen-valid-request-body
++valid:
++  - |
++    class R { void f(@Valid @RequestBody ManagedUserVM managedUserVM) {} }
++  - |
++    class R { void f(@PathVariable Long id, @Validated @RequestBody Label label) {} }
++invalid:
++  - |
++    class R { void changePassword(@RequestBody PasswordChangeDTO passwordChangeDto) {} }
++  - |
++    class R { void f(@PathVariable(value = "id", required = false) final Long id, @NotNull @RequestBody Label label) {} }
++  - |
++    class R { void f(@RequestBody @Email @Size(min = 5, max = 254) String mail) {} }
+diff --git a/ast-grep/rules/gen-admin-resources-preauthorize.yml b/ast-grep/rules/gen-admin-resources-preauthorize.yml
+new file mode 100644
+index 00000000..f691a5a5
+--- /dev/null
++++ b/ast-grep/rules/gen-admin-resources-preauthorize.yml
+@@ -0,0 +1,36 @@
++# docs/security.md "Authorization": admin resources also carry a method-level check,
++# so moving a method does not open it up.
++# Layout values: the `files` glob and the admin path regex.
++id: gen-admin-resources-preauthorize
++language: Java
++severity: error
++message: 'Every endpoint of an /api/admin resource needs its own @PreAuthorize check.'
++note: 'Add `@PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")")`.'
++files:
++  - src/main/java/**/web/**
++rule:
++  kind: method_declaration
++  has:
++    kind: modifiers
++    all:
++      - has:
++          any:
++            - kind: marker_annotation
++            - kind: annotation
++          has:
++            field: name
++            regex: '(^|\.)(Get|Post|Put|Patch|Delete|Request)Mapping$'
++      - not:
++          has:
++            kind: annotation
++            has:
++              field: name
++              regex: '(^|\.)PreAuthorize$'
++  inside:
++    stopBy: end
++    kind: class_declaration
++    has:
++      kind: modifiers
++      has:
++        kind: annotation
++        regex: '^@(\w+\.)*RequestMapping\(\s*(value\s*=\s*|path\s*=\s*)?"/api/admin'
+diff --git a/ast-grep/rules/gen-assertj-assertions.yml b/ast-grep/rules/gen-assertj-assertions.yml
+new file mode 100644
+index 00000000..bfb68d3d
+--- /dev/null
++++ b/ast-grep/rules/gen-assertj-assertions.yml
+@@ -0,0 +1,12 @@
++# docs/testing.md "Backend": assertions use AssertJ (assertThat), not JUnit's assertEquals.
++# Layout values: the `files` glob.
++id: gen-assertj-assertions
++language: Java
++severity: warning
++message: 'Use AssertJ (`assertThat(...)`) instead of JUnit assertions.'
++note: '`assertEquals(a, b)` becomes `assertThat(b).isEqualTo(a)`; `assertDoesNotThrow` becomes `assertThatNoException().isThrownBy(...)`.'
++files:
++  - src/test/java/**
++rule:
++  kind: import_declaration
++  regex: '\borg\.junit\.(jupiter\.api\.Assertions|Assert)\b'
+diff --git a/ast-grep/rules/gen-boolean-method-naming.yml b/ast-grep/rules/gen-boolean-method-naming.yml
+new file mode 100644
+index 00000000..4922d5f4
+--- /dev/null
++++ b/ast-grep/rules/gen-boolean-method-naming.yml
+@@ -0,0 +1,17 @@
++# docs/backend.md "General": name boolean methods as questions (isActivated, hasAuthority).
++# Layout values: the `files` glob and the allowed-prefix regex.
++id: gen-boolean-method-naming
++language: Java
++severity: warning
++message: 'Name a boolean method as a question (isActivated, hasAuthority).'
++files:
++  - src/main/java/**
++rule:
++  kind: method_declaration
++  has:
++    field: type
++    regex: '^boolean$'
++  not:
++    has:
++      field: name
++      regex: '^(is|has|can|should|was|were|are|does|did|will|contains|matches|equals|exists|supports|needs|allows)([A-Z]|$)'
+diff --git a/ast-grep/rules/gen-cache-name-constants.yml b/ast-grep/rules/gen-cache-name-constants.yml
+new file mode 100644
+index 00000000..910497bd
+--- /dev/null
++++ b/ast-grep/rules/gen-cache-name-constants.yml
+@@ -0,0 +1,31 @@
++# docs/persistence.md "Caching": cached repository methods use a cache name constant from the repository interface.
++# Layout values: the `files` glob.
++id: gen-cache-name-constants
++language: Java
++severity: error
++message: 'Name caches with the constant from the repository interface (USERS_BY_LOGIN_CACHE), not a string literal.'
++files:
++  - src/main/java/**
++rule:
++  kind: string_literal
++  any:
++    - inside:
++        stopBy: end
++        kind: annotation
++        has:
++          field: name
++          regex: '(^|\.)(Cacheable|CacheEvict|CachePut)$'
++      not:
++        inside:
++          stopBy: end
++          kind: element_value_pair
++          has:
++            field: key
++            regex: '^(unless|condition|key|keyGenerator|cacheManager|cacheResolver)$'
++    - inside:
++        kind: argument_list
++        inside:
++          kind: method_invocation
++          has:
++            field: name
++            regex: '^getCache$'
+diff --git a/ast-grep/rules/gen-dto-suffix.yml b/ast-grep/rules/gen-dto-suffix.yml
+new file mode 100644
+index 00000000..1c26f743
+--- /dev/null
++++ b/ast-grep/rules/gen-dto-suffix.yml
+@@ -0,0 +1,18 @@
++# docs/backend.md "DTOs and mapping": DTOs live in service.dto and end with DTO.
++# Layout values: the `files` glob.
++id: gen-dto-suffix
++language: Java
++severity: error
++message: 'Classes and records in service.dto end with DTO (AdminUserDTO, UserDTO).'
++files:
++  - src/main/java/**/service/dto/**
++rule:
++  any:
++    - kind: class_declaration
++    - kind: record_declaration
++  inside:
++    kind: program
++  has:
++    field: name
++    not:
++      regex: 'DTO$'
+diff --git a/ast-grep/rules/gen-lazy-associations.yml b/ast-grep/rules/gen-lazy-associations.yml
+new file mode 100644
+index 00000000..a8764b04
+--- /dev/null
++++ b/ast-grep/rules/gen-lazy-associations.yml
+@@ -0,0 +1,21 @@
++# docs/persistence.md "Entities": map associations lazily; fetch eagerly only in queries that need it.
++# Layout values: the `files` glob.
++id: gen-lazy-associations
++language: Java
++severity: error
++message: 'Map associations lazily (`fetch = FetchType.LAZY`); fetch eagerly only in the query that needs it (@EntityGraph or join fetch).'
++files:
++  - src/main/java/**/domain/**
++rule:
++  any:
++    # @ManyToOne and @OneToOne default to EAGER, so they must say LAZY.
++    - any:
++        - kind: marker_annotation
++        - kind: annotation
++      has:
++        field: name
++        regex: '^(ManyToOne|OneToOne)$'
++      not:
++        regex: 'FetchType\.LAZY'
++    - kind: field_access
++      regex: '^(\w+\.)*FetchType\.EAGER$'
+diff --git a/ast-grep/rules/gen-logger-declaration.yml b/ast-grep/rules/gen-logger-declaration.yml
+new file mode 100644
+index 00000000..9c2b5eeb
+--- /dev/null
++++ b/ast-grep/rules/gen-logger-declaration.yml
+@@ -0,0 +1,15 @@
++# docs/backend.md "Logging": one `private static final Logger LOG` per class.
++# Layout values: the `files` glob.
++id: gen-logger-declaration
++language: Java
++severity: error
++message: 'Declare the logger as `private static final Logger LOG = LoggerFactory.getLogger(<Class>.class);`.'
++files:
++  - src/main/java/**
++rule:
++  kind: field_declaration
++  has:
++    field: type
++    regex: '^(org\.slf4j\.)?Logger$'
++  not:
++    regex: '^private\s+static\s+final\s+(org\.slf4j\.)?Logger\s+LOG\s*='
+diff --git a/ast-grep/rules/gen-logging-via-slf4j.yml b/ast-grep/rules/gen-logging-via-slf4j.yml
+new file mode 100644
+index 00000000..914a2dee
+--- /dev/null
++++ b/ast-grep/rules/gen-logging-via-slf4j.yml
+@@ -0,0 +1,13 @@
++# docs/architecture.md "Cross-cutting concerns": logging goes through SLF4J.
++# Layout values: the `files` glob.
++id: gen-logging-via-slf4j
++language: Java
++severity: error
++message: "Log through the class's SLF4J logger, not System.out, System.err or printStackTrace()."
++files:
++  - src/main/java/**
++rule:
++  any:
++    - pattern: System.out.$M($$$)
++    - pattern: System.err.$M($$$)
++    - pattern: $E.printStackTrace()
+diff --git a/ast-grep/rules/gen-no-broad-catch.yml b/ast-grep/rules/gen-no-broad-catch.yml
+new file mode 100644
+index 00000000..2a2aee64
+--- /dev/null
++++ b/ast-grep/rules/gen-no-broad-catch.yml
+@@ -0,0 +1,12 @@
++# docs/backend.md "Errors": do not catch Exception broadly.
++# Layout values: the `files` glob.
++id: gen-no-broad-catch
++language: Java
++severity: warning
++message: 'Catch the specific exception you can handle, not Exception, RuntimeException or Throwable.'
++files:
++  - src/main/java/**
++rule:
++  kind: catch_type
++  has:
++    regex: '^(java\.lang\.)?(Exception|RuntimeException|Throwable)$'
+diff --git a/ast-grep/rules/gen-no-empty-catch.yml b/ast-grep/rules/gen-no-empty-catch.yml
+new file mode 100644
+index 00000000..32626ff7
+--- /dev/null
++++ b/ast-grep/rules/gen-no-empty-catch.yml
+@@ -0,0 +1,13 @@
++# docs/backend.md "Errors": never swallow an exception silently; at least log it with context.
++# Layout values: the `files` glob.
++id: gen-no-empty-catch
++language: Java
++severity: error
++message: 'Do not swallow an exception silently; handle it, rethrow it, or at least log it with context.'
++files:
++  - src/main/java/**
++rule:
++  kind: catch_clause
++  has:
++    field: body
++    regex: '^\{(\s|//[^\n]*|/\*[\s\S]*?\*/)*\}$'
+diff --git a/ast-grep/rules/gen-no-error-string-body.yml b/ast-grep/rules/gen-no-error-string-body.yml
+new file mode 100644
+index 00000000..3e6a5c9e
+--- /dev/null
++++ b/ast-grep/rules/gen-no-error-string-body.yml
+@@ -0,0 +1,18 @@
++# docs/api.md "Errors": use the problem details from ExceptionTranslator; never return error strings in the body.
++# Layout values: the `files` glob.
++id: gen-no-error-string-body
++language: Java
++severity: error
++message: 'Throw an exception that ExceptionTranslator maps to a problem response (BadRequestAlertException), instead of returning an error string.'
++files:
++  - src/main/java/**/web/**
++rule:
++  pattern: $R.body($S)
++  all:
++    - has:
++        field: object
++        regex: '(badRequest|status|unprocessableEntity|internalServerError)\('
++    - has:
++        field: arguments
++        has:
++          kind: string_literal
+diff --git a/ast-grep/rules/gen-no-field-injection.yml b/ast-grep/rules/gen-no-field-injection.yml
+new file mode 100644
+index 00000000..77694a5f
+--- /dev/null
++++ b/ast-grep/rules/gen-no-field-injection.yml
+@@ -0,0 +1,18 @@
++# docs/backend.md "General": constructor injection, never field injection.
++# Layout values: the `files` glob.
++id: gen-no-field-injection
++language: Java
++severity: error
++message: 'Inject dependencies through the constructor into a final field, not with @Autowired/@Inject on a field.'
++note: 'Declare the dependency as `private final Foo foo;` and take it as a constructor parameter.'
++files:
++  - src/main/java/**
++rule:
++  kind: field_declaration
++  has:
++    kind: modifiers
++    has:
++      any:
++        - kind: marker_annotation
++        - kind: annotation
++      regex: '^@((org\.springframework\.beans\.factory\.annotation|jakarta\.inject|javax\.inject)\.)?(Autowired|Inject)\b'
+diff --git a/ast-grep/rules/gen-no-log-concatenation.yml b/ast-grep/rules/gen-no-log-concatenation.yml
+new file mode 100644
+index 00000000..2cca1f4f
+--- /dev/null
++++ b/ast-grep/rules/gen-no-log-concatenation.yml
+@@ -0,0 +1,28 @@
++# docs/backend.md "Logging": parameterised messages, never string concatenation.
++# Layout values: the `files` glob and the logger-name regex.
++id: gen-no-log-concatenation
++language: Java
++severity: error
++message: 'Use a parameterised log message (`LOG.debug("Request to get User : {}", login)`), not string concatenation.'
++files:
++  - src/main/java/**
++rule:
++  any:
++    - pattern: $L.$M($A + $B)
++    - pattern: $L.$M($A + $B, $$$R)
++  # Joining two string literals (line wrapping) is fine; a value in the message is not.
++  has:
++    field: arguments
++    has:
++      kind: binary_expression
++      has:
++        stopBy: end
++        any:
++          - kind: identifier
++          - kind: method_invocation
++          - kind: field_access
++constraints:
++  L:
++    regex: '^(LOG|LOGGER|log|logger)$'
++  M:
++    regex: '^(trace|debug|info|warn|error)$'
+diff --git a/ast-grep/rules/gen-no-manual-threads.yml b/ast-grep/rules/gen-no-manual-threads.yml
+new file mode 100644
+index 00000000..6abe30d8
+--- /dev/null
++++ b/ast-grep/rules/gen-no-manual-threads.yml
+@@ -0,0 +1,19 @@
++# docs/architecture.md "Cross-cutting concerns" and docs/backend.md "Concurrency":
++# asynchronous work uses @Async with the Spring-managed executor; never create threads by hand.
++# Layout values: the `files` glob.
++id: gen-no-manual-threads
++language: Java
++severity: error
++message: 'Do not create threads or executors by hand; use @Async with the executor from AsyncConfiguration.'
++files:
++  - src/main/java/**
++rule:
++  any:
++    - pattern: new Thread($$$)
++    - pattern: new ThreadPoolExecutor($$$)
++    - pattern: new ForkJoinPool($$$)
++    - pattern: Executors.$M($$$)
++    - pattern: java.util.concurrent.Executors.$M($$$)
++constraints:
++  M:
++    regex: '^new'
+diff --git a/ast-grep/rules/gen-no-null-collection-return.yml b/ast-grep/rules/gen-no-null-collection-return.yml
+new file mode 100644
+index 00000000..9b03c604
+--- /dev/null
++++ b/ast-grep/rules/gen-no-null-collection-return.yml
+@@ -0,0 +1,24 @@
++# docs/backend.md "General": do not return null from collections-returning methods; return an empty list.
++# Layout values: the `files` glob.
++id: gen-no-null-collection-return
++language: Java
++severity: error
++message: 'Return an empty collection, not null, from a method that returns a collection.'
++note: 'Use `List.of()`, `Set.of()`, `Map.of()` or `Page.empty()`.'
++files:
++  - src/main/java/**
++rule:
++  kind: return_statement
++  has:
++    kind: null_literal
++  not:
++    inside:
++      kind: lambda_expression
++      stopBy:
++        kind: method_declaration
++  inside:
++    kind: method_declaration
++    stopBy: end
++    has:
++      field: type
++      regex: '^(java\.util\.)?(List|Set|SortedSet|Collection|Map|Iterable|Page|Slice)(<|$)'
+diff --git a/ast-grep/rules/gen-no-optional-field-or-param.yml b/ast-grep/rules/gen-no-optional-field-or-param.yml
+new file mode 100644
+index 00000000..75ff1b24
+--- /dev/null
++++ b/ast-grep/rules/gen-no-optional-field-or-param.yml
+@@ -0,0 +1,16 @@
++# docs/backend.md "General": Optional is a return type for lookups, never a field or parameter type.
++# Layout values: the `files` glob.
++id: gen-no-optional-field-or-param
++language: Java
++severity: warning
++message: 'Use Optional only as a return type, not as a field or parameter type.'
++note: 'Use a nullable field or parameter, or an overload without the value.'
++files:
++  - src/main/java/**
++rule:
++  any:
++    - kind: field_declaration
++    - kind: formal_parameter
++  has:
++    field: type
++    regex: '^(java\.util\.)?Optional(<|$)'
+diff --git a/ast-grep/rules/gen-no-query-concatenation.yml b/ast-grep/rules/gen-no-query-concatenation.yml
+new file mode 100644
+index 00000000..886e79c3
+--- /dev/null
++++ b/ast-grep/rules/gen-no-query-concatenation.yml
+@@ -0,0 +1,25 @@
++# docs/security.md "Input handling": never build JPQL or SQL by string concatenation; use parameters.
++# Layout values: the `files` glob and the query-method regex.
++id: gen-no-query-concatenation
++language: Java
++severity: error
++message: 'Do not build JPQL or SQL by string concatenation; bind values as query parameters.'
++note: 'Write `where u.login = :login` and call `.setParameter("login", login)`.'
++files:
++  - src/main/java/**
++rule:
++  kind: method_invocation
++  all:
++    - has:
++        field: name
++        regex: '^(createQuery|createNativeQuery|query|queryForObject|queryForList|queryForMap|update|execute|batchUpdate)$'
++    - has:
++        field: arguments
++        has:
++          kind: binary_expression
++          regex: '\+'
++          has:
++            stopBy: end
++            any:
++              - kind: identifier
++              - kind: method_invocation
+diff --git a/ast-grep/rules/gen-no-role-literals.yml b/ast-grep/rules/gen-no-role-literals.yml
+new file mode 100644
+index 00000000..1f23c226
+--- /dev/null
++++ b/ast-grep/rules/gen-no-role-literals.yml
+@@ -0,0 +1,13 @@
++# docs/security.md "Authorization": use the constants in AuthoritiesConstants, never string literals like "ROLE_ADMIN".
++# Layout values: the `files` glob and the constants file in `ignores`.
++id: gen-no-role-literals
++language: Java
++severity: warning
++message: 'Use the constants in AuthoritiesConstants (for example AuthoritiesConstants.ADMIN), not a "ROLE_..." string literal.'
++files:
++  - src/main/java/**
++ignores:
++  - src/main/java/**/security/AuthoritiesConstants.java
++rule:
++  kind: string_literal
++  regex: 'ROLE_[A-Z]'
+diff --git a/ast-grep/rules/gen-no-security-context-in-services.yml b/ast-grep/rules/gen-no-security-context-in-services.yml
+new file mode 100644
+index 00000000..522a7a08
+--- /dev/null
++++ b/ast-grep/rules/gen-no-security-context-in-services.yml
+@@ -0,0 +1,11 @@
++# docs/security.md "Authorization": use SecurityUtils to read the current user; do not read SecurityContextHolder directly in services.
++# Layout values: the `files` glob.
++id: gen-no-security-context-in-services
++language: Java
++severity: error
++message: "Read the current user's login or authorities through SecurityUtils, not SecurityContextHolder, in services."
++files:
++  - src/main/java/**/service/**
++rule:
++  kind: identifier
++  regex: '^SecurityContextHolder$'
+diff --git a/ast-grep/rules/gen-no-sensitive-logging.yml b/ast-grep/rules/gen-no-sensitive-logging.yml
+new file mode 100644
+index 00000000..fe4d5e32
+--- /dev/null
++++ b/ast-grep/rules/gen-no-sensitive-logging.yml
+@@ -0,0 +1,24 @@
++# docs/backend.md "Logging" and docs/security.md "Secrets": never log passwords, tokens, activation or reset keys.
++# Layout values: the `files` glob, the logger-name regex and the sensitive-name regex.
++id: gen-no-sensitive-logging
++language: Java
++severity: warning
++message: 'Do not log passwords, tokens, secrets, or activation/reset keys, not even partially.'
++note: "Log an identifier that is safe to keep instead (the user's login or id), or drop the argument."
++files:
++  - src/main/java/**
++rule:
++  kind: method_invocation
++  all:
++    - has:
++        field: object
++        regex: '^(LOG|LOGGER|log|logger)$'
++    - has:
++        field: name
++        regex: '^(trace|debug|info|warn|error)$'
++    - has:
++        field: arguments
++        has:
++          not:
++            kind: string_literal
++          regex: '(?i)(password|passwd|secret|token|credential|key)(\(\))?$'
+diff --git a/ast-grep/rules/gen-no-thread-sleep-in-tests.yml b/ast-grep/rules/gen-no-thread-sleep-in-tests.yml
+new file mode 100644
+index 00000000..937a0c24
+--- /dev/null
++++ b/ast-grep/rules/gen-no-thread-sleep-in-tests.yml
+@@ -0,0 +1,14 @@
++# docs/testing.md "Backend": do not use Thread.sleep in tests; use Awaitility.
++# Layout values: the `files` glob.
++id: gen-no-thread-sleep-in-tests
++language: Java
++severity: error
++message: 'Do not use Thread.sleep in tests; wait for asynchronous behaviour with Awaitility.'
++note: '`await().atMost(Duration.ofSeconds(5)).until(() -> ...)`'
++files:
++  - src/test/java/**
++rule:
++  any:
++    - pattern: Thread.sleep($$$)
++    - pattern: java.lang.Thread.sleep($$$)
++    - pattern: TimeUnit.$U.sleep($$$)
+diff --git a/ast-grep/rules/gen-not-found-via-response-util.yml b/ast-grep/rules/gen-not-found-via-response-util.yml
+new file mode 100644
+index 00000000..7c8b013a
+--- /dev/null
++++ b/ast-grep/rules/gen-not-found-via-response-util.yml
+@@ -0,0 +1,13 @@
++# docs/api.md "Errors": 404 Not Found uses ResponseUtil.wrapOrNotFound.
++# Layout values: the `files` glob.
++id: gen-not-found-via-response-util
++language: Java
++severity: error
++message: 'Answer 404 with ResponseUtil.wrapOrNotFound(optional), not a hand-built NOT_FOUND response.'
++files:
++  - src/main/java/**/web/**
++rule:
++  any:
++    - pattern: ResponseEntity.notFound()
++    - kind: field_access
++      regex: '^(\w+\.)*HttpStatus\.NOT_FOUND$'
+diff --git a/ast-grep/rules/gen-paged-list-endpoints.yml b/ast-grep/rules/gen-paged-list-endpoints.yml
+new file mode 100644
+index 00000000..17ccdb65
+--- /dev/null
++++ b/ast-grep/rules/gen-paged-list-endpoints.yml
+@@ -0,0 +1,33 @@
++# docs/api.md "Paging and sorting" and docs/backend.md "Performance": list endpoints accept a Pageable;
++# never return unbounded lists from a REST endpoint.
++# Layout values: the `files` glob.
++id: gen-paged-list-endpoints
++language: Java
++severity: warning
++message: 'A list endpoint takes a Pageable and returns one page with pagination headers, never an unbounded list.'
++note: 'Add a `Pageable pageable` parameter and build headers with `PaginationUtil.generatePaginationHttpHeaders`.'
++files:
++  - src/main/java/**/web/**
++rule:
++  kind: method_declaration
++  all:
++    - has:
++        field: type
++        regex: '^(ResponseEntity<\s*)?(java\.util\.)?(List|Set|Collection|Iterable)<'
++    - has:
++        kind: modifiers
++        has:
++          any:
++            - kind: marker_annotation
++            - kind: annotation
++          has:
++            field: name
++            regex: '(^|\.)GetMapping$'
++    - not:
++        has:
++          field: parameters
++          has:
++            kind: formal_parameter
++            has:
++              field: type
++              regex: '(^|\.)Pageable$'
+diff --git a/ast-grep/rules/gen-password-encoder-bean.yml b/ast-grep/rules/gen-password-encoder-bean.yml
+new file mode 100644
+index 00000000..86825b9b
+--- /dev/null
++++ b/ast-grep/rules/gen-password-encoder-bean.yml
+@@ -0,0 +1,19 @@
++# docs/security.md "Authentication": password hashing uses the PasswordEncoder bean (BCrypt); never hash passwords by hand.
++# Layout values: the `files` glob and the config folder in `ignores`.
++id: gen-password-encoder-bean
++language: Java
++severity: error
++message: 'Hash passwords with the injected PasswordEncoder bean, not by hand.'
++note: 'Inject `PasswordEncoder` and call `passwordEncoder.encode(rawPassword)`.'
++files:
++  - src/main/java/**
++ignores:
++  - src/main/java/**/config/**
++rule:
++  any:
++    - pattern: MessageDigest.getInstance($$$)
++    - pattern: java.security.MessageDigest.getInstance($$$)
++    - kind: object_creation_expression
++      has:
++        field: type
++        regex: 'PasswordEncoder$'
+diff --git a/ast-grep/rules/gen-properties-via-application-properties.yml b/ast-grep/rules/gen-properties-via-application-properties.yml
+new file mode 100644
+index 00000000..713074e3
+--- /dev/null
++++ b/ast-grep/rules/gen-properties-via-application-properties.yml
+@@ -0,0 +1,21 @@
++# docs/architecture.md "Configuration": custom properties go into ApplicationProperties with the `application.` prefix,
++# never as loose @Value strings.
++# Layout values: the `files` glob and the property-prefix regex.
++id: gen-properties-via-application-properties
++language: Java
++severity: error
++message: 'Read custom `application.*` properties through ApplicationProperties, not with @Value.'
++note: 'Add a field to `ApplicationProperties` and inject that bean.'
++files:
++  - src/main/java/**
++rule:
++  kind: annotation
++  all:
++    - has:
++        field: name
++        regex: '^Value$'
++    - has:
++        field: arguments
++        has:
++          kind: string_literal
++          regex: '^"\$\{application\.'
+diff --git a/ast-grep/rules/gen-repository-extends-jparepository.yml b/ast-grep/rules/gen-repository-extends-jparepository.yml
+new file mode 100644
+index 00000000..6afa71de
+--- /dev/null
++++ b/ast-grep/rules/gen-repository-extends-jparepository.yml
+@@ -0,0 +1,17 @@
++# docs/persistence.md "Repositories": one repository per aggregate root, extending JpaRepository.
++# Layout values: the `files` glob.
++id: gen-repository-extends-jparepository
++language: Java
++severity: error
++message: 'A repository interface extends JpaRepository.'
++files:
++  - src/main/java/**/repository/**
++rule:
++  kind: interface_declaration
++  has:
++    field: name
++    regex: 'Repository$'
++  not:
++    has:
++      kind: extends_interfaces
++      regex: '\bJpaRepository<'
+diff --git a/ast-grep/rules/gen-resource-naming.yml b/ast-grep/rules/gen-resource-naming.yml
+new file mode 100644
+index 00000000..ba0c5700
+--- /dev/null
++++ b/ast-grep/rules/gen-resource-naming.yml
+@@ -0,0 +1,23 @@
++# docs/api.md "Resources": one resource class per aggregate, named <Entity>Resource.
++# Layout values: the `files` glob.
++id: gen-resource-naming
++language: Java
++severity: warning
++message: 'Name REST controller classes <Entity>Resource.'
++files:
++  - src/main/java/**/web/**
++rule:
++  kind: class_declaration
++  has:
++    kind: modifiers
++    has:
++      any:
++        - kind: marker_annotation
++        - kind: annotation
++      has:
++        field: name
++        regex: '(^|\.)RestController$'
++  not:
++    has:
++      field: name
++      regex: 'Resource$'
+diff --git a/ast-grep/rules/gen-scheduled-cron-from-properties.yml b/ast-grep/rules/gen-scheduled-cron-from-properties.yml
+new file mode 100644
+index 00000000..6e9c806e
+--- /dev/null
++++ b/ast-grep/rules/gen-scheduled-cron-from-properties.yml
+@@ -0,0 +1,25 @@
++# docs/architecture.md "Cross-cutting concerns": scheduled jobs use @Scheduled with a cron expression from the application properties.
++# Layout values: the `files` glob.
++id: gen-scheduled-cron-from-properties
++language: Java
++severity: warning
++message: 'Take the @Scheduled cron expression from the application properties (`cron = "${application.<job>.cron}"`), not a literal.'
++files:
++  - src/main/java/**
++rule:
++  kind: element_value_pair
++  all:
++    - has:
++        field: key
++        regex: '^cron$'
++    - has:
++        field: value
++        kind: string_literal
++        not:
++          regex: '^"\$\{'
++  inside:
++    kind: annotation
++    has:
++      field: name
++      regex: '^Scheduled$'
++    stopBy: end
+diff --git a/ast-grep/rules/gen-specific-service-exceptions.yml b/ast-grep/rules/gen-specific-service-exceptions.yml
+new file mode 100644
+index 00000000..2e5105be
+--- /dev/null
++++ b/ast-grep/rules/gen-specific-service-exceptions.yml
+@@ -0,0 +1,16 @@
++# docs/backend.md "Services": validate business rules in the service and throw a specific exception
++# (for example EmailAlreadyUsedException).
++# Layout values: the `files` glob.
++id: gen-specific-service-exceptions
++language: Java
++severity: error
++message: 'Throw a specific exception for a broken business rule (for example EmailAlreadyUsedException), not a generic one.'
++files:
++  - src/main/java/**/service/**
++rule:
++  kind: throw_statement
++  has:
++    kind: object_creation_expression
++    has:
++      field: type
++      regex: '^(java\.lang\.)?(Exception|RuntimeException|Throwable|Error)$'
+diff --git a/ast-grep/rules/gen-time-through-clock.yml b/ast-grep/rules/gen-time-through-clock.yml
+new file mode 100644
+index 00000000..7c919518
+--- /dev/null
++++ b/ast-grep/rules/gen-time-through-clock.yml
+@@ -0,0 +1,17 @@
++# docs/backend.md "Services": inject java.time.Clock, never call now() without a clock.
++# Layout values: the `files` glob.
++id: gen-time-through-clock
++language: Java
++severity: warning
++message: 'Read the time from an injected java.time.Clock, not from the system clock.'
++note: 'Inject `java.time.Clock` and call `Instant.now(clock)` (or the matching `now(clock)`).'
++files:
++  - src/main/java/**
++rule:
++  any:
++    - pattern: $T.now()
++    - pattern: System.currentTimeMillis()
++    - pattern: java.lang.System.currentTimeMillis()
++constraints:
++  T:
++    regex: '(^|\.)(Instant|LocalDate|LocalDateTime|LocalTime|ZonedDateTime|OffsetDateTime|OffsetTime|Year|YearMonth|MonthDay)$'
+diff --git a/ast-grep/rules/gen-transactional-in-services.yml b/ast-grep/rules/gen-transactional-in-services.yml
+new file mode 100644
+index 00000000..ce2a3ab7
+--- /dev/null
++++ b/ast-grep/rules/gen-transactional-in-services.yml
+@@ -0,0 +1,17 @@
++# docs/persistence.md "Transactions": transactions are opened in services, not in repositories or resources.
++# Layout values: the `files` globs.
++id: gen-transactional-in-services
++language: Java
++severity: warning
++message: 'Open transactions in the service layer, not in REST resources or repositories.'
++note: 'Move the logic into a service method annotated with @Transactional and call it from the resource.'
++files:
++  - src/main/java/**/web/**
++  - src/main/java/**/repository/**
++rule:
++  any:
++    - kind: marker_annotation
++    - kind: annotation
++  has:
++    field: name
++    regex: '^((org\.springframework\.transaction\.annotation|jakarta\.transaction)\.)?Transactional$'
+diff --git a/ast-grep/rules/gen-valid-request-body.yml b/ast-grep/rules/gen-valid-request-body.yml
+new file mode 100644
+index 00000000..b900c76e
+--- /dev/null
++++ b/ast-grep/rules/gen-valid-request-body.yml
+@@ -0,0 +1,28 @@
++# docs/api.md "Resources" and docs/security.md "Input handling": annotate request bodies with @Valid.
++# Layout values: the `files` glob.
++id: gen-valid-request-body
++language: Java
++severity: warning
++message: 'Annotate the @RequestBody parameter with @Valid so Bean Validation runs before the service is called.'
++files:
++  - src/main/java/**/web/**
++rule:
++  kind: formal_parameter
++  has:
++    kind: modifiers
++    all:
++      - has:
++          any:
++            - kind: marker_annotation
++            - kind: annotation
++          has:
++            field: name
++            regex: '(^|\.)RequestBody$'
++      - not:
++          has:
++            any:
++              - kind: marker_annotation
++              - kind: annotation
++            has:
++              field: name
++              regex: '(^|\.)(Valid|Validated)$'
+diff --git a/codemyrules-report.md b/codemyrules-report.md
+new file mode 100644
+index 00000000..2cee7af5
+--- /dev/null
++++ b/codemyrules-report.md
+@@ -0,0 +1,311 @@
++# codemyrules report
++
++Date: 2026-11-02.
++Project: jhipsterSampleApplication (JHipster 9.4.0 monolith).
++
++## Setup found
++
++- Backend: Java 21, Maven, sources in `src/main/java`, tests in `src/test/java`.
++  Goes to `backend-pattern-rules`.
++- Frontend: Angular 22 in `src/main/webapp`, ESLint 10.10.0 flat config in `eslint.config.ts`, typescript-eslint 8.70.0, angular-eslint 22.5.0, Vitest through `ng test`.
++  Goes to `eslint-pattern-rules`.
++- Generated code: JHipster owns most of `src/main/java` and `src/main/webapp/app` (`.yo-rc.json`, `.jhipster/`).
++  Every open hit below is in JHipster-generated code.
++  Fix it in the generator's templates or a blueprint, or by regenerating with other options, because hand edits are lost on the next `jhipster upgrade`.
++- Agent docs: root `CLAUDE.md` (always loaded, links and commands only, no convention lines) and `docs/*.md` (on demand, linked from `CLAUDE.md`).
++- No decision records.
++- Enforcement already in place: ESLint presets (strictTypeChecked, angular tsRecommended, templateRecommended, templateAccessibility), ArchUnit `TechnicalStructureTest` for layers, Checkstyle with only the NoHttp check, modernizer.
++- CI (`.github/workflows/github-actions.yml`) runs backend tests, frontend tests and e2e.
++  It does not run `npm run lint`.
++- ast-grep was not used before.
++  It now runs through `npx -y -p @ast-grep/cli@0.51.0 ast-grep`, with no change to `pom.xml` or `package.json`.
++- No previous codemyrules run (no baseline), so there is no `measure.mjs report` to compare against.
++
++## Selection
++
++Everything stated in `CLAUDE.md` or `docs/*.md` that a rule can check was picked, as instructed.
++General rules and code-only conventions were not picked; they are listed below.
++No auto mode was configured, so nothing was built automatically.
++
++## Backend rules (ast-grep, 32 rules)
++
++Files: `sgconfig.yml` (new), `ast-grep/rules/gen-*.yml`, `ast-grep/rule-tests/gen-*-test.yml`, `ast-grep/rule-tests/__snapshots__/`.
++Why ast-grep: the project has no own Java rule set, and Checkstyle runs only NoHttp.
++ast-grep gives tested rules with folder scoping that also run in the feedback loop.
++Tests: `ast-grep test` passes, 32 of 32, with snapshots.
++Plain `ast-grep scan` loads `sgconfig.yml` and exits 0 (no error-level hits).
++
++New `sgconfig.yml`:
++
++```diff
+++ruleDirs: [ast-grep/rules]
+++testConfigs:
+++  - testDir: ast-grep/rule-tests
++```
++
++### Error level, 0 open hits (20)
++
++| Rule | Doc source | Scope |
++|---|---|---|
++| gen-no-field-injection | backend.md General | src/main/java |
++| gen-logger-declaration | backend.md Logging | src/main/java |
++| gen-no-log-concatenation | backend.md Logging | src/main/java |
++| gen-no-empty-catch | backend.md Errors | src/main/java |
++| gen-no-null-collection-return | backend.md General | src/main/java |
++| gen-no-manual-threads | architecture.md, backend.md Concurrency | src/main/java |
++| gen-properties-via-application-properties | architecture.md Configuration | src/main/java |
++| gen-logging-via-slf4j | architecture.md Cross-cutting | src/main/java |
++| gen-specific-service-exceptions | backend.md Services | service/ |
++| gen-dto-suffix | backend.md DTOs | service/dto/ |
++| gen-no-security-context-in-services | security.md Authorization | service/ |
++| gen-admin-resources-preauthorize | security.md Authorization | web/ |
++| gen-password-encoder-bean | security.md Authentication | src/main/java minus config/ |
++| gen-no-query-concatenation | security.md Input handling | src/main/java |
++| gen-not-found-via-response-util | api.md Errors | web/ |
++| gen-no-error-string-body | api.md Errors | web/ |
++| gen-lazy-associations | persistence.md Entities | domain/ |
++| gen-repository-extends-jparepository | persistence.md Repositories | repository/ |
++| gen-cache-name-constants | persistence.md Caching | src/main/java |
++| gen-no-thread-sleep-in-tests | testing.md Backend | src/test/java |
++
++### Warning level, with open hits (12 rules, 37 hits)
++
++All hits are in JHipster-generated files.
++
++| Rule | Hits | Files | Examples |
++|---|---|---|---|
++| gen-time-through-clock | 7 | 3 | `domain/AbstractAuditingEntity.java:36`, `service/UserService.java:72`, `web/rest/AuthenticateController.java:83` |
++| gen-valid-request-body | 6 | 4 | `web/rest/AccountResource.java:149`, `web/rest/LabelResource.java:108` (PATCH with `@NotNull` only) |
++| gen-transactional-in-services | 4 | 4 | `web/rest/LabelResource.java:28`, `web/rest/BankAccountResource.java:28` |
++| gen-no-role-literals | 4 | 1 | `web/rest/AuthorityResource.java:50` `@PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")` |
++| gen-boolean-method-naming | 4 | 4 | `service/UserService.java:132` `removeNonActivatedUser`, `config/WebConfigurer.java:103` `h2ConsoleIsEnabled` |
++| gen-paged-list-endpoints | 3 | 3 | `web/rest/LabelResource.java:142` `getAllLabels()`, `web/rest/AuthorityResource.java:67` |
++| gen-no-optional-field-or-param | 2 | 2 | `repository/OperationRepositoryWithBagRelationships.java:9` |
++| gen-no-sensitive-logging | 2 | 1 | `service/UserService.java:57` logs the activation key, `:69` the reset key |
++| gen-assertj-assertions | 2 | 2 | `config/CRLFLogConverterTest.java:4`, `service/MailServiceIT.java:4` |
++| gen-no-broad-catch | 1 | 1 | `config/SecurityJwtConfiguration.java:34` |
++| gen-resource-naming | 1 | 1 | `web/rest/AuthenticateController.java:35` |
++| gen-scheduled-cron-from-properties | 1 | 1 | `service/UserService.java:290` `@Scheduled(cron = "0 0 1 * * ?")` |
++
++Promotion plan: fix the hits (in the generator templates or as marked hand edits), then switch each rule to `error`.
++Until then the feedback loop does not show these 12 rules, because it blocks only on errors.
++Their doc lines were kept for that reason.
++
++## Frontend rules (ESLint)
++
++Custom rules live in `eslint-rules/`, with RuleTester tests under `node:test`.
++`node --test eslint-rules/*.test.js` passes 34 of 34.
++The project's own `eslint .` loads the config and reports the rules.
++I checked this on real files and on a temporary probe file in `shared/`, which has been removed.
++
++| Rule | Level | Hits | Doc source | Scope |
++|---|---|---|---|---|
++| local/gen-http-client-in-services | error | 0 | frontend.md Services and HTTP | `app/**/*.ts` minus `*.service.ts`, `*.spec.ts` |
++| local/gen-shared-no-feature-imports | error | 0 | frontend.md Structure | `app/shared/**/*.ts` |
++| no-alert (core) | error | 0 | frontend.md Services and HTTP (alerts through AlertService) | `src/main/webapp/**/*.ts` |
++| no-restricted-imports: HttpClientTestingModule | error | 0 | testing.md Frontend | `**/*.spec.ts` |
++| @angular-eslint/template/no-inline-styles | error | 0 | frontend.md Styling | `app/**/*.html` |
++| local/gen-template-translated-text | warn | 45 in 11 files | frontend.md i18n | `app/**/*.html`, spec inline templates excluded |
++| @angular-eslint/prefer-signals | warn | 4 in 3 files | frontend.md Components (partial match) | `src/main/webapp/**/*.ts` |
++
++All `gen-template-translated-text` hits are in generated admin screens and `home.html`.
++Examples: `admin/logs/logs.html:30` `TRACE`, `admin/metrics/blocks/metrics-system/metrics-system.html:6` `Uptime`, `admin/configuration/configuration.html:8` `Spring configuration`, `home/home.html:7` `(Jhipster Sample Application)`.
++The `prefer-signals` hits are signal properties not marked `readonly` in `entities/*/update/*-update.ts` (bank-account, label, operation).
++
++Config change in `eslint.config.ts`.
++That file is JHipster-generated, so the new block is marked as hand-written, as `docs/architecture.md` asks:
++
++```diff
+++// Hand-written: project convention rules from docs/, keep when regenerating with JHipster.
+++import genHttpClientInServices from './eslint-rules/gen-http-client-in-services.js';
+++import genSharedNoFeatureImports from './eslint-rules/gen-shared-no-feature-imports.js';
+++import genTemplateTranslatedText from './eslint-rules/gen-template-translated-text.js';
++ ...
+++  { plugins: { local: { rules: { 'gen-http-client-in-services': ..., 'gen-shared-no-feature-imports': ..., 'gen-template-translated-text': ... } } } },
+++  { files: ['src/main/webapp/**/*.ts'], rules: { 'no-alert': 'error', '@angular-eslint/prefer-signals': 'warn' } },
+++  { files: ['src/main/webapp/app/**/*.ts'], ignores: ['**/*.service.ts', '**/*.spec.ts'], rules: { 'local/gen-http-client-in-services': 'error' } },
+++  { files: ['src/main/webapp/app/shared/**/*.ts'], rules: { 'local/gen-shared-no-feature-imports': 'error' } },
+++  { files: ['src/main/webapp/**/*.spec.ts'], rules: { 'no-restricted-imports': ['error', { paths: [{ name: '@angular/common/http/testing', importNames: ['HttpClientTestingModule'], ... }] }] } },
+++  { files: ['src/main/webapp/app/**/*.html'], ignores: ['**/*.spec.ts/**'], rules: { '@angular-eslint/template/no-inline-styles': 'error', 'local/gen-template-translated-text': 'warn' } },
++   // jhipster-needle-eslint-add-config - JHipster will add additional config here
++```
++
++`package.json` is byte-identical.
++`npm run lint` already failed before this run, with 388 `prettier/prettier` errors and 1 `no-useless-assignment` in `.claude/skills/**/*.mjs` (the installed skill scripts).
++This run adds no errors, only the 49 warnings above.
++
++## Installs
++
++- Node dependencies: `npm install --ignore-scripts --no-package-lock`.
++  The repo has no lockfile, `package.json` pins exact versions, and `node_modules/` is git-ignored.
++- ast-grep needs no install: `npx -y -p @ast-grep/cli@0.51.0 ast-grep`.
++- Suggested CI step (not added): `npx -y -p @ast-grep/cli@0.51.0 ast-grep test && npx -y -p @ast-grep/cli@0.51.0 ast-grep scan`, plus `node --test eslint-rules/*.test.js` and `npm run lint`.
++  CI does not run ESLint today, so without that step these rules only show up locally and in the feedback loop.
++
++## Agent-doc cleanup
++
++I only touched lines enforced by an `error`-level rule built in this run.
++Lines for `warning` rules stay, because the loop does not show warnings.
++All touched lines are on demand (`docs/*.md`).
++Root `CLAUDE.md` holds no convention lines.
++No pointers were moved into folder `CLAUDE.md` files; shortened lines stay where they were.
++
++Deleted (14):
++- `docs/api.md`: "`404 Not Found` uses `ResponseUtil.wrapOrNotFound`."
++- `docs/backend.md` (6): constructor injection / no field injection, no `null` from collection methods, `private static final Logger LOG`, parameterised log messages, never swallow an exception, Spring-managed executor.
++- `docs/persistence.md` (2): map associations lazily, cache name constants.
++- `docs/security.md` (3): `PasswordEncoder` bean, `SecurityUtils` instead of `SecurityContextHolder` in services, no JPQL/SQL string concatenation.
++- `docs/testing.md` (2): no `Thread.sleep` (use Awaitility), `TestBed` with `provideHttpClientTesting`.
++
++Shortened (7):
++- `docs/api.md`: "Use the problem details from `ExceptionTranslator`." (dropped "never return error strings in the body").
++- `docs/architecture.md` (3): dropped "never as loose `@Value` strings", "Logging goes through SLF4J" and "never create threads by hand".
++- `docs/backend.md`: "DTOs live in `service.dto`." (the suffix is now enforced).
++- `docs/frontend.md`: "Bootstrap 5 and the styles in `content/scss`." (inline styles are now enforced).
++- `docs/persistence.md`: "One repository per aggregate root." (`JpaRepository` is now enforced).
++
++Kept because a warning-level rule covers them:
++- `api.md`: `<Entity>Resource`, `@Valid`, `Pageable`.
++- `architecture.md`: `@Scheduled` cron.
++- `backend.md`: Optional, boolean names, specific exceptions, Clock, sensitive logging, broad catch, unbounded lists.
++- `frontend.md`: signals, i18n.
++- `persistence.md`: transactions in services.
++- `security.md`: role constants, the admin method-level check (kept for its reason), no secrets in logs.
++- `testing.md`: AssertJ.
++
++Doc tokens removed (characters / 4): 0 always-loaded, about 360 on-demand (1442 characters; `docs/*.md` went from 19826 to 18384 characters).
++That saving is small and on-demand only, so it does not reduce what every session pays.
++The real benefit is fewer fix rounds.
++An agent that breaks one of these conventions is told at the edit, with the fix in the message, instead of in review.
++
++## Feedback loop
++
++Installed, private to you: `.claude/settings.local.json` and `.claude/codemyrules/`, both added to `.git/info/exclude`.
++
++- Fast tier, after each edit: ast-grep (`.java`) through `npx -y -p @ast-grep/cli@0.51.0 ast-grep scan --json=compact`.
++- Full tier, at the end of each turn: ESLint (`.ts`, `.html`, `.js`, `.mjs`, `.cjs`) through `node_modules/.bin/eslint --format json`.
++  The project has no `eslint_d`, so ESLint is not in the fast tier.
++- Guard (asks before the edit): ignore comments, plus edits to `eslint.config.ts`, `sgconfig.yml`, `ast-grep/**`, `eslint-rules/**`, `checkstyle.xml`, `src/test/java/**/TechnicalStructureTest.java`, `.claude/codemyrules/` and `.claude/settings.local.json`.
++- Not guarded: lint settings inside `package.json` and `pom.xml`, left out to avoid a prompt on every dependency edit.
++- Not in the loop: Checkstyle, modernizer and ArchUnit, because they need a JVM build.
++  They stay in Maven and CI.
++- Smoke test: the fast hook blocked a temporary `service/ZzProbe.java` containing `System.out.println`, reporting `gen-logging-via-slf4j` (exit 2).
++  The probe file and its log entries were removed.
++- The guard already fired once in this session: it stopped the first draft of this report because the text contained the literal suppression-comment keyword.
++
++## Baseline
++
++`.claude/codemyrules/baseline.json`, written 2026-11-02.
++- Always-loaded doc tokens: 278 per session (root `CLAUDE.md`).
++- On-demand doc tokens as recorded: 0.
++  `measure.mjs` counts only imported or folder-level docs, and `docs/*.md` are plain links.
++  Their real size is about 4596 tokens after the cleanup.
++- Rules: 39 rule ids (32 ast-grep, 3 custom ESLint, 4 ESLint config entries), with 86 open hits, all at warning level (37 ast-grep, 45 template text, 4 prefer-signals).
++- `no-restricted-imports` has a single entry (HttpClientTestingModule), so no other convention shares its count.
++
++A later run of this skill prints the comparison with `measure.mjs report`.
++If a rule fails often in `failures.log`, give it a one-line pointer where the agent works (a folder `CLAUDE.md`).
++
++## Contradictions (not built, need a decision)
++
++1. `docs/frontend.md:24` says services use `ApplicationConfigService.getEndpointFor`.
++   All 6 API services build URLs from the `serverApiUrl` constant instead, and no file uses `getEndpointFor`.
++   Options: update the doc to match the code, or enforce the doc.
++2. `docs/frontend.md:20` says subscriptions are cleaned up with `takeUntilDestroyed`, but only 1 of 36 subscribing files uses it.
++   Most subscriptions are one-shot HTTP calls that complete on their own.
++   Telling them apart needs type information, so no syntax rule can enforce this fairly.
++3. `docs/frontend.md:45` says to fix ESLint findings instead of disabling them, but there are 13 ESLint disable comments.
++   10 of them are for `@typescript-eslint/member-ordering` in generated entity components.
++   Options: relax `member-ordering` for those files, or fix the generated code.
++4. `docs/backend.md:13` asks for boolean fields named as questions, but the generated `User.activated` field is not.
++   Only the method half was built.
++
++## Documented conventions not built
++
++- These need types or other files; ArchUnit tests (already a dependency) are the better tool:
++  services return DTOs and entities do not leave the service layer; do not call other services' repositories; one service per aggregate; `Optional` as the lookup return type; repositories return `Optional`, `Page` or `List`.
++- Not syntax-checkable, or about process:
++  - API design: kebab-case plural resource paths, `@PathVariable` names, `201` with `Location`, `HeaderUtil` alert headers, sort allow-lists, default page size, a debug log per resource method, filtering through query parameters.
++  - Persistence: Liquibase changelog naming and registration (XML), native SQL portability, `@EntityGraph` for list views, `equals`/`hashCode` on the id, `Long` ids (JHipster's `Authority` uses a `String` key by design).
++  - Security: `RandomUtil` keys, ownership checks, CORS and headers, token lifetimes.
++  - Tests: `@IntegrationTest`, `@WithMockUser`, `createEntity` helpers, test naming, specs next to components.
++  - Frontend: dayjs date mapping, lazy-loaded routes (all already lazy at the top level), the admin route guard (one site), keeping templates simple, colours.
++- Already covered by existing config (notes only): standalone components (`@angular-eslint/prefer-standalone`), `inject()` (`@angular-eslint/prefer-inject`), OnPush (`@angular-eslint/prefer-on-push-component-change-detection`; Angular 22 also defaults to OnPush), `no-console`, layer dependencies (`TechnicalStructureTest`).
++
++## Code-only conventions (not picked, as instructed)
++
++- Angular API services build `resourceUrl` from `serverApiUrl` (6 of 6) and wrap ids in `encodeURIComponent` (10 of 10).
++
++## General rules not picked
++
++Frontend, counted on `src/main/webapp/app/**/*.ts` without changing the config:
++- `max-lines-per-function` 50: 64 hits in 43 files.
++- `@typescript-eslint/no-floating-promises`: 28 hits in 17 files (switched off in `eslint.config.ts`).
++- `max-params` 3: 5 hits in 5 files.
++- `@angular-eslint/no-uncalled-signals`: 2 hits in 1 file.
++- `complexity` 10: 1 hit.
++- 0 hits: `max-depth` 4, `no-nested-ternary`, `no-else-return`, `max-lines` 400, `@typescript-eslint/switch-exhaustiveness-check`, `array-callback-return`, `no-implied-eval`, `no-new-func`, `no-script-url`, `@typescript-eslint/no-unused-vars` (switched off).
++- These need a plugin the project lacks: `@vitest/eslint-plugin` for `no-focused-tests`, `no-disabled-tests` and `expect-expect`, and `eslint-plugin-sonarjs` for commented-out code.
++
++Backend: the project runs no Java linter that can check general limits such as method length, parameter count or complexity.
++Checkstyle is configured, but only with NoHttp.
++Adding Checkstyle modules (`MethodLength`, `ParameterNumber`, `CyclomaticComplexity`) or PMD would cover them; I did not count them.
++
++## Scan log
++
++| Signal | Good | Bad | Verdict |
++|---|---|---|---|
++| `@Autowired` on fields, main | constructor injection everywhere | 0 (2 on setters) | built, error |
++| `now()` without clock | 0 `now(clock)` | 7 | built, warning |
++| `ROLE_` literals, main | AuthoritiesConstants | 4 in AuthorityResource | built, warning |
++| `SecurityContextHolder` in services | SecurityUtils | 0 | built, error |
++| `@Value` with an `application.` key | - | 0 (8 `@Value` for jhipster/spring keys) | built, error |
++| threads by hand | `@Async` | 0 | built, error |
++| broad catch | - | 1 | built, warning |
++| empty catch | - | 0 | built, error |
++| Logger declaration | 18 | 0 | built, error |
++| log concatenation with a value | - | 0 (2 literal-only joins allowed) | built, error |
++| Optional field or parameter | - | 2 | built, warning |
++| `@Transactional` in web/repository | services | 4 | built, warning |
++| `@RequestBody` without `@Valid` | 12 | 6 | built, warning |
++| `@Scheduled` literal cron | - | 1 | built, warning |
++| unpaged list GET endpoints | 3 | 3 | built, warning |
++| JUnit assertions | AssertJ | 2 files | built, warning |
++| `Thread.sleep` in tests | - | 0 | built, error |
++| eager associations | 5 lazy | 0 | built, error |
++| ESLint disable comments | - | 13 (10 member-ordering) | contradiction |
++| `takeUntilDestroyed` | 1 file | 35 subscribing files | not built, needs types |
++| `getEndpointFor` | 0 | 6 services use `serverApiUrl` | contradiction |
++| `HttpClient` outside services | 18 in services and specs | 0 | built, error |
++| hard-coded template text | 45 templates with `jhiTranslate` | 45 hits in 11 files | built, warn |
++| inline styles in app templates | - | 0 (9 in static `index.html`, out of scope) | config, error |
++
++## Design answers given on your behalf
++
++Nobody could answer during the run.
++These are my recommendations, each with the alternative.
++
++1. Severity: `error` for rules with no open hits, and `warning` for the 14 with hits (12 ast-grep, template text, prefer-signals).
++   Alternative: `error` everywhere, with a baseline or after fixing the generated code.
++2. No autofixes anywhere; the replacements are in the notes and messages.
++   Alternative: `fix` for `gen-assertj-assertions` imports or `gen-lazy-associations`.
++3. `gen-no-role-literals` covers `src/main/java` only, so `@WithMockUser(authorities = { "ROLE_ADMIN" })` in `AuthorityResourceIT` is not flagged.
++   Alternative: include `src/test/java`.
++4. `gen-time-through-clock` flags only zero-argument `now()` and `currentTimeMillis()`, so `now(ZoneId)` is not caught.
++   Alternative: flag every `now(...)` whose argument is not named `clock`.
++5. `gen-valid-request-body` flags the generated PATCH endpoints that use `@NotNull` only (partial updates skip full validation by design).
++   Alternative: exempt `@PatchMapping` methods.
++6. `gen-boolean-method-naming` checks methods only, against an allow-list of question prefixes (`is`, `has`, `can`, `should`, `contains`, `matches`, `equals`, `exists`, `supports` and similar).
++   Alternative: drop the rule as too heuristic, or extend it to fields.
++7. `gen-no-sensitive-logging` flags logger arguments whose text ends in password, secret, token, credential or key.
++   Alternative: a wider list (for example `otp`, `pin`).
++8. `gen-template-translated-text` checks Angular templates under `app/` only, skips inline templates in specs, and leaves static `index.html` and `404.html` out.
++   Alternative: include the static pages.
++9. `@angular-eslint/prefer-signals` stands in for "Prefer signals for local state".
++   It checks decorator inputs and queries and `readonly` signals, not all local state.
++   Alternative: do not enable it.
++10. Doc lines for warning-level rules were kept, and no pointer was moved into a folder `CLAUDE.md` (for example `src/main/java/CLAUDE.md` or `src/main/webapp/CLAUDE.md`).
++    Alternative: move the design-shaping lines (Clock, transactions in services, paged list endpoints, i18n keys) into folder `CLAUDE.md` files, so they load when the agent works there.
++11. `gen-transactional-in-services` flags the generated CRUD resources that use repositories directly.
++    `docs/architecture.md` allows that dependency, but `docs/persistence.md` forbids transactions outside services.
++    Alternative: exempt generated CRUD resources, or regenerate entities with `service: serviceClass` in the JDL.
+diff --git a/docs/api.md b/docs/api.md
+index c254f9c2..35177069 100644
+--- a/docs/api.md
++++ b/docs/api.md
+@@ -26,8 +26,7 @@ Admin-only resources are served under `/api/admin`.
+ 
+ ## Errors
+ 
+-- Use the problem details from `ExceptionTranslator`; never return error strings in the body.
+-- `404 Not Found` uses `ResponseUtil.wrapOrNotFound`.
++- Use the problem details from `ExceptionTranslator`.
+ - Validation errors return `400` with field errors; do not build them by hand.
+ 
+ ## Versioning and compatibility
+diff --git a/docs/architecture.md b/docs/architecture.md
+index e5d6a953..002b8e8a 100644
+--- a/docs/architecture.md
++++ b/docs/architecture.md
+@@ -34,15 +34,15 @@ Each layer lives in its own package under `io.github.jhipster.sample`.
+ ## Configuration
+ 
+ - Application properties live in `src/main/resources/config/application*.yml`.
+-- Custom properties go into `ApplicationProperties` with the `application.` prefix, never as loose `@Value` strings.
++- Custom properties go into `ApplicationProperties` with the `application.` prefix.
+ - Profile-specific behaviour uses the `dev`, `prod` and `test` profiles; do not invent new profiles for a single feature.
+ - Feature switches are properties with a safe default, documented in `application.yml`.
+ 
+ ## Cross-cutting concerns
+ 
+-- Logging goes through SLF4J; the logging aspect logs entry and exit in the `dev` profile only.
++- The logging aspect logs entry and exit in the `dev` profile only.
+ - Caching uses Ehcache via the Hibernate second-level cache and Spring's cache abstraction; see [persistence](persistence.md).
+-- Asynchronous work uses `@Async` with the executor from `AsyncConfiguration`; never create threads by hand.
++- Asynchronous work uses `@Async` with the executor from `AsyncConfiguration`.
+ - Scheduled jobs use `@Scheduled` with a cron expression from the application properties.
+ - Mail goes through `MailService` and Thymeleaf templates in `src/main/resources/templates/mail`.
+ 
+diff --git a/docs/backend.md b/docs/backend.md
+index 5d7533e9..6e7fdf0f 100644
+--- a/docs/backend.md
++++ b/docs/backend.md
+@@ -6,10 +6,8 @@ The formatting itself is enforced by Prettier Java and Checkstyle; this file cov
+ ## General
+ 
+ - Java 21 features are welcome where they make code clearer: records for DTOs without behaviour, `switch` expressions, pattern matching for `instanceof`.
+-- Prefer `final` fields and constructor injection; never use field injection with `@Autowired`.
+ - Keep classes package-private when nothing outside the package needs them.
+ - Use `Optional` as a return type for lookups that may find nothing; never as a field or parameter type.
+-- Do not return `null` from collections-returning methods; return an empty list.
+ - Name boolean methods and fields as questions (`isActivated`, `hasAuthority`).
+ - Avoid static utility classes for logic that needs configuration; make it a bean.
+ 
+@@ -26,7 +24,7 @@ The formatting itself is enforced by Prettier Java and Checkstyle; this file cov
+ 
+ ## DTOs and mapping
+ 
+-- DTOs live in `service.dto` and end with `DTO` (`AdminUserDTO`, `UserDTO`).
++- DTOs live in `service.dto`.
+ - Use MapStruct mappers in `service.mapper`; hand-written mapping only when MapStruct cannot express it.
+ - DTOs carry Bean Validation annotations (`@NotNull`, `@Size`, `@Email`) that match the database constraints.
+ - Do not expose internal identifiers or audit fields in DTOs unless the client needs them.
+@@ -34,9 +32,7 @@ The formatting itself is enforced by Prettier Java and Checkstyle; this file cov
+ 
+ ## Logging
+ 
+-- Use a `private static final Logger LOG = LoggerFactory.getLogger(...)` per class.
+ - Log at `debug` for request-level detail, `info` for state changes worth keeping, `warn` for recoverable problems, `error` only with the exception.
+-- Use parameterised messages (`LOG.debug("Request to get User : {}", login)`), never string concatenation.
+ - Never log passwords, tokens, activation or reset keys, or full request bodies.
+ - The `CRLFLogConverter` strips line breaks from user input in logs; do not work around it.
+ 
+@@ -46,12 +42,10 @@ The formatting itself is enforced by Prettier Java and Checkstyle; this file cov
+ - Throw `BadRequestAlertException` for client errors that the UI should show with a translated message.
+ - Add a new error key to `ErrorConstants` and the i18n files when a new client-visible error is introduced.
+ - Do not catch `Exception` broadly; catch the specific exception you can handle.
+-- Never swallow an exception silently; at least log it with context.
+ 
+ ## Concurrency
+ 
+ - Beans are singletons; they must not hold request-specific state in fields.
+-- Use the Spring-managed executor for asynchronous tasks.
+ - Optimistic locking is not used by default; add `@Version` to an entity only together with a decision and a migration.
+ 
+ ## Performance
+diff --git a/docs/frontend.md b/docs/frontend.md
+index 7cc803ce..946e72f3 100644
+--- a/docs/frontend.md
++++ b/docs/frontend.md
+@@ -32,7 +32,7 @@ The client is an Angular application in `src/main/webapp/app`, built with the An
+ 
+ ## Styling
+ 
+-- Bootstrap 5 and the styles in `content/scss`; no inline styles.
++- Bootstrap 5 and the styles in `content/scss`.
+ - Use the existing spacing and colour variables; do not add new colours without design approval.
+ 
+ ## Routing and access
+diff --git a/docs/persistence.md b/docs/persistence.md
+index b6df56f5..560421ba 100644
+--- a/docs/persistence.md
++++ b/docs/persistence.md
+@@ -6,14 +6,13 @@ The application uses Spring Data JPA with Hibernate, H2 in memory for developmen
+ 
+ - Entities live in `domain` and extend `AbstractAuditingEntity` when they need created and modified audit fields.
+ - Use `Long` identifiers generated by the sequence generator that JHipster configured.
+-- Map associations lazily; fetch eagerly only in queries that need it.
+ - Implement `equals` and `hashCode` on the identifier only, as the generated entities do.
+ - Keep entity methods to simple state changes and fluent setters; business workflows belong in services.
+ - Column and table names use snake_case; Hibernate's naming strategy converts the Java names.
+ 
+ ## Repositories
+ 
+-- One repository per aggregate root, extending `JpaRepository`.
++- One repository per aggregate root.
+ - Prefer derived query methods (`findAllByActivatedIsFalseAndCreatedDateBefore`) while the name stays readable; switch to `@Query` with JPQL when it does not.
+ - Use native SQL only when JPQL cannot express the query, and keep it portable between H2 and PostgreSQL.
+ - Return `Optional` for single results and `Page` or `List` for multiple results.
+@@ -31,7 +30,6 @@ The application uses Spring Data JPA with Hibernate, H2 in memory for developmen
+ ## Caching
+ 
+ - Entities that are read often and change rarely are cached in the Hibernate second-level cache (see `CacheConfiguration`).
+-- Repository methods that are cached use a cache name constant from the repository interface (`USERS_BY_LOGIN_CACHE`).
+ - Every change to cached data evicts the matching caches in the service that changes it.
+ - Register new caches in `CacheConfiguration`; an unregistered cache fails at startup.
+ 
+diff --git a/docs/security.md b/docs/security.md
+index df8c2604..9d9cec79 100644
+--- a/docs/security.md
++++ b/docs/security.md
+@@ -6,7 +6,6 @@ Authentication uses stateless JWT; the token is issued by `AuthenticateControlle
+ 
+ - Do not change token lifetimes in code; they come from `jhipster.security.authentication.jwt.*` properties.
+ - The JWT secret is configured per environment and never committed for production.
+-- Password hashing uses the `PasswordEncoder` bean (BCrypt); never hash passwords by hand.
+ - Account activation and password reset use random keys from `RandomUtil`; never build keys from user data.
+ 
+ ## Authorization
+@@ -15,14 +14,12 @@ Authentication uses stateless JWT; the token is issued by `AuthenticateControlle
+ - `/api/admin/**` is restricted to administrators at URL level, and admin resources also carry a method-level check so moving a method does not open it up.
+ - Method-level checks use `@PreAuthorize` on resource methods.
+ - Authorities: use the constants in `AuthoritiesConstants` (for example `AuthoritiesConstants.ADMIN`), never string literals like `"ROLE_ADMIN"`.
+-- Use `SecurityUtils` to read the current user's login or authorities; do not read the `SecurityContextHolder` directly in services.
+ - A user may only read and change their own data unless they are an administrator; check ownership in the service.
+ - New authorities are added to the `jhi_authority` table with a Liquibase changelog.
+ 
+ ## Input handling
+ 
+ - Validate all input with Bean Validation at the resource boundary.
+-- Never build JPQL or SQL by string concatenation with user input; use parameters.
+ - Escape or reject user input that ends up in emails or logs; the mail templates escape by default.
+ 
+ ## Secrets
+diff --git a/docs/testing.md b/docs/testing.md
+index 0b53c5b7..fbad0cac 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -10,7 +10,6 @@ Every change comes with tests at the level where the behaviour lives.
+ - Use `@WithMockUser` to run a test as a user with given authorities.
+ - Use `@Transactional` on integration tests so each test rolls back.
+ - Assertions use AssertJ (`assertThat`), not JUnit's `assertEquals`.
+-- Do not use `Thread.sleep` in tests; use Awaitility for asynchronous behaviour.
+ - `TechnicalStructureTest` checks the layer rules from [architecture](architecture.md); keep it green.
+ - Test data builders: use the static `createEntity` methods in the entity tests instead of duplicating setup.
+ 
+@@ -22,7 +21,6 @@ Every change comes with tests at the level where the behaviour lives.
+ ## Frontend
+ 
+ - Components and services have Vitest specs next to them (`*.spec.ts`).
+-- Use the Angular `TestBed` with `provideHttpClientTesting` for services that call the API.
+ - End-to-end tests use Cypress in `src/test/javascript/cypress`; run them with `./npmw run e2e` against a running backend.
+ 
+ ## Coverage and quality
+diff --git a/eslint-rules/gen-http-client-in-services.js b/eslint-rules/gen-http-client-in-services.js
+new file mode 100644
+index 00000000..8118ef7b
+--- /dev/null
++++ b/eslint-rules/gen-http-client-in-services.js
+@@ -0,0 +1,28 @@
++// docs/frontend.md "Services and HTTP": one service per API resource, in the feature folder.
++const HTTP_MODULE = '@angular/common/http';
++
++export default {
++  meta: {
++    type: 'suggestion',
++    schema: [],
++    messages: {
++      httpClient: "Call the API through the feature's service (*.service.ts), not HttpClient directly here.",
++    },
++  },
++  create(context) {
++    return {
++      ImportDeclaration(node) {
++        if (node.source.value !== HTTP_MODULE || node.importKind === 'type') return;
++        for (const specifier of node.specifiers) {
++          if (
++            specifier.type === 'ImportSpecifier' &&
++            specifier.importKind !== 'type' &&
++            (specifier.imported.name ?? specifier.imported.value) === 'HttpClient'
++          ) {
++            context.report({ node: specifier, messageId: 'httpClient' });
++          }
++        }
++      },
++    };
++  },
++};
+diff --git a/eslint-rules/gen-http-client-in-services.test.js b/eslint-rules/gen-http-client-in-services.test.js
+new file mode 100644
+index 00000000..1045d005
+--- /dev/null
++++ b/eslint-rules/gen-http-client-in-services.test.js
+@@ -0,0 +1,28 @@
++import { describe, it } from 'node:test';
++import { RuleTester } from 'eslint';
++import tseslint from 'typescript-eslint';
++import rule from './gen-http-client-in-services.js';
++
++RuleTester.describe = describe;
++RuleTester.it = it;
++RuleTester.itOnly = it.only;
++
++new RuleTester({ languageOptions: { parser: tseslint.parser } }).run('gen-http-client-in-services', rule, {
++  valid: [
++    "import { HttpResponse } from '@angular/common/http';",
++    "import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';",
++    "import type { HttpClient } from '@angular/common/http';",
++    "import { type HttpClient } from '@angular/common/http';",
++    "import { HttpClient } from 'some-other-lib';",
++  ],
++  invalid: [
++    {
++      code: "import { HttpClient, HttpResponse } from '@angular/common/http';\nconst http = inject(HttpClient);",
++      errors: [{ messageId: 'httpClient' }],
++    },
++    {
++      code: "import { HttpClient as Http } from '@angular/common/http';",
++      errors: [{ messageId: 'httpClient' }],
++    },
++  ],
++});
+diff --git a/eslint-rules/gen-shared-no-feature-imports.js b/eslint-rules/gen-shared-no-feature-imports.js
+new file mode 100644
+index 00000000..ee8e5467
+--- /dev/null
++++ b/eslint-rules/gen-shared-no-feature-imports.js
+@@ -0,0 +1,55 @@
++// docs/frontend.md "Structure": shared holds reusable code without business logic; feature code stays in its folder.
++import path from 'node:path';
++
++const DEFAULTS = { appRoot: 'src/main/webapp/app', alias: 'app/', features: ['entities', 'admin', 'account'] };
++
++export default {
++  meta: {
++    type: 'problem',
++    schema: [
++      {
++        type: 'object',
++        properties: {
++          appRoot: { type: 'string' },
++          alias: { type: 'string' },
++          features: { type: 'array', items: { type: 'string' } },
++        },
++        additionalProperties: false,
++      },
++    ],
++    messages: {
++      featureImport:
++        "shared must not depend on the '{{feature}}' feature; move the code it needs into shared, or keep this code in the feature.",
++    },
++  },
++  create(context) {
++    const options = { ...DEFAULTS, ...context.options[0] };
++    const appRoot = path.resolve(context.cwd, options.appRoot);
++    const fileDir = path.dirname(context.filename);
++
++    const featureOf = specifier => {
++      let target;
++      if (specifier.startsWith('.')) target = path.resolve(fileDir, specifier);
++      else if (specifier.startsWith(options.alias)) target = path.join(appRoot, specifier.slice(options.alias.length));
++      else return undefined;
++      const relative = path.relative(appRoot, target).split(path.sep).join('/');
++      if (relative.startsWith('..')) return undefined;
++      const first = relative.split('/')[0];
++      return options.features.includes(first) ? first : undefined;
++    };
++
++    const check = source => {
++      if (source?.type !== 'Literal' || typeof source.value !== 'string') return;
++      const feature = featureOf(source.value);
++      if (feature) context.report({ node: source, messageId: 'featureImport', data: { feature } });
++    };
++
++    return {
++      ImportDeclaration: node => check(node.source),
++      ImportExpression: node => check(node.source),
++      ExportNamedDeclaration: node => check(node.source),
++      ExportAllDeclaration: node => check(node.source),
++      'CallExpression[callee.name="require"]': node => check(node.arguments[0]),
++    };
++  },
++};
+diff --git a/eslint-rules/gen-shared-no-feature-imports.test.js b/eslint-rules/gen-shared-no-feature-imports.test.js
+new file mode 100644
+index 00000000..de4e1c17
+--- /dev/null
++++ b/eslint-rules/gen-shared-no-feature-imports.test.js
+@@ -0,0 +1,39 @@
++import { describe, it } from 'node:test';
++import path from 'node:path';
++import { RuleTester } from 'eslint';
++import tseslint from 'typescript-eslint';
++import rule from './gen-shared-no-feature-imports.js';
++
++RuleTester.describe = describe;
++RuleTester.it = it;
++RuleTester.itOnly = it.only;
++
++const filename = path.resolve('src/main/webapp/app/shared/filter/filter.ts');
++
++new RuleTester({ languageOptions: { parser: tseslint.parser } }).run('gen-shared-no-feature-imports', rule, {
++  valid: [
++    { filename, code: "import { TranslateDirective } from 'app/shared/language';" },
++    { filename, code: "import { translationNotFoundMessage } from 'app/config';" },
++    { filename, code: "import { IFilterOptions } from './filter.model';" },
++    { filename, code: "import { Component } from '@angular/core';" },
++    { filename, code: "import { Account } from 'app/core/auth/account.model';" },
++    { filename, code: "import { X } from 'app/shared/entities-like';" },
++    { filename, code: "import { X } from 'app/account';", options: [{ features: ['entities'] }] },
++  ],
++  invalid: [
++    {
++      filename,
++      code: "import { ILabel } from 'app/entities/label/label.model';",
++      errors: [{ messageId: 'featureImport', data: { feature: 'entities' } }],
++    },
++    {
++      filename,
++      code: "import { IUser } from '../../admin/user-management/user-management.model';",
++      errors: [{ messageId: 'featureImport' }],
++    },
++    { filename, code: "export * from 'app/account/settings/settings';", errors: [{ messageId: 'featureImport' }] },
++    { filename, code: "export { Label } from '../../entities/label/list/label';", errors: [{ messageId: 'featureImport' }] },
++    { filename, code: "const m = import('app/entities/label/label.routes');", errors: [{ messageId: 'featureImport' }] },
++    { filename, code: "const m = require('../../entities/label/label.model');", errors: [{ messageId: 'featureImport' }] },
++  ],
++});
+diff --git a/eslint-rules/gen-template-translated-text.js b/eslint-rules/gen-template-translated-text.js
+new file mode 100644
+index 00000000..c75380b3
+--- /dev/null
++++ b/eslint-rules/gen-template-translated-text.js
+@@ -0,0 +1,44 @@
++// docs/frontend.md "i18n": every visible text has a translation key; never hard-code text.
++const TRANSLATE_ATTRIBUTE = 'jhiTranslate';
++const HAS_WORD = /\p{L}{2,}/u;
++
++export default {
++  meta: {
++    type: 'suggestion',
++    schema: [],
++    messages: {
++      hardCoded:
++        "Hard-coded text '{{text}}': add a key to src/main/webapp/i18n/en/*.json and show it with the jhiTranslate directive or the translate pipe.",
++    },
++  },
++  create(context) {
++    const parserServices = context.sourceCode.parserServices;
++    if (typeof parserServices?.convertNodeSourceSpanToLoc !== 'function') return {};
++
++    // One entry per open element or ng-template: true when it or an ancestor carries jhiTranslate.
++    const translated = [];
++    const isTranslated = node =>
++      (node.attributes ?? []).some(a => a.name === TRANSLATE_ATTRIBUTE) || (node.inputs ?? []).some(i => i.name === TRANSLATE_ATTRIBUTE);
++    const enter = node => translated.push(translated.at(-1) === true || isTranslated(node));
++    const exit = () => translated.pop();
++
++    const report = (node, text) => {
++      if (translated.at(-1) === true || !HAS_WORD.test(text)) return;
++      context.report({
++        loc: parserServices.convertNodeSourceSpanToLoc(node.sourceSpan),
++        messageId: 'hardCoded',
++        data: { text: text.trim().slice(0, 40) },
++      });
++    };
++
++    return {
++      Element: enter,
++      'Element:exit': exit,
++      Template: enter,
++      'Template:exit': exit,
++      Text: node => report(node, node.value),
++      // Text around interpolations: only the literal parts count, `{{ 'key' | translate }}` is fine.
++      BoundText: node => report(node, (node.value?.ast?.strings ?? []).join(' ')),
++    };
++  },
++};
+diff --git a/eslint-rules/gen-template-translated-text.test.js b/eslint-rules/gen-template-translated-text.test.js
+new file mode 100644
+index 00000000..5e1ff974
+--- /dev/null
++++ b/eslint-rules/gen-template-translated-text.test.js
+@@ -0,0 +1,29 @@
++import { describe, it } from 'node:test';
++import { RuleTester } from 'eslint';
++import templateParser from '@angular-eslint/template-parser';
++import rule from './gen-template-translated-text.js';
++
++RuleTester.describe = describe;
++RuleTester.it = it;
++RuleTester.itOnly = it.only;
++
++new RuleTester({ languageOptions: { parser: templateParser } }).run('gen-template-translated-text', rule, {
++  valid: [
++    { filename: 'a.html', code: '<h2 jhiTranslate="home.title">Welcome, Java Hipster!</h2>' },
++    { filename: 'a.html', code: '<p jhiTranslate="home.question"><strong>If you have any question</strong> on JHipster:</p>' },
++    { filename: 'a.html', code: '<span [jhiTranslate]="key">Fallback</span>' },
++    { filename: 'a.html', code: "<span>{{ 'global.field.id' | translate }}</span>" },
++    { filename: 'a.html', code: '<span>{{ label().name }}</span>' },
++    { filename: 'a.html', code: '<button type="button">&times;</button>' },
++    { filename: 'a.html', code: '<span> : </span><span>-</span>' },
++    { filename: 'a.html', code: '@if (x) { <span jhiTranslate="a">Done</span> }' },
++  ],
++  invalid: [
++    { filename: 'a.html', code: '<h2>Spring configuration</h2>', errors: [{ messageId: 'hardCoded' }] },
++    { filename: 'a.html', code: '<th scope="col" class="text-end">Count</th><th>Mean</th>', errors: 2 },
++    { filename: 'a.html', code: '<div jhiTranslate="a">ok</div><div>Done</div>', errors: [{ messageId: 'hardCoded' }] },
++    { filename: 'a.html', code: '@if (x) { <span>Expand</span> }', errors: [{ messageId: 'hardCoded' }] },
++    { filename: 'a.html', code: '<ng-template #t><span>Blocked</span></ng-template>', errors: [{ messageId: 'hardCoded' }] },
++    { filename: 'a.html', code: '<p>Hello {{ name }}</p>', errors: [{ messageId: 'hardCoded' }] },
++  ],
++});
+diff --git a/eslint.config.ts b/eslint.config.ts
+index 8cca1482..81adb11b 100644
+--- a/eslint.config.ts
++++ b/eslint.config.ts
+@@ -5,6 +5,11 @@ import cypress from 'eslint-plugin-cypress';
+ import prettier from 'eslint-plugin-prettier/recommended';
+ import globals from 'globals';
+ import tseslint from 'typescript-eslint';
++
++// Hand-written: project convention rules from docs/, keep when regenerating with JHipster.
++import genHttpClientInServices from './eslint-rules/gen-http-client-in-services.js';
++import genSharedNoFeatureImports from './eslint-rules/gen-shared-no-feature-imports.js';
++import genTemplateTranslatedText from './eslint-rules/gen-template-translated-text.js';
+ // For a detailed explanation, visit: https://github.com/angular-eslint/angular-eslint/blob/main/docs/CONFIGURING_FLAT_CONFIG.md
+ // jhipster-needle-eslint-add-import - JHipster will add additional import here
+ 
+@@ -144,6 +149,64 @@ export default defineConfig(
+       '@typescript-eslint/unbound-method': 'off',
+     },
+   },
++  // Hand-written: project convention rules from docs/, keep when regenerating with JHipster.
++  {
++    plugins: {
++      local: {
++        rules: {
++          'gen-http-client-in-services': genHttpClientInServices,
++          'gen-shared-no-feature-imports': genSharedNoFeatureImports,
++          'gen-template-translated-text': genTemplateTranslatedText,
++        },
++      },
++    },
++  },
++  {
++    files: ['src/main/webapp/**/*.ts'],
++    rules: {
++      'no-alert': 'error',
++      '@angular-eslint/prefer-signals': 'warn',
++    },
++  },
++  {
++    files: ['src/main/webapp/app/**/*.ts'],
++    ignores: ['**/*.service.ts', '**/*.spec.ts'],
++    rules: {
++      'local/gen-http-client-in-services': 'error',
++    },
++  },
++  {
++    files: ['src/main/webapp/app/shared/**/*.ts'],
++    rules: {
++      'local/gen-shared-no-feature-imports': 'error',
++    },
++  },
++  {
++    files: ['src/main/webapp/**/*.spec.ts'],
++    rules: {
++      'no-restricted-imports': [
++        'error',
++        {
++          paths: [
++            {
++              name: '@angular/common/http/testing',
++              importNames: ['HttpClientTestingModule'],
++              message: 'Use TestBed with provideHttpClient() and provideHttpClientTesting() instead of HttpClientTestingModule.',
++            },
++          ],
++        },
++      ],
++    },
++  },
++  {
++    files: ['src/main/webapp/app/**/*.html'],
++    // Inline templates in specs are test fixtures.
++    ignores: ['**/*.spec.ts/**'],
++    rules: {
++      '@angular-eslint/template/no-inline-styles': 'error',
++      'local/gen-template-translated-text': 'warn',
++    },
++  },
+   // jhipster-needle-eslint-add-config - JHipster will add additional config here
+   {
+     extends: [prettier],
+diff --git a/sgconfig.yml b/sgconfig.yml
+new file mode 100644
+index 00000000..315291c7
+--- /dev/null
++++ b/sgconfig.yml
+@@ -0,0 +1,3 @@
++ruleDirs: [ast-grep/rules]
++testConfigs:
++  - testDir: ast-grep/rule-tests

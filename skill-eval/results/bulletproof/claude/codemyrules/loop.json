@@ -1,0 +1,30 @@
+{
+  "linters": [
+    {
+      "name": "eslint-react-vite",
+      "format": "eslint",
+      "command": [
+        "sh",
+        "-c",
+        "n=$#; for f in \"$@\"; do case $f in apps/react-vite/*) set -- \"$@\" \"${f#apps/react-vite/}\";; esac; done; shift $n; cd apps/react-vite || exit 2; if [ $# -eq 0 ]; then echo '[]'; exit 0; fi; exec node_modules/.bin/eslint --format json \"$@\"",
+        "sh",
+        "{files}"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".cjs"
+      ],
+      "tier": "full"
+    }
+  ],
+  "protect": [
+    "apps/react-vite/.eslintrc.cjs",
+    "apps/react-vite/.prettierrc",
+    "apps/react-vite/tsconfig.json",
+    "apps/nextjs-app/.eslintrc.cjs",
+    "apps/nextjs-pages/.eslintrc.cjs"
+  ]
+}

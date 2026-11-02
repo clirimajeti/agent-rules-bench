@@ -1,0 +1,44 @@
+{
+  "linters": [
+    {
+      "name": "ast-grep",
+      "format": "ast-grep",
+      "command": [
+        "npx",
+        "-y",
+        "-p",
+        "@ast-grep/cli@0.51.0",
+        "ast-grep",
+        "scan",
+        "--json=compact",
+        "{files}"
+      ],
+      "extensions": [
+        ".py",
+        ".ts"
+      ],
+      "tier": "fast"
+    },
+    {
+      "name": "ruff",
+      "format": "ruff",
+      "command": [
+        "uv",
+        "run",
+        "ruff",
+        "check",
+        "--output-format=json",
+        "{files}"
+      ],
+      "extensions": [
+        ".py"
+      ],
+      "tier": "full"
+    }
+  ],
+  "protect": [
+    "sgconfig.yml",
+    "ast-grep/**",
+    "frontend/biome.json"
+  ]
+}
