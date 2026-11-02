@@ -1,0 +1,26 @@
+{
+  "linters": [
+    {
+      "name": "eslint",
+      "format": "eslint",
+      "command": [
+        "node",
+        "-e",
+        "const { spawnSync } = require('child_process'); const path = require('path'); const app = path.resolve('apps/react-vite'); const files = process.argv.slice(1).map((f) => path.resolve(f)).filter((f) => f.startsWith(app + path.sep)); if (!files.length) { process.stdout.write('[]'); process.exit(0); } const r = spawnSync(path.join(app, 'node_modules/.bin/eslint'), ['-c', '.eslintrc.suggestions.cjs', '--format', 'json', '--no-error-on-unmatched-pattern', ...files], { cwd: app, encoding: 'utf8', maxBuffer: 1 << 28 }); process.stdout.write(r.stdout || ''); process.stderr.write(r.stderr || ''); process.exit(r.status ?? 1); ",
+        "{files}"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx"
+      ],
+      "tier": "full"
+    }
+  ],
+  "protect": [
+    "**/.eslintrc*",
+    "**/eslint.config.*",
+    "**/.prettierrc",
+    "apps/react-vite/eslint-rules/**",
+    "apps/react-vite/eslint-local-rules.cjs"
+  ]
+}

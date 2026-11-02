@@ -21,6 +21,7 @@ node skill-eval/eval.mjs status
 A fresh run resets its copy first; `--resume` keeps the copy as it is and continues the failed session (`claude -p --resume`), keeping earlier attempts as `session.1.json`, ... so their cost counts. Each run writes `results/<target>/`: `session.json`, `changes.patch` (everything it added or changed, without the copied skills), `claude/` (the git-excluded loop files and settings) and `codemyrules-report.md`.
 
 Earlier runs are kept as `results-<codemyrules commit>/`, each with its `SCORE.md`: [results-d307701](results-d307701/SCORE.md) is the first run, before the suggestions layer.
+[results-96a98b7](results-96a98b7/SCORE.md) is the second run, with the suggestions layer: all 6 known rules reach the loop.
 
 ## Scoring
 

@@ -1,0 +1,2451 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index d64deab..0ec88ad 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -77,7 +77,6 @@ src/features/awesome-feature/
+ ### TypeScript
+ - **Strict mode enabled** - All TypeScript strict checks are enforced
+ - **Type-first approach** - Define types before implementation
+-- **Absolute imports** - Use `@/` prefix for all src imports (e.g., `@/components/ui/button`)
+ 
+ ### Code Style
+ - **ESLint + Prettier** configured for consistent formatting
+@@ -95,12 +94,11 @@ src/features/awesome-feature/
+ ### Best Practices
+ - **Composition over props** - Use children/slots instead of many props
+ - **Single responsibility** - Each component should have one clear purpose  
+-- **Extract render functions** - Move complex JSX into separate components
+ - **Limit prop count** - Consider composition if accepting too many props
+ 
+ ### Styling
+ - **Tailwind CSS** is the primary styling solution
+-- **Headless UI components** using Radix UI primitives
++- **Headless UI components** - Radix UI primitives, used only through wrappers in `src/components/ui` (enforced by `local-rules/gen-ui-wrappers`)
+ - **ShadCN/UI pattern** - Components are copied into codebase, not installed as packages
+ 
+ ## State Management Strategy
+@@ -117,35 +115,17 @@ src/features/awesome-feature/
+ ### Server State
+ - **React Query (TanStack Query)** for all server state management
+ - **MSW (Mock Service Worker)** for API mocking during development
+-- Separate fetcher functions from hooks
+ 
+ ### Form State
+ - **React Hook Form** for form management
+ - **Zod** for form validation schemas
+-- Create reusable Form and Input components
++- Forms use `Form` and the input components from `@/components/ui/form` (enforced by `local-rules/gen-ui-wrappers`)
+ 
+ ## API Layer
+ 
+-### Structure
+-Each API endpoint should have:
+-1. **Types & validation schemas** for request/response
+-2. **Fetcher function** using configured API client
+-3. **React Query hook** for data fetching/caching
+-
+-### Example Pattern
+-```typescript
+-// api/get-discussions.ts
+-export const getDiscussions = (params: GetDiscussionsParams): Promise<Discussion[]> => {
+-  return api.get('/discussions', { params });
+-};
+-
+-export const useDiscussions = (params: GetDiscussionsParams) => {
+-  return useQuery({
+-    queryKey: ['discussions', params],
+-    queryFn: () => getDiscussions(params),
+-  });
+-};
+-```
++Each endpoint lives in `src/features/<feature>/api/<name>.ts`: types and Zod schemas, a fetcher using `api` from `@/lib/api-client`, query options, and a React Query hook.
++Example: `apps/react-vite/src/features/discussions/api/get-discussions.ts`.
++Enforced by `local-rules/gen-api-calls-in-api-folder`, `gen-fetcher-outside-hook`, `gen-no-raw-http` and `gen-query-key-from-options`.
+ 
+ ## Testing Strategy
+ 
+@@ -162,7 +142,6 @@ export const useDiscussions = (params: GetDiscussionsParams) => {
+ 
+ ### Testing Patterns
+ - Test behavior, not implementation details
+-- Use real HTTP requests with MSW instead of mocking fetch
+ - Focus on user interactions and outcomes
+ 
+ ## Security Considerations
+@@ -179,19 +158,16 @@ export const useDiscussions = (params: GetDiscussionsParams) => {
+ 
+ ### XSS Prevention
+ - **Sanitize all user inputs** before rendering
+-- Use DOMPurify for HTML content sanitization
+ - Validate and escape data at boundaries
+ 
+ ## Performance Optimization
+ 
+ ### Code Splitting
+-- **Route-level splitting** - Lazy load pages/routes
+ - Avoid excessive splitting (balance requests vs. bundle size)
+ 
+ ### React Optimizations
+ - **Children prop pattern** - Prevent unnecessary re-renders
+ - **State colocation** - Keep state close to where it's used
+-- **State initializer functions** - For expensive initial computations
+ 
+ ### Image Optimization
+ - Lazy loading for images outside viewport
+@@ -225,7 +201,6 @@ export const useDiscussions = (params: GetDiscussionsParams) => {
+ ## File Naming Conventions
+ 
+ - **Components**: `kebab-case.tsx` (e.g., `user-profile.tsx`)
+-- **Hooks**: `use-kebab-case.ts` (e.g., `use-discussions.ts`)  
+ - **Utilities**: `kebab-case.ts` (e.g., `format-date.ts`)
+ - **Types**: `kebab-case.ts` (e.g., `api-types.ts`)
+ - **Folders**: `kebab-case` throughout
+diff --git a/apps/react-vite/.eslintrc.cjs b/apps/react-vite/.eslintrc.cjs
+index d14efd6..fe9da85 100644
+--- a/apps/react-vite/.eslintrc.cjs
++++ b/apps/react-vite/.eslintrc.cjs
+@@ -11,7 +11,7 @@ module.exports = {
+     'generators/*',
+   ],
+   extends: ['eslint:recommended'],
+-  plugins: ['check-file'],
++  plugins: ['check-file', 'local-rules'],
+   overrides: [
+     {
+       files: ['**/*.ts', '**/*.tsx'],
+@@ -130,13 +130,79 @@ module.exports = {
+           'error',
+           {
+             '**/*.{ts,tsx}': 'KEBAB_CASE',
++            'src/**/hooks/*.{ts,tsx}': 'use-+([a-z0-9-])',
+           },
+           {
+             ignoreMiddleExtensions: true,
+           },
+         ],
++        '@typescript-eslint/naming-convention': [
++          'error',
++          {
++            selector: 'variable',
++            format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
++            leadingUnderscore: 'allow',
++          },
++          { selector: 'function', format: ['camelCase', 'PascalCase'] },
++        ],
++        'local-rules/gen-query-key-from-options': 'error',
++        'local-rules/gen-lazy-state-initializer': 'error',
++        'local-rules/gen-sanitized-inner-html': 'error',
++        'local-rules/gen-no-feature-barrel': 'error',
++      },
++    },
++    {
++      files: ['src/**/*.ts', 'src/**/*.tsx'],
++      rules: {
++        'local-rules/gen-ui-wrappers': [
++          'error',
++          {
++            wrappers: [
++              {
++                modules: ['@radix-ui/*'],
++                allowIn: 'src/components/ui/',
++                wrapper: '@/components/ui/<component>',
++              },
++              {
++                modules: ['react-hook-form', '@hookform/*'],
++                allowIn: 'src/components/ui/form/',
++                wrapper: '@/components/ui/form',
++              },
++            ],
++          },
++        ],
+       },
+     },
++    {
++      files: ['src/**/*.ts', 'src/**/*.tsx'],
++      excludedFiles: ['src/lib/api-client.ts'],
++      rules: { 'local-rules/gen-no-raw-http': 'error' },
++    },
++    {
++      files: ['src/**/*.ts', 'src/**/*.tsx'],
++      excludedFiles: ['src/features/*/api/**', 'src/lib/**'],
++      rules: { 'local-rules/gen-api-calls-in-api-folder': 'error' },
++    },
++    {
++      files: ['src/features/*/api/**/*.ts', 'src/features/*/api/**/*.tsx'],
++      rules: { 'local-rules/gen-fetcher-outside-hook': 'error' },
++    },
++    {
++      files: ['src/**/*.tsx'],
++      excludedFiles: ['src/**/*.test.tsx', 'src/**/__tests__/**', 'src/testing/**'],
++      rules: { 'local-rules/gen-no-nested-render-functions': 'error' },
++    },
++    {
++      files: [
++        'src/**/*.test.ts',
++        'src/**/*.test.tsx',
++        'src/**/__tests__/**/*.ts',
++        'src/**/__tests__/**/*.tsx',
++        'src/testing/**/*.ts',
++        'src/testing/**/*.tsx',
++      ],
++      rules: { 'local-rules/gen-no-http-mocking': 'error' },
++    },
+     {
+       plugins: ['check-file'],
+       files: ['src/**/!(__tests__)/*'],
+diff --git a/apps/react-vite/.eslintrc.suggestions.cjs b/apps/react-vite/.eslintrc.suggestions.cjs
+new file mode 100644
+index 0000000..09620f3
+--- /dev/null
++++ b/apps/react-vite/.eslintrc.suggestions.cjs
+@@ -0,0 +1,65 @@
++// Rules the existing code still breaks. CI runs only .eslintrc.cjs; agents and the lint
++// feedback loop run `eslint -c .eslintrc.suggestions.cjs <files>`, which merges this over it.
++// Move a rule into .eslintrc.cjs once its open hits reach 0.
++module.exports = {
++  overrides: [
++    {
++      files: ['src/**/*.ts', 'src/**/*.tsx'],
++      rules: {
++        'local-rules/gen-absolute-imports': 'error',
++        'local-rules/gen-ui-wrappers': [
++          'error',
++          {
++            wrappers: [
++              {
++                modules: ['@radix-ui/*'],
++                allowIn: 'src/components/ui/',
++                wrapper: '@/components/ui/<component>',
++              },
++              {
++                modules: ['react-hook-form', '@hookform/*'],
++                allowIn: 'src/components/ui/form/',
++                wrapper: '@/components/ui/form',
++              },
++              {
++                modules: ['react-router'],
++                importNames: ['Link'],
++                allowIn: 'src/components/ui/link/',
++                wrapper: '@/components/ui/link',
++              },
++            ],
++          },
++        ],
++      },
++    },
++    {
++      files: ['src/app/router.tsx'],
++      rules: { 'local-rules/gen-lazy-routes': 'error' },
++    },
++    {
++      files: ['src/features/*/components/**/*.ts', 'src/features/*/components/**/*.tsx'],
++      rules: {
++        'no-restricted-imports': [
++          'error',
++          {
++            paths: [
++              {
++                name: '@/components/ui/notifications',
++                importNames: ['useNotifications'],
++                message:
++                  "Show mutation success notifications in the mutation hook's onSuccess in the feature's api/ folder; feature components never call useNotifications (docs/api-layer.md).",
++              },
++            ],
++            patterns: [
++              {
++                group: ['**/components/ui/notifications/notifications-store'],
++                message:
++                  "Show mutation success notifications in the mutation hook's onSuccess in the feature's api/ folder; feature components never call useNotifications (docs/api-layer.md).",
++              },
++            ],
++          },
++        ],
++      },
++    },
++  ],
++};
+diff --git a/apps/react-vite/eslint-local-rules.cjs b/apps/react-vite/eslint-local-rules.cjs
+new file mode 100644
+index 0000000..8380edd
+--- /dev/null
++++ b/apps/react-vite/eslint-local-rules.cjs
+@@ -0,0 +1,16 @@
++'use strict';
++
++module.exports = {
++  'gen-absolute-imports': require('./eslint-rules/gen-absolute-imports.cjs'),
++  'gen-api-calls-in-api-folder': require('./eslint-rules/gen-api-calls-in-api-folder.cjs'),
++  'gen-fetcher-outside-hook': require('./eslint-rules/gen-fetcher-outside-hook.cjs'),
++  'gen-lazy-routes': require('./eslint-rules/gen-lazy-routes.cjs'),
++  'gen-lazy-state-initializer': require('./eslint-rules/gen-lazy-state-initializer.cjs'),
++  'gen-no-feature-barrel': require('./eslint-rules/gen-no-feature-barrel.cjs'),
++  'gen-no-http-mocking': require('./eslint-rules/gen-no-http-mocking.cjs'),
++  'gen-no-nested-render-functions': require('./eslint-rules/gen-no-nested-render-functions.cjs'),
++  'gen-no-raw-http': require('./eslint-rules/gen-no-raw-http.cjs'),
++  'gen-query-key-from-options': require('./eslint-rules/gen-query-key-from-options.cjs'),
++  'gen-sanitized-inner-html': require('./eslint-rules/gen-sanitized-inner-html.cjs'),
++  'gen-ui-wrappers': require('./eslint-rules/gen-ui-wrappers.cjs'),
++};
+diff --git a/apps/react-vite/eslint-rules/gen-absolute-imports.cjs b/apps/react-vite/eslint-rules/gen-absolute-imports.cjs
+new file mode 100644
+index 0000000..f5b7355
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-absolute-imports.cjs
+@@ -0,0 +1,88 @@
++'use strict';
++
++const fs = require('node:fs');
++const path = require('node:path');
++
++const roots = new Map();
++function appRoot(file) {
++  const start = path.dirname(file);
++  if (roots.has(start)) return roots.get(start);
++  let dir = start;
++  while (!fs.existsSync(path.join(dir, 'package.json')) && path.dirname(dir) !== dir) {
++    dir = path.dirname(dir);
++  }
++  roots.set(start, dir);
++  return dir;
++}
++
++const MOCK_CALLEES = new Set(['mock', 'doMock', 'unmock', 'importActual', 'importMock']);
++
++module.exports = {
++  meta: {
++    type: 'suggestion',
++    hasSuggestions: true,
++    schema: [
++      {
++        type: 'object',
++        properties: {
++          alias: { type: 'string' },
++          root: { type: 'string' },
++        },
++        additionalProperties: false,
++      },
++    ],
++    messages: {
++      parent:
++        "Use the absolute '{{alias}}' import instead of the parent-relative '{{source}}', so the import survives moving the file.",
++      useAlias: "Replace with '{{fixed}}'.",
++    },
++  },
++  create(context) {
++    const options = context.options[0] ?? {};
++    const alias = options.alias ?? '@/';
++    const srcRoot = (options.root ?? 'src').replace(/\/$/, '');
++    const filename = context.filename ?? context.getFilename();
++    const srcAbs = path.join(appRoot(filename), srcRoot);
++
++    function check(source) {
++      if (!source || source.type !== 'Literal' || typeof source.value !== 'string') return;
++      if (!source.value.startsWith('../')) return;
++      const target = path.resolve(path.dirname(filename), source.value);
++      const inSrc = path.relative(srcAbs, target);
++      const suggest = [];
++      if (inSrc && !inSrc.startsWith('..') && !path.isAbsolute(inSrc)) {
++        const fixed = alias + inSrc.split(path.sep).join('/');
++        const quote = source.raw[0];
++        suggest.push({
++          messageId: 'useAlias',
++          data: { fixed },
++          fix: (fixer) => fixer.replaceText(source, quote + fixed + quote),
++        });
++      }
++      context.report({
++        node: source,
++        messageId: 'parent',
++        data: { alias, source: source.value },
++        suggest,
++      });
++    }
++
++    return {
++      ImportDeclaration: (node) => check(node.source),
++      ImportExpression: (node) => check(node.source),
++      ExportNamedDeclaration: (node) => check(node.source),
++      ExportAllDeclaration: (node) => check(node.source),
++      CallExpression(node) {
++        const callee = node.callee;
++        const isRequire = callee.type === 'Identifier' && callee.name === 'require';
++        const isMock =
++          callee.type === 'MemberExpression' &&
++          callee.object.type === 'Identifier' &&
++          (callee.object.name === 'vi' || callee.object.name === 'jest') &&
++          callee.property.type === 'Identifier' &&
++          MOCK_CALLEES.has(callee.property.name);
++        if (isRequire || isMock) check(node.arguments[0]);
++      },
++    };
++  },
++};
+diff --git a/apps/react-vite/eslint-rules/gen-absolute-imports.test.cjs b/apps/react-vite/eslint-rules/gen-absolute-imports.test.cjs
+new file mode 100644
+index 0000000..cc3826c
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-absolute-imports.test.cjs
+@@ -0,0 +1,75 @@
++'use strict';
++
++const path = require('node:path');
++
++const { RuleTester } = require('eslint');
++
++const rule = require('./gen-absolute-imports.cjs');
++
++const APP = path.resolve(__dirname, '..');
++const layout = path.join(APP, 'src/components/layouts/dashboard-layout.tsx');
++const hookTest = path.join(APP, 'src/hooks/__tests__/use-disclosure.test.ts');
++
++const ruleTester = new RuleTester({
++  parser: require.resolve('@typescript-eslint/parser'),
++  parserOptions: { ecmaVersion: 'latest', sourceType: 'module', ecmaFeatures: { jsx: true } },
++});
++
++ruleTester.run('gen-absolute-imports', rule, {
++  valid: [
++    { filename: layout, code: "import { Link } from '@/components/ui/link';" },
++    { filename: layout, code: "import { Head } from './head';" },
++    { filename: layout, code: "import { useQuery } from '@tanstack/react-query';" },
++    { filename: layout, code: "const Page = lazy(() => import('./routes/page'));" },
++    { filename: hookTest, code: "vi.mock('@/lib/auth');" },
++  ],
++  invalid: [
++    {
++      filename: layout,
++      code: "import { Link } from '../ui/link';",
++      errors: [
++        {
++          messageId: 'parent',
++          suggestions: [{ messageId: 'useAlias', output: "import { Link } from '@/components/ui/link';" }],
++        },
++      ],
++      output: null,
++    },
++    {
++      filename: hookTest,
++      code: 'import { useDisclosure } from "../use-disclosure";',
++      errors: [
++        {
++          messageId: 'parent',
++          suggestions: [{ messageId: 'useAlias', output: 'import { useDisclosure } from "@/hooks/use-disclosure";' }],
++        },
++      ],
++    },
++    {
++      filename: layout,
++      code: "export { Head } from '../seo';",
++      errors: [{ messageId: 'parent', suggestions: [{ messageId: 'useAlias', output: "export { Head } from '@/components/seo';" }] }],
++    },
++    {
++      filename: layout,
++      code: "const m = await import('../../lib/auth');",
++      errors: [{ messageId: 'parent', suggestions: [{ messageId: 'useAlias', output: "const m = await import('@/lib/auth');" }] }],
++    },
++    {
++      filename: hookTest,
++      code: "vi.mock('../use-disclosure');",
++      errors: [{ messageId: 'parent', suggestions: [{ messageId: 'useAlias', output: "vi.mock('@/hooks/use-disclosure');" }] }],
++    },
++    {
++      filename: path.join(APP, 'src/main.tsx'),
++      code: "import pkg from '../package.json';",
++      errors: [{ messageId: 'parent', suggestions: [] }],
++    },
++    {
++      filename: layout,
++      code: "import { Link } from '../ui/link';",
++      options: [{ alias: '~/', root: 'src' }],
++      errors: [{ messageId: 'parent', suggestions: [{ messageId: 'useAlias', output: "import { Link } from '~/components/ui/link';" }] }],
++    },
++  ],
++});
+diff --git a/apps/react-vite/eslint-rules/gen-api-calls-in-api-folder.cjs b/apps/react-vite/eslint-rules/gen-api-calls-in-api-folder.cjs
+new file mode 100644
+index 0000000..b9a8fbd
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-api-calls-in-api-folder.cjs
+@@ -0,0 +1,110 @@
++'use strict';
++
++const fs = require('node:fs');
++const path = require('node:path');
++
++const DEFAULT_HOOKS = [
++  'useQuery',
++  'useQueries',
++  'useInfiniteQuery',
++  'useSuspenseQuery',
++  'useSuspenseQueries',
++  'useSuspenseInfiniteQuery',
++  'useMutation',
++];
++
++const roots = new Map();
++function appRoot(file) {
++  const start = path.dirname(file);
++  if (roots.has(start)) return roots.get(start);
++  let dir = start;
++  while (!fs.existsSync(path.join(dir, 'package.json')) && path.dirname(dir) !== dir) {
++    dir = path.dirname(dir);
++  }
++  roots.set(start, dir);
++  return dir;
++}
++
++function resolveToAppPath(spec, file, aliases) {
++  const root = appRoot(file);
++  let abs = null;
++  if (spec.startsWith('./') || spec.startsWith('../')) {
++    abs = path.resolve(path.dirname(file), spec);
++  } else {
++    const alias = Object.keys(aliases).find((a) => spec.startsWith(a));
++    if (alias) abs = path.join(root, aliases[alias], spec.slice(alias.length));
++  }
++  if (!abs) return null;
++  return path
++    .relative(root, abs)
++    .split(path.sep)
++    .join('/')
++    .replace(/\.(tsx?|jsx?)$/, '');
++}
++
++module.exports = {
++  meta: {
++    type: 'suggestion',
++    schema: [
++      {
++        type: 'object',
++        properties: {
++          clientModule: { type: 'string' },
++          aliases: { type: 'object', additionalProperties: { type: 'string' } },
++          hooks: { type: 'array', items: { type: 'string' } },
++        },
++        additionalProperties: false,
++      },
++    ],
++    messages: {
++      client:
++        "Import the API client only in a feature's api/ folder. Declare the request (fetcher + query/mutation hook) in src/features/<feature>/api/ and import the hook here.",
++      hook:
++        "Call '{{name}}' only in a feature's api/ folder. Wrap it in a hook in src/features/<feature>/api/ next to its fetcher, and import that hook here.",
++    },
++  },
++  create(context) {
++    const options = context.options[0] ?? {};
++    const clientModule = options.clientModule ?? 'src/lib/api-client';
++    const aliases = options.aliases ?? { '@/': 'src/' };
++    const hooks = new Set(options.hooks ?? DEFAULT_HOOKS);
++    const filename = context.filename ?? context.getFilename();
++
++    function isClient(source) {
++      return (
++        source &&
++        source.type === 'Literal' &&
++        typeof source.value === 'string' &&
++        resolveToAppPath(source.value, filename, aliases) === clientModule
++      );
++    }
++
++    function checkSource(source) {
++      if (isClient(source)) context.report({ node: source, messageId: 'client' });
++    }
++
++    return {
++      ImportDeclaration(node) {
++        if (node.importKind === 'type') return;
++        if (node.source.value === '@tanstack/react-query') {
++          for (const spec of node.specifiers) {
++            if (
++              spec.type === 'ImportSpecifier' &&
++              spec.importKind !== 'type' &&
++              hooks.has(spec.imported.name)
++            ) {
++              context.report({ node: spec, messageId: 'hook', data: { name: spec.imported.name } });
++            }
++          }
++          return;
++        }
++        checkSource(node.source);
++      },
++      ImportExpression: (node) => checkSource(node.source),
++      ExportNamedDeclaration: (node) => checkSource(node.source),
++      ExportAllDeclaration: (node) => checkSource(node.source),
++      'CallExpression[callee.type="Identifier"][callee.name="require"]': (node) =>
++        checkSource(node.arguments[0]),
++    };
++  },
++};
+diff --git a/apps/react-vite/eslint-rules/gen-api-calls-in-api-folder.test.cjs b/apps/react-vite/eslint-rules/gen-api-calls-in-api-folder.test.cjs
+new file mode 100644
+index 0000000..e0cad78
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-api-calls-in-api-folder.test.cjs
+@@ -0,0 +1,67 @@
++'use strict';
++
++const path = require('node:path');
++
++const { RuleTester } = require('eslint');
++
++const rule = require('./gen-api-calls-in-api-folder.cjs');
++
++const APP = path.resolve(__dirname, '..');
++const component = path.join(APP, 'src/features/discussions/components/discussions-list.tsx');
++const route = path.join(APP, 'src/app/routes/app/users.tsx');
++
++const ruleTester = new RuleTester({
++  parser: require.resolve('@typescript-eslint/parser'),
++  parserOptions: { ecmaVersion: 'latest', sourceType: 'module', ecmaFeatures: { jsx: true } },
++});
++
++ruleTester.run('gen-api-calls-in-api-folder', rule, {
++  valid: [
++    {
++      filename: component,
++      code: "import { useDiscussions } from '../api/get-discussions';\nconst q = useDiscussions({ page: 1 });",
++    },
++    {
++      filename: route,
++      code: "import { QueryClient, useQueryClient } from '@tanstack/react-query';\nimport { getUsersQueryOptions } from '@/features/users/api/get-users';",
++    },
++    { filename: component, code: "import type { UseQueryResult } from '@tanstack/react-query';" },
++    { filename: component, code: "import { type UseQueryOptions } from '@tanstack/react-query';" },
++    { filename: component, code: "import type { AxiosInstance } from '@/lib/api-client';" },
++    { filename: component, code: "import { apiClientConfig } from '@/lib/api-client-config';" },
++    {
++      filename: component,
++      code: "import { useMutation } from '@tanstack/react-query';",
++      options: [{ hooks: ['useQuery'] }],
++    },
++  ],
++  invalid: [
++    {
++      filename: component,
++      code: "import { api } from '@/lib/api-client';",
++      errors: [{ messageId: 'client' }],
++      output: null,
++    },
++    {
++      filename: component,
++      code: "import { api } from '../../../lib/api-client';",
++      errors: [{ messageId: 'client' }],
++    },
++    { filename: route, code: "const { api } = await import('@/lib/api-client.ts');", errors: [{ messageId: 'client' }] },
++    { filename: route, code: "export { api } from '@/lib/api-client';", errors: [{ messageId: 'client' }] },
++    {
++      filename: component,
++      code: "import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';",
++      errors: [
++        { messageId: 'hook', data: { name: 'useQuery' } },
++        { messageId: 'hook', data: { name: 'useMutation' } },
++      ],
++    },
++    {
++      filename: component,
++      code: "import { http } from '~/http/client';",
++      options: [{ clientModule: 'src/http/client', aliases: { '~/': 'src/' } }],
++      errors: [{ messageId: 'client' }],
++    },
++  ],
++});
+diff --git a/apps/react-vite/eslint-rules/gen-fetcher-outside-hook.cjs b/apps/react-vite/eslint-rules/gen-fetcher-outside-hook.cjs
+new file mode 100644
+index 0000000..c17acd3
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-fetcher-outside-hook.cjs
+@@ -0,0 +1,112 @@
++'use strict';
++
++const fs = require('node:fs');
++const path = require('node:path');
++
++const roots = new Map();
++function appRoot(file) {
++  const start = path.dirname(file);
++  if (roots.has(start)) return roots.get(start);
++  let dir = start;
++  while (!fs.existsSync(path.join(dir, 'package.json')) && path.dirname(dir) !== dir) {
++    dir = path.dirname(dir);
++  }
++  roots.set(start, dir);
++  return dir;
++}
++
++function resolveToAppPath(spec, file, aliases) {
++  const root = appRoot(file);
++  let abs = null;
++  if (spec.startsWith('./') || spec.startsWith('../')) {
++    abs = path.resolve(path.dirname(file), spec);
++  } else {
++    const alias = Object.keys(aliases).find((a) => spec.startsWith(a));
++    if (alias) abs = path.join(root, aliases[alias], spec.slice(alias.length));
++  }
++  if (!abs) return null;
++  return path
++    .relative(root, abs)
++    .split(path.sep)
++    .join('/')
++    .replace(/\.(tsx?|jsx?)$/, '');
++}
++
++const HOOK_NAME = /^use[A-Z0-9]/;
++const INLINE_KEYS = new Set(['queryFn', 'mutationFn']);
++
++function functionName(node) {
++  if (node.id) return node.id.name;
++  const parent = node.parent;
++  if (parent.type === 'VariableDeclarator' && parent.id.type === 'Identifier') return parent.id.name;
++  return null;
++}
++
++function isInlineFn(node) {
++  const parent = node.parent;
++  return (
++    parent.type === 'Property' &&
++    parent.value === node &&
++    !parent.computed &&
++    ((parent.key.type === 'Identifier' && INLINE_KEYS.has(parent.key.name)) ||
++      (parent.key.type === 'Literal' && INLINE_KEYS.has(parent.key.value)))
++  );
++}
++
++module.exports = {
++  meta: {
++    type: 'suggestion',
++    schema: [
++      {
++        type: 'object',
++        properties: {
++          clientModule: { type: 'string' },
++          aliases: { type: 'object', additionalProperties: { type: 'string' } },
++        },
++        additionalProperties: false,
++      },
++    ],
++    messages: {
++      inline:
++        'Keep the API call in an exported fetcher function (e.g. `export const getDiscussions = () => api.get(...)`) and call that fetcher from the hook, queryFn or mutationFn.',
++    },
++  },
++  create(context) {
++    const options = context.options[0] ?? {};
++    const clientModule = options.clientModule ?? 'src/lib/api-client';
++    const aliases = options.aliases ?? { '@/': 'src/' };
++    const filename = context.filename ?? context.getFilename();
++    const clientNames = new Set();
++    // number of enclosing hook / queryFn / mutationFn functions
++    const stack = [];
++    let depth = 0;
++
++    return {
++      ImportDeclaration(node) {
++        if (typeof node.source.value !== 'string') return;
++        if (resolveToAppPath(node.source.value, filename, aliases) !== clientModule) return;
++        for (const spec of node.specifiers) clientNames.add(spec.local.name);
++      },
++      ':function'(node) {
++        const name = functionName(node);
++        const counts = (name !== null && HOOK_NAME.test(name)) || isInlineFn(node);
++        stack.push(counts);
++        if (counts) depth += 1;
++      },
++      ':function:exit'() {
++        if (stack.pop()) depth -= 1;
++      },
++      CallExpression(node) {
++        if (depth === 0) return;
++        const callee = node.callee;
++        if (
++          callee.type === 'MemberExpression' &&
++          callee.object.type === 'Identifier' &&
++          clientNames.has(callee.object.name)
++        ) {
++          context.report({ node, messageId: 'inline' });
++        }
++      },
++    };
++  },
++};
+diff --git a/apps/react-vite/eslint-rules/gen-fetcher-outside-hook.test.cjs b/apps/react-vite/eslint-rules/gen-fetcher-outside-hook.test.cjs
+new file mode 100644
+index 0000000..0bc6dcb
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-fetcher-outside-hook.test.cjs
+@@ -0,0 +1,75 @@
++'use strict';
++
++const path = require('node:path');
++
++const { RuleTester } = require('eslint');
++
++const rule = require('./gen-fetcher-outside-hook.cjs');
++
++const APP = path.resolve(__dirname, '..');
++const filename = path.join(APP, 'src/features/discussions/api/get-discussions.ts');
++const IMPORT = "import { api } from '@/lib/api-client';\n";
++
++const ruleTester = new RuleTester({
++  parser: require.resolve('@typescript-eslint/parser'),
++  parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
++});
++
++ruleTester.run('gen-fetcher-outside-hook', rule, {
++  valid: [
++    {
++      filename,
++      code: `${IMPORT}export const getDiscussions = (page = 1) => api.get('/discussions', { params: { page } });
++export const getDiscussionsQueryOptions = ({ page }: { page?: number } = {}) =>
++  queryOptions({ queryKey: ['discussions', { page }], queryFn: () => getDiscussions(page) });
++export const useDiscussions = ({ page }: { page?: number }) => useQuery({ ...getDiscussionsQueryOptions({ page }) });`,
++    },
++    {
++      filename,
++      code: `${IMPORT}export function createDiscussion({ data }: { data: unknown }) { return api.post('/discussions', data); }
++export const useCreateDiscussion = () => useMutation({ mutationFn: createDiscussion });`,
++    },
++    {
++      filename,
++      code: `const api = { get: (u: string) => u };
++export const useThing = () => useQuery({ queryKey: ['x'], queryFn: () => api.get('/x') });`,
++    },
++    {
++      filename,
++      code: `${IMPORT}export const getComments = ({ page }: { page: number }) => api.get('/comments', { params: { page } });
++export const useComments = () => {
++  const user = useUser();
++  return useInfiniteQuery({ queryKey: ['comments'], queryFn: ({ pageParam = 1 }) => getComments({ page: pageParam }) });
++};`,
++    },
++  ],
++  invalid: [
++    {
++      filename,
++      code: `${IMPORT}export const useDiscussions = () => useQuery({ queryKey: ['discussions'], queryFn: () => api.get('/discussions') });`,
++      errors: [{ messageId: 'inline' }],
++      output: null,
++    },
++    {
++      filename,
++      code: `${IMPORT}export const useCreateDiscussion = () => useMutation({ mutationFn: (data: unknown) => api.post('/discussions', data) });`,
++      errors: [{ messageId: 'inline' }],
++    },
++    {
++      filename,
++      code: `${IMPORT}export const getOptions = () => queryOptions({ queryKey: ['d'], async queryFn() { return api.get('/d'); } });`,
++      errors: [{ messageId: 'inline' }],
++    },
++    {
++      filename,
++      code: `${IMPORT}export function useUser() { const load = () => api.get('/me'); return useQuery({ queryKey: ['me'], queryFn: load }); }`,
++      errors: [{ messageId: 'inline' }],
++    },
++    {
++      filename,
++      code: "import { http } from '~/net/http';\nexport const useX = () => useQuery({ queryKey: ['x'], queryFn: () => http.get('/x') });",
++      options: [{ clientModule: 'src/net/http', aliases: { '~/': 'src/' } }],
++      errors: [{ messageId: 'inline' }],
++    },
++  ],
++});
+diff --git a/apps/react-vite/eslint-rules/gen-lazy-routes.cjs b/apps/react-vite/eslint-rules/gen-lazy-routes.cjs
+new file mode 100644
+index 0000000..6e92a03
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-lazy-routes.cjs
+@@ -0,0 +1,70 @@
++'use strict';
++
++const fs = require('node:fs');
++const path = require('node:path');
++
++const roots = new Map();
++function appRoot(file) {
++  const start = path.dirname(file);
++  if (roots.has(start)) return roots.get(start);
++  let dir = start;
++  while (!fs.existsSync(path.join(dir, 'package.json')) && path.dirname(dir) !== dir) {
++    dir = path.dirname(dir);
++  }
++  roots.set(start, dir);
++  return dir;
++}
++
++module.exports = {
++  meta: {
++    type: 'suggestion',
++    schema: [
++      {
++        type: 'object',
++        properties: {
++          routesDir: { type: 'string' },
++          aliases: { type: 'object', additionalProperties: { type: 'string' } },
++        },
++        additionalProperties: false,
++      },
++    ],
++    messages: {
++      eager:
++        "Load route modules lazily so each route is its own chunk: `lazy: () => import('{{source}}').then(convert(queryClient))` instead of a static import.",
++    },
++  },
++  create(context) {
++    const options = context.options[0] ?? {};
++    const routesDir = (options.routesDir ?? 'src/app/routes').replace(/\/$/, '');
++    const aliases = options.aliases ?? { '@/': 'src/' };
++    const filename = context.filename ?? context.getFilename();
++    const root = appRoot(filename);
++
++    function isRoute(spec) {
++      let abs = null;
++      if (spec.startsWith('./') || spec.startsWith('../')) abs = path.resolve(path.dirname(filename), spec);
++      const alias = Object.keys(aliases).find((a) => spec.startsWith(a));
++      if (alias) abs = path.join(root, aliases[alias], spec.slice(alias.length));
++      if (!abs) return false;
++      const rel = path.relative(root, abs).split(path.sep).join('/');
++      return rel === routesDir || rel.startsWith(`${routesDir}/`);
++    }
++
++    function check(node, source, typeOnly) {
++      if (typeOnly || !source || typeof source.value !== 'string') return;
++      if (isRoute(source.value)) context.report({ node: source, messageId: 'eager', data: { source: source.value } });
++    }
++
++    return {
++      ImportDeclaration: (node) =>
++        check(
++          node,
++          node.source,
++          node.importKind === 'type' ||
++            (node.specifiers.length > 0 && node.specifiers.every((s) => s.importKind === 'type')),
++        ),
++      ExportNamedDeclaration: (node) => check(node, node.source, node.exportKind === 'type'),
++      ExportAllDeclaration: (node) => check(node, node.source, node.exportKind === 'type'),
++    };
++  },
++};
+diff --git a/apps/react-vite/eslint-rules/gen-lazy-routes.test.cjs b/apps/react-vite/eslint-rules/gen-lazy-routes.test.cjs
+new file mode 100644
+index 0000000..731324d
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-lazy-routes.test.cjs
+@@ -0,0 +1,41 @@
++'use strict';
++
++const path = require('node:path');
++
++const { RuleTester } = require('eslint');
++
++const rule = require('./gen-lazy-routes.cjs');
++
++const APP = path.resolve(__dirname, '..');
++const filename = path.join(APP, 'src/app/router.tsx');
++
++const ruleTester = new RuleTester({
++  parser: require.resolve('@typescript-eslint/parser'),
++  parserOptions: { ecmaVersion: 'latest', sourceType: 'module', ecmaFeatures: { jsx: true } },
++});
++
++ruleTester.run('gen-lazy-routes', rule, {
++  valid: [
++    { filename, code: "const r = { lazy: () => import('./routes/landing').then(convert(queryClient)) };" },
++    { filename, code: "import { paths } from '@/config/paths';\nimport { ProtectedRoute } from '@/lib/auth';" },
++    { filename, code: "import type { LoaderFunctionArgs } from './routes/app/discussions/discussion';" },
++    { filename, code: "import { type Loader } from './routes/app/users';" },
++    { filename, code: "import { routes } from './routes-config';" },
++  ],
++  invalid: [
++    {
++      filename,
++      code: "import { default as AppRoot, ErrorBoundary } from './routes/app/root';",
++      errors: [{ messageId: 'eager' }],
++      output: null,
++    },
++    { filename, code: "import Landing from '@/app/routes/landing';", errors: [{ messageId: 'eager' }] },
++    { filename, code: "export { default } from './routes/not-found';", errors: [{ messageId: 'eager' }] },
++    {
++      filename,
++      code: "import Page from './pages/home';",
++      options: [{ routesDir: 'src/app/pages' }],
++      errors: [{ messageId: 'eager' }],
++    },
++  ],
++});
+diff --git a/apps/react-vite/eslint-rules/gen-lazy-state-initializer.cjs b/apps/react-vite/eslint-rules/gen-lazy-state-initializer.cjs
+new file mode 100644
+index 0000000..cba0491
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-lazy-state-initializer.cjs
+@@ -0,0 +1,43 @@
++'use strict';
++
++function isUseState(callee) {
++  if (callee.type === 'Identifier') return callee.name === 'useState';
++  return (
++    callee.type === 'MemberExpression' &&
++    !callee.computed &&
++    callee.object.type === 'Identifier' &&
++    callee.object.name === 'React' &&
++    callee.property.name === 'useState'
++  );
++}
++
++module.exports = {
++  meta: {
++    type: 'suggestion',
++    hasSuggestions: true,
++    schema: [],
++    messages: {
++      eager:
++        'useState runs this call on every render. Pass an initializer function instead: `useState(() => {{call}})`.',
++      wrap: 'Wrap the call in an initializer function.',
++    },
++  },
++  create(context) {
++    const sourceCode = context.sourceCode ?? context.getSourceCode();
++    return {
++      CallExpression(node) {
++        if (!isUseState(node.callee)) return;
++        const arg = node.arguments[0];
++        if (!arg || arg.type !== 'CallExpression') return;
++        const text = sourceCode.getText(arg);
++        const call = text.length > 40 ? `${text.slice(0, 37)}...` : text;
++        context.report({
++          node: arg,
++          messageId: 'eager',
++          data: { call },
++          suggest: [{ messageId: 'wrap', fix: (fixer) => fixer.replaceText(arg, `() => ${text}`) }],
++        });
++      },
++    };
++  },
++};
+diff --git a/apps/react-vite/eslint-rules/gen-lazy-state-initializer.test.cjs b/apps/react-vite/eslint-rules/gen-lazy-state-initializer.test.cjs
+new file mode 100644
+index 0000000..1a21acc
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-lazy-state-initializer.test.cjs
+@@ -0,0 +1,52 @@
++'use strict';
++
++const { RuleTester } = require('eslint');
++
++const rule = require('./gen-lazy-state-initializer.cjs');
++
++const ruleTester = new RuleTester({
++  parser: require.resolve('@typescript-eslint/parser'),
++  parserOptions: { ecmaVersion: 'latest', sourceType: 'module', ecmaFeatures: { jsx: true } },
++});
++
++ruleTester.run('gen-lazy-state-initializer', rule, {
++  valid: [
++    'const [state, setState] = useState(() => myExpensiveFn());',
++    'const [open, setOpen] = useState(false);',
++    'const [items, setItems] = React.useState<string[]>([]);',
++    'const [value, setValue] = useState(initial);',
++    'const [state, setState] = useState(createInitialState);',
++    'const [x] = useReducer(reducer, init, initFn);',
++    'const s = useMyState(compute());',
++  ],
++  invalid: [
++    {
++      code: 'const [state, setState] = useState(myExpensiveFn());',
++      errors: [
++        {
++          messageId: 'eager',
++          suggestions: [{ messageId: 'wrap', output: 'const [state, setState] = useState(() => myExpensiveFn());' }],
++        },
++      ],
++      output: null,
++    },
++    {
++      code: 'const [state, setState] = React.useState<Item[]>(loadItems(id));',
++      errors: [
++        {
++          messageId: 'eager',
++          suggestions: [{ messageId: 'wrap', output: 'const [state, setState] = React.useState<Item[]>(() => loadItems(id));' }],
++        },
++      ],
++    },
++    {
++      code: "const [token] = useState(storage.get('token'));",
++      errors: [
++        {
++          messageId: 'eager',
++          suggestions: [{ messageId: 'wrap', output: "const [token] = useState(() => storage.get('token'));" }],
++        },
++      ],
++    },
++  ],
++});
+diff --git a/apps/react-vite/eslint-rules/gen-no-feature-barrel.cjs b/apps/react-vite/eslint-rules/gen-no-feature-barrel.cjs
+new file mode 100644
+index 0000000..b8b190b
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-no-feature-barrel.cjs
+@@ -0,0 +1,88 @@
++'use strict';
++
++const fs = require('node:fs');
++const path = require('node:path');
++
++const roots = new Map();
++function appRoot(file) {
++  const start = path.dirname(file);
++  if (roots.has(start)) return roots.get(start);
++  let dir = start;
++  while (!fs.existsSync(path.join(dir, 'package.json')) && path.dirname(dir) !== dir) {
++    dir = path.dirname(dir);
++  }
++  roots.set(start, dir);
++  return dir;
++}
++
++const INDEX_FILE = /(^|\/)index\.[cm]?[jt]sx?$/;
++
++module.exports = {
++  meta: {
++    type: 'suggestion',
++    schema: [
++      {
++        type: 'object',
++        properties: {
++          featuresDir: { type: 'string' },
++          aliases: { type: 'object', additionalProperties: { type: 'string' } },
++        },
++        additionalProperties: false,
++      },
++    ],
++    messages: {
++      barrelFile:
++        'Do not add barrel (index) files inside features: they break Vite tree shaking. Export from the file that defines the code and import that file directly.',
++      barrelImport:
++        "Import the file directly (e.g. '@/features/discussions/api/get-discussions'), not the folder '{{source}}': feature barrels break Vite tree shaking.",
++    },
++  },
++  create(context) {
++    const options = context.options[0] ?? {};
++    const featuresDir = (options.featuresDir ?? 'src/features').replace(/\/$/, '');
++    const aliases = options.aliases ?? { '@/': 'src/' };
++    const filename = context.filename ?? context.getFilename();
++    const root = appRoot(filename);
++    const toRel = (abs) => path.relative(root, abs).split(path.sep).join('/');
++
++    function resolve(spec) {
++      if (spec.startsWith('./') || spec.startsWith('../')) return path.resolve(path.dirname(filename), spec);
++      const alias = Object.keys(aliases).find((a) => spec.startsWith(a));
++      return alias ? path.join(root, aliases[alias], spec.slice(alias.length)) : null;
++    }
++
++    function isDirectory(abs) {
++      try {
++        return fs.statSync(abs).isDirectory();
++      } catch {
++        return false;
++      }
++    }
++
++    function checkSource(source) {
++      if (!source || source.type !== 'Literal' || typeof source.value !== 'string') return;
++      const abs = resolve(source.value);
++      if (!abs) return;
++      const rel = toRel(abs);
++      if (!rel.startsWith(`${featuresDir}/`)) return;
++      if (INDEX_FILE.test(rel) || /(^|\/)index$/.test(rel) || isDirectory(abs)) {
++        context.report({ node: source, messageId: 'barrelImport', data: { source: source.value } });
++      }
++    }
++
++    return {
++      Program(node) {
++        const rel = toRel(filename);
++        if (rel.startsWith(`${featuresDir}/`) && INDEX_FILE.test(rel)) {
++          context.report({ node, loc: { line: 1, column: 0 }, messageId: 'barrelFile' });
++        }
++      },
++      ImportDeclaration: (node) => checkSource(node.source),
++      ImportExpression: (node) => checkSource(node.source),
++      ExportNamedDeclaration: (node) => checkSource(node.source),
++      ExportAllDeclaration: (node) => checkSource(node.source),
++      'CallExpression[callee.type="Identifier"][callee.name="require"]': (node) =>
++        checkSource(node.arguments[0]),
++    };
++  },
++};
+diff --git a/apps/react-vite/eslint-rules/gen-no-feature-barrel.test.cjs b/apps/react-vite/eslint-rules/gen-no-feature-barrel.test.cjs
+new file mode 100644
+index 0000000..24c0752
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-no-feature-barrel.test.cjs
+@@ -0,0 +1,66 @@
++'use strict';
++
++const path = require('node:path');
++
++const { RuleTester } = require('eslint');
++
++const rule = require('./gen-no-feature-barrel.cjs');
++
++const APP = path.resolve(__dirname, '..');
++const route = path.join(APP, 'src/app/routes/app/discussions/discussions.tsx');
++const featureFile = path.join(APP, 'src/features/comments/components/comments.tsx');
++
++const ruleTester = new RuleTester({
++  parser: require.resolve('@typescript-eslint/parser'),
++  parserOptions: { ecmaVersion: 'latest', sourceType: 'module', ecmaFeatures: { jsx: true } },
++});
++
++ruleTester.run('gen-no-feature-barrel', rule, {
++  valid: [
++    { filename: route, code: "import { getDiscussionsQueryOptions } from '@/features/discussions/api/get-discussions';" },
++    { filename: featureFile, code: "import { useComments } from '../api/get-comments';" },
++    { filename: route, code: "import { Button } from '@/components/ui/button';" },
++    { filename: route, code: "import { useQuery } from '@tanstack/react-query';" },
++    { filename: path.join(APP, 'src/components/ui/button/index.ts'), code: "export * from './button';" },
++    { filename: path.join(APP, 'src/features/discussions/api/indexing.ts'), code: 'export const x = 1;' },
++  ],
++  invalid: [
++    {
++      filename: route,
++      code: "import { DiscussionsList } from '@/features/discussions';",
++      errors: [{ messageId: 'barrelImport' }],
++      output: null,
++    },
++    {
++      filename: route,
++      code: "import { getDiscussions } from '@/features/discussions/api';",
++      errors: [{ messageId: 'barrelImport' }],
++    },
++    {
++      filename: featureFile,
++      code: "import { getComments } from '../api/index';",
++      errors: [{ messageId: 'barrelImport' }],
++    },
++    {
++      filename: route,
++      code: "export * from '@/features/users';",
++      errors: [{ messageId: 'barrelImport' }],
++    },
++    {
++      filename: path.join(APP, 'src/features/discussions/index.ts'),
++      code: "export * from './components/discussions-list';",
++      errors: [{ messageId: 'barrelFile' }],
++    },
++    {
++      filename: path.join(APP, 'src/features/comments/api/index.ts'),
++      code: "export * from './get-comments';",
++      errors: [{ messageId: 'barrelFile' }],
++    },
++    {
++      filename: route,
++      code: "import { x } from '~/modules/teams';",
++      options: [{ featuresDir: 'src/features', aliases: { '~/modules/': 'src/features/' } }],
++      errors: [{ messageId: 'barrelImport' }],
++    },
++  ],
++});
+diff --git a/apps/react-vite/eslint-rules/gen-no-http-mocking.cjs b/apps/react-vite/eslint-rules/gen-no-http-mocking.cjs
+new file mode 100644
+index 0000000..b33399e
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-no-http-mocking.cjs
+@@ -0,0 +1,120 @@
++'use strict';
++
++const fs = require('node:fs');
++const path = require('node:path');
++
++const roots = new Map();
++function appRoot(file) {
++  const start = path.dirname(file);
++  if (roots.has(start)) return roots.get(start);
++  let dir = start;
++  while (!fs.existsSync(path.join(dir, 'package.json')) && path.dirname(dir) !== dir) {
++    dir = path.dirname(dir);
++  }
++  roots.set(start, dir);
++  return dir;
++}
++
++const TEST_OBJECTS = new Set(['vi', 'jest']);
++const MOCK_METHODS = new Set(['mock', 'doMock']);
++const GLOBAL_OBJECTS = new Set(['window', 'globalThis', 'global', 'self']);
++const HTTP_GLOBALS = new Set(['fetch', 'XMLHttpRequest']);
++
++const memberName = (node) =>
++  node.computed ? node.property.type === 'Literal' && node.property.value : node.property.name;
++
++function testCall(callee) {
++  if (
++    callee.type === 'MemberExpression' &&
++    callee.object.type === 'Identifier' &&
++    TEST_OBJECTS.has(callee.object.name)
++  ) {
++    return memberName(callee);
++  }
++  return null;
++}
++
++module.exports = {
++  meta: {
++    type: 'suggestion',
++    schema: [
++      {
++        type: 'object',
++        properties: {
++          modules: { type: 'array', items: { type: 'string' } },
++          aliases: { type: 'object', additionalProperties: { type: 'string' } },
++        },
++        additionalProperties: false,
++      },
++    ],
++    messages: {
++      mockModule:
++        "Do not mock '{{source}}'. Let the request go through the real API client and answer it with an MSW handler (src/testing/mocks/handlers).",
++      mockGlobal:
++        "Do not stub '{{name}}'. Let the request go through the real API client and answer it with an MSW handler (src/testing/mocks/handlers).",
++    },
++  },
++  create(context) {
++    const options = context.options[0] ?? {};
++    const modules = options.modules ?? ['axios', 'src/lib/api-client'];
++    const aliases = options.aliases ?? { '@/': 'src/' };
++    const filename = context.filename ?? context.getFilename();
++    const root = appRoot(filename);
++    const clientNames = new Set();
++
++    function moduleKey(spec) {
++      let abs = null;
++      if (spec.startsWith('./') || spec.startsWith('../')) abs = path.resolve(path.dirname(filename), spec);
++      const alias = Object.keys(aliases).find((a) => spec.startsWith(a));
++      if (alias) abs = path.join(root, aliases[alias], spec.slice(alias.length));
++      if (!abs) return spec;
++      return path.relative(root, abs).split(path.sep).join('/').replace(/\.(tsx?|jsx?)$/, '');
++    }
++
++    const isHttpModule = (spec) => {
++      const key = moduleKey(spec);
++      return modules.some((m) => key === m || key.startsWith(`${m}/`));
++    };
++
++    const isGlobalHttp = (node) =>
++      node.type === 'MemberExpression' &&
++      node.object.type === 'Identifier' &&
++      GLOBAL_OBJECTS.has(node.object.name) &&
++      HTTP_GLOBALS.has(memberName(node));
++
++    return {
++      ImportDeclaration(node) {
++        if (typeof node.source.value === 'string' && isHttpModule(node.source.value)) {
++          for (const spec of node.specifiers) clientNames.add(spec.local.name);
++        }
++      },
++      CallExpression(node) {
++        const method = testCall(node.callee);
++        if (!method) return;
++        const [first, second] = node.arguments;
++        if (MOCK_METHODS.has(method) && first?.type === 'Literal' && typeof first.value === 'string') {
++          if (isHttpModule(first.value)) {
++            context.report({ node: first, messageId: 'mockModule', data: { source: first.value } });
++          }
++          return;
++        }
++        if (method === 'stubGlobal' && first?.type === 'Literal' && HTTP_GLOBALS.has(first.value)) {
++          context.report({ node: first, messageId: 'mockGlobal', data: { name: first.value } });
++          return;
++        }
++        if (method === 'spyOn' && first?.type === 'Identifier') {
++          if (GLOBAL_OBJECTS.has(first.name) && second?.type === 'Literal' && HTTP_GLOBALS.has(second.value)) {
++            context.report({ node, messageId: 'mockGlobal', data: { name: second.value } });
++          } else if (clientNames.has(first.name)) {
++            context.report({ node, messageId: 'mockGlobal', data: { name: first.name } });
++          }
++        }
++      },
++      AssignmentExpression(node) {
++        if (isGlobalHttp(node.left)) {
++          context.report({ node, messageId: 'mockGlobal', data: { name: memberName(node.left) } });
++        }
++      },
++    };
++  },
++};
+diff --git a/apps/react-vite/eslint-rules/gen-no-http-mocking.test.cjs b/apps/react-vite/eslint-rules/gen-no-http-mocking.test.cjs
+new file mode 100644
+index 0000000..4dba84c
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-no-http-mocking.test.cjs
+@@ -0,0 +1,42 @@
++'use strict';
++
++const path = require('node:path');
++
++const { RuleTester } = require('eslint');
++
++const rule = require('./gen-no-http-mocking.cjs');
++
++const APP = path.resolve(__dirname, '..');
++const filename = path.join(APP, 'src/features/discussions/components/__tests__/discussions.test.tsx');
++
++const ruleTester = new RuleTester({
++  parser: require.resolve('@typescript-eslint/parser'),
++  parserOptions: { ecmaVersion: 'latest', sourceType: 'module', ecmaFeatures: { jsx: true } },
++});
++
++ruleTester.run('gen-no-http-mocking', rule, {
++  valid: [
++    { filename, code: "vi.mock('zustand');" },
++    { filename, code: "vi.spyOn(console, 'error').mockImplementation(() => {});" },
++    { filename, code: "server.use(http.get(`${env.API_URL}/discussions`, () => HttpResponse.json([])));" },
++    { filename, code: "vi.mock('@/lib/auth');" },
++    { filename, code: "import { db } from '@/testing/mocks/db';\nvi.spyOn(db.discussion, 'create');" },
++    { filename, code: "vi.mock('axios');", options: [{ modules: ['ky'] }] },
++  ],
++  invalid: [
++    { filename, code: "vi.mock('@/lib/api-client');", errors: [{ messageId: 'mockModule' }], output: null },
++    { filename, code: "vi.mock('../../../../lib/api-client');", errors: [{ messageId: 'mockModule' }] },
++    { filename, code: "vi.doMock('axios', () => ({ default: { get: vi.fn() } }));", errors: [{ messageId: 'mockModule' }] },
++    { filename, code: "jest.mock('axios');", errors: [{ messageId: 'mockModule' }] },
++    { filename, code: "vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'));", errors: [{ messageId: 'mockGlobal' }] },
++    { filename, code: "vi.stubGlobal('fetch', vi.fn());", errors: [{ messageId: 'mockGlobal' }] },
++    { filename, code: 'global.fetch = vi.fn();', errors: [{ messageId: 'mockGlobal' }] },
++    { filename, code: "window['fetch'] = vi.fn();", errors: [{ messageId: 'mockGlobal' }] },
++    {
++      filename,
++      code: "import { api } from '@/lib/api-client';\nvi.spyOn(api, 'get').mockResolvedValue([]);",
++      errors: [{ messageId: 'mockGlobal' }],
++    },
++    { filename, code: "vi.mock('ky');", options: [{ modules: ['ky'] }], errors: [{ messageId: 'mockModule' }] },
++  ],
++});
+diff --git a/apps/react-vite/eslint-rules/gen-no-nested-render-functions.cjs b/apps/react-vite/eslint-rules/gen-no-nested-render-functions.cjs
+new file mode 100644
+index 0000000..66ef1b4
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-no-nested-render-functions.cjs
+@@ -0,0 +1,45 @@
++'use strict';
++
++const RENDER_NAME = /^render[A-Z0-9_]/;
++
++function functionName(node) {
++  if (node.id) return node.id.name;
++  const parent = node.parent;
++  if (parent.type === 'VariableDeclarator' && parent.id.type === 'Identifier') return parent.id.name;
++  return null;
++}
++
++module.exports = {
++  meta: {
++    type: 'suggestion',
++    schema: [],
++    messages: {
++      nested:
++        "Extract '{{name}}' into its own component (e.g. `<{{component}} />`) instead of a render function inside another component.",
++    },
++  },
++  create(context) {
++    const stack = [];
++
++    return {
++      ':function'(node) {
++        stack.push({ node, name: functionName(node), nested: stack.length > 0, hasJsx: false });
++      },
++      ':function:exit'() {
++        const frame = stack.pop();
++        if (frame.hasJsx && stack.length > 0) stack[stack.length - 1].hasJsx = true;
++        if (frame.nested && frame.hasJsx && frame.name && RENDER_NAME.test(frame.name)) {
++          const component = frame.name.slice('render'.length).replace(/^_+/, '') || 'Component';
++          context.report({
++            node: frame.node.id ?? frame.node.parent.id ?? frame.node,
++            messageId: 'nested',
++            data: { name: frame.name, component },
++          });
++        }
++      },
++      'JSXElement, JSXFragment'() {
++        if (stack.length > 0) stack[stack.length - 1].hasJsx = true;
++      },
++    };
++  },
++};
+diff --git a/apps/react-vite/eslint-rules/gen-no-nested-render-functions.test.cjs b/apps/react-vite/eslint-rules/gen-no-nested-render-functions.test.cjs
+new file mode 100644
+index 0000000..cb155f8
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-no-nested-render-functions.test.cjs
+@@ -0,0 +1,40 @@
++'use strict';
++
++const { RuleTester } = require('eslint');
++
++const rule = require('./gen-no-nested-render-functions.cjs');
++
++const ruleTester = new RuleTester({
++  parser: require.resolve('@typescript-eslint/parser'),
++  parserOptions: { ecmaVersion: 'latest', sourceType: 'module', ecmaFeatures: { jsx: true } },
++});
++
++ruleTester.run('gen-no-nested-render-functions', rule, {
++  valid: [
++    'function Items() { return <ul />; }\nfunction Component() { return <div><Items /></div>; }',
++    'export const renderApp = async (ui: JSX.Element) => render(<Wrapper>{ui}</Wrapper>);',
++    'const Table = () => <List renderItem={(item) => <li>{item}</li>} />;',
++    'function Component() { const rendered = items.map((i) => <li key={i}>{i}</li>); return <ul>{rendered}</ul>; }',
++    'function Component() { const renderCount = () => count + 1; return <div>{renderCount()}</div>; }',
++    "describe('x', () => { it('renders', () => { render(<App />); }); });",
++  ],
++  invalid: [
++    {
++      code: 'function Component() {\n  function renderItems() { return <ul>...</ul>; }\n  return <div>{renderItems()}</div>;\n}',
++      errors: [{ messageId: 'nested', data: { name: 'renderItems', component: 'Items' } }],
++      output: null,
++    },
++    {
++      code: 'const Component = () => {\n  const renderRow = (row: Row) => <tr key={row.id}><td>{row.name}</td></tr>;\n  return <table>{rows.map(renderRow)}</table>;\n};',
++      errors: [{ messageId: 'nested', data: { name: 'renderRow', component: 'Row' } }],
++    },
++    {
++      code: 'function Component() {\n  const renderList = () => items.map((i) => <li key={i}>{i}</li>);\n  return <ul>{renderList()}</ul>;\n}',
++      errors: [{ messageId: 'nested' }],
++    },
++    {
++      code: 'function Page() {\n  const renderEmpty = function () { return <></>; };\n  return renderEmpty();\n}',
++      errors: [{ messageId: 'nested' }],
++    },
++  ],
++});
+diff --git a/apps/react-vite/eslint-rules/gen-no-raw-http.cjs b/apps/react-vite/eslint-rules/gen-no-raw-http.cjs
+new file mode 100644
+index 0000000..48ef495
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-no-raw-http.cjs
+@@ -0,0 +1,84 @@
++'use strict';
++
++const GLOBAL_OBJECTS = new Set(['window', 'globalThis', 'global', 'self']);
++const RAW_GLOBALS = new Set(['fetch', 'XMLHttpRequest']);
++
++module.exports = {
++  meta: {
++    type: 'problem',
++    schema: [
++      {
++        type: 'object',
++        properties: { modules: { type: 'array', items: { type: 'string' } } },
++        additionalProperties: false,
++      },
++    ],
++    messages: {
++      rawModule:
++        "Import '{{name}}' only in the shared API client (src/lib/api-client.ts). Use `api` from '@/lib/api-client' instead.",
++      rawGlobal:
++        "Do not use '{{name}}' directly. HTTP requests go through `api` from '@/lib/api-client', which adds auth, the base URL and error notifications.",
++    },
++  },
++  create(context) {
++    const modules = context.options[0]?.modules ?? ['axios'];
++    const sourceCode = context.sourceCode ?? context.getSourceCode();
++    const isRawModule = (value) =>
++      typeof value === 'string' &&
++      modules.some((m) => value === m || value.startsWith(`${m}/`));
++
++    function checkSource(source) {
++      if (source && source.type === 'Literal' && isRawModule(source.value)) {
++        context.report({ node: source, messageId: 'rawModule', data: { name: source.value } });
++      }
++    }
++
++    function isGlobalReference(node) {
++      let scope = sourceCode.getScope ? sourceCode.getScope(node) : context.getScope();
++      while (scope) {
++        const variable = scope.set.get(node.name);
++        if (variable) return variable.defs.length === 0;
++        scope = scope.upper;
++      }
++      return true;
++    }
++
++    function rawGlobalName(node) {
++      if (node.type === 'Identifier' && RAW_GLOBALS.has(node.name) && isGlobalReference(node)) {
++        return node.name;
++      }
++      if (
++        node.type === 'MemberExpression' &&
++        node.object.type === 'Identifier' &&
++        GLOBAL_OBJECTS.has(node.object.name) &&
++        isGlobalReference(node.object)
++      ) {
++        const name = node.computed
++          ? node.property.type === 'Literal' && node.property.value
++          : node.property.name;
++        if (RAW_GLOBALS.has(name)) return name;
++      }
++      return null;
++    }
++
++    function checkCallee(node) {
++      const name = rawGlobalName(node.callee);
++      if (name) context.report({ node: node.callee, messageId: 'rawGlobal', data: { name } });
++    }
++
++    return {
++      ImportDeclaration: (node) => checkSource(node.source),
++      ImportExpression: (node) => checkSource(node.source),
++      ExportNamedDeclaration: (node) => checkSource(node.source),
++      ExportAllDeclaration: (node) => checkSource(node.source),
++      CallExpression(node) {
++        if (node.callee.type === 'Identifier' && node.callee.name === 'require') {
++          checkSource(node.arguments[0]);
++          return;
++        }
++        checkCallee(node);
++      },
++      NewExpression: checkCallee,
++    };
++  },
++};
+diff --git a/apps/react-vite/eslint-rules/gen-no-raw-http.test.cjs b/apps/react-vite/eslint-rules/gen-no-raw-http.test.cjs
+new file mode 100644
+index 0000000..c02ac13
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-no-raw-http.test.cjs
+@@ -0,0 +1,52 @@
++'use strict';
++
++const path = require('node:path');
++
++const { RuleTester } = require('eslint');
++
++const rule = require('./gen-no-raw-http.cjs');
++
++const APP = path.resolve(__dirname, '..');
++const filename = path.join(APP, 'src/features/discussions/api/get-discussions.ts');
++
++const ruleTester = new RuleTester({
++  parser: require.resolve('@typescript-eslint/parser'),
++  parserOptions: { ecmaVersion: 'latest', sourceType: 'module', ecmaFeatures: { jsx: true } },
++});
++
++ruleTester.run('gen-no-raw-http', rule, {
++  valid: [
++    { filename, code: "import { api } from '@/lib/api-client';\nexport const getX = () => api.get('/x');" },
++    { filename, code: 'const fetch = (u: string) => u;\nfetch("/x");' },
++    { filename, code: 'function load(fetch: (u: string) => void) { fetch("/x"); }' },
++    { filename, code: "import type { AxiosError } from 'axios-mock';" },
++    { filename, code: "const q = useQuery({ queryKey: ['x'], queryFn: () => getX() });" },
++    { filename, code: "import Axios from 'my-axios';", options: [{ modules: ['ky'] }] },
++  ],
++  invalid: [
++    {
++      filename,
++      code: "import axios from 'axios';",
++      errors: [{ messageId: 'rawModule' }],
++      output: null,
++    },
++    {
++      filename,
++      code: "import type { AxiosError } from 'axios';",
++      errors: [{ messageId: 'rawModule' }],
++    },
++    { filename, code: "const a = await import('axios');", errors: [{ messageId: 'rawModule' }] },
++    { filename, code: "const a = require('axios/lib/core');", errors: [{ messageId: 'rawModule' }] },
++    { filename, code: "export { default } from 'axios';", errors: [{ messageId: 'rawModule' }] },
++    { filename, code: "fetch('/discussions');", errors: [{ messageId: 'rawGlobal' }] },
++    { filename, code: "await window.fetch('/x');", errors: [{ messageId: 'rawGlobal' }] },
++    { filename, code: "await globalThis['fetch']('/x');", errors: [{ messageId: 'rawGlobal' }] },
++    { filename, code: 'const xhr = new XMLHttpRequest();', errors: [{ messageId: 'rawGlobal' }] },
++    {
++      filename,
++      code: "import ky from 'ky';",
++      options: [{ modules: ['ky'] }],
++      errors: [{ messageId: 'rawModule' }],
++    },
++  ],
++});
+diff --git a/apps/react-vite/eslint-rules/gen-query-key-from-options.cjs b/apps/react-vite/eslint-rules/gen-query-key-from-options.cjs
+new file mode 100644
+index 0000000..5bdefc7
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-query-key-from-options.cjs
+@@ -0,0 +1,74 @@
++'use strict';
++
++const DEFAULT_FACTORIES = ['queryOptions', 'infiniteQueryOptions'];
++const DEFAULT_KEY_METHODS = ['getQueryData', 'setQueryData', 'getQueryState'];
++
++function calleeName(callee) {
++  if (callee.type === 'Identifier') return callee.name;
++  if (callee.type === 'MemberExpression' && !callee.computed && callee.property.type === 'Identifier') {
++    return callee.property.name;
++  }
++  return null;
++}
++
++// an array literal, possibly behind `cond ? [...] : [...]` or `a ?? [...]`
++function literalArray(node) {
++  if (!node) return null;
++  if (node.type === 'ArrayExpression') return node;
++  if (node.type === 'ConditionalExpression') return literalArray(node.consequent) ?? literalArray(node.alternate);
++  if (node.type === 'LogicalExpression') return literalArray(node.left) ?? literalArray(node.right);
++  if (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression') return literalArray(node.expression);
++  return null;
++}
++
++module.exports = {
++  meta: {
++    type: 'suggestion',
++    schema: [
++      {
++        type: 'object',
++        properties: {
++          factories: { type: 'array', items: { type: 'string' } },
++          keyMethods: { type: 'array', items: { type: 'string' } },
++        },
++        additionalProperties: false,
++      },
++    ],
++    messages: {
++      literalKey:
++        "Take the query key from the feature's query options (e.g. `getUsersQueryOptions().queryKey`). Write literal key arrays only inside queryOptions(...) / infiniteQueryOptions(...).",
++    },
++  },
++  create(context) {
++    const options = context.options[0] ?? {};
++    const factories = new Set(options.factories ?? DEFAULT_FACTORIES);
++    const keyMethods = new Set(options.keyMethods ?? DEFAULT_KEY_METHODS);
++    let factoryDepth = 0;
++
++    const isFactoryCall = (node) => factories.has(calleeName(node.callee));
++
++    return {
++      CallExpression(node) {
++        if (isFactoryCall(node)) {
++          factoryDepth += 1;
++          return;
++        }
++        if (factoryDepth > 0) return;
++        if (keyMethods.has(calleeName(node.callee))) {
++          const array = literalArray(node.arguments[0]);
++          if (array) context.report({ node: array, messageId: 'literalKey' });
++        }
++      },
++      'CallExpression:exit'(node) {
++        if (isFactoryCall(node)) factoryDepth -= 1;
++      },
++      Property(node) {
++        if (factoryDepth > 0 || node.computed) return;
++        const key = node.key.type === 'Identifier' ? node.key.name : node.key.value;
++        if (key !== 'queryKey') return;
++        const array = literalArray(node.value);
++        if (array) context.report({ node: array, messageId: 'literalKey' });
++      },
++    };
++  },
++};
+diff --git a/apps/react-vite/eslint-rules/gen-query-key-from-options.test.cjs b/apps/react-vite/eslint-rules/gen-query-key-from-options.test.cjs
+new file mode 100644
+index 0000000..f711682
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-query-key-from-options.test.cjs
+@@ -0,0 +1,60 @@
++'use strict';
++
++const { RuleTester } = require('eslint');
++
++const rule = require('./gen-query-key-from-options.cjs');
++
++const ruleTester = new RuleTester({
++  parser: require.resolve('@typescript-eslint/parser'),
++  parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
++});
++
++ruleTester.run('gen-query-key-from-options', rule, {
++  valid: [
++    "export const getUsersQueryOptions = () => queryOptions({ queryKey: ['users'], queryFn: getUsers });",
++    "export const opts = (page?: number) => queryOptions({ queryKey: page ? ['discussions', { page }] : ['discussions'], queryFn: () => get(page) });",
++    "export const opts = (id: string) => infiniteQueryOptions({ queryKey: ['comments', id], queryFn: () => get(id), initialPageParam: 1 });",
++    'queryClient.invalidateQueries({ queryKey: getUsersQueryOptions().queryKey });',
++    'const data = queryClient.getQueryData(query.queryKey) ?? (await queryClient.fetchQuery(query));',
++    "const opts = rq.queryOptions({ queryKey: ['teams'], queryFn: getTeams });",
++    "type Opts = Omit<UseQueryOptions, 'queryKey' | 'queryFn'>;",
++    { code: "const k = keyFactory({ queryKey: ['x'] });", options: [{ factories: ['keyFactory'] }] },
++  ],
++  invalid: [
++    {
++      code: "queryClient.invalidateQueries({ queryKey: ['discussions'] });",
++      errors: [{ messageId: 'literalKey' }],
++      output: null,
++    },
++    {
++      code: "const q = useQuery({ queryKey: ['users'], queryFn: getUsers });",
++      errors: [{ messageId: 'literalKey' }],
++    },
++    {
++      code: "const q = useQuery({ queryKey: page ? ['d', page] : ['d'], queryFn: get });",
++      errors: [{ messageId: 'literalKey' }],
++    },
++    {
++      code: "const d = queryClient.getQueryData(['discussions', id]);",
++      errors: [{ messageId: 'literalKey' }],
++    },
++    {
++      code: "queryClient.setQueryData(['discussions', id] as const, next);",
++      errors: [{ messageId: 'literalKey' }],
++    },
++    {
++      code: "queryClient.removeQueries({ 'queryKey': ['comments'] });",
++      errors: [{ messageId: 'literalKey' }],
++    },
++    {
++      code: "const d = queryClient.getQueriesData(['discussions']);",
++      options: [{ keyMethods: ['getQueriesData'] }],
++      errors: [{ messageId: 'literalKey' }],
++    },
++    {
++      code: "const o = makeOptions({ queryKey: ['x'] });",
++      options: [{ factories: ['otherFactory'] }],
++      errors: [{ messageId: 'literalKey' }],
++    },
++  ],
++});
+diff --git a/apps/react-vite/eslint-rules/gen-sanitized-inner-html.cjs b/apps/react-vite/eslint-rules/gen-sanitized-inner-html.cjs
+new file mode 100644
+index 0000000..3dc35f4
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-sanitized-inner-html.cjs
+@@ -0,0 +1,54 @@
++'use strict';
++
++module.exports = {
++  meta: {
++    type: 'problem',
++    schema: [
++      {
++        type: 'object',
++        properties: { sanitizers: { type: 'array', items: { type: 'string' } } },
++        additionalProperties: false,
++      },
++    ],
++    messages: {
++      unsanitized:
++        'Sanitize HTML before rendering it: `dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}`, or render it through the MDPreview component.',
++    },
++  },
++  create(context) {
++    const sanitizers = new Set(context.options[0]?.sanitizers ?? ['sanitize']);
++
++    function isSanitizerCall(node) {
++      if (!node || node.type !== 'CallExpression') return false;
++      const callee = node.callee;
++      if (callee.type === 'Identifier') return sanitizers.has(callee.name);
++      return (
++        callee.type === 'MemberExpression' &&
++        !callee.computed &&
++        callee.property.type === 'Identifier' &&
++        sanitizers.has(callee.property.name)
++      );
++    }
++
++    function isSanitized(value) {
++      if (!value || value.type !== 'JSXExpressionContainer') return false;
++      const obj = value.expression;
++      if (obj.type !== 'ObjectExpression') return false;
++      const html = obj.properties.find(
++        (p) =>
++          p.type === 'Property' &&
++          !p.computed &&
++          ((p.key.type === 'Identifier' && p.key.name === '__html') ||
++            (p.key.type === 'Literal' && p.key.value === '__html')),
++      );
++      return Boolean(html) && isSanitizerCall(html.value);
++    }
++
++    return {
++      JSXAttribute(node) {
++        if (node.name.type !== 'JSXIdentifier' || node.name.name !== 'dangerouslySetInnerHTML') return;
++        if (!isSanitized(node.value)) context.report({ node, messageId: 'unsanitized' });
++      },
++    };
++  },
++};
+diff --git a/apps/react-vite/eslint-rules/gen-sanitized-inner-html.test.cjs b/apps/react-vite/eslint-rules/gen-sanitized-inner-html.test.cjs
+new file mode 100644
+index 0000000..3890f77
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-sanitized-inner-html.test.cjs
+@@ -0,0 +1,38 @@
++'use strict';
++
++const { RuleTester } = require('eslint');
++
++const rule = require('./gen-sanitized-inner-html.cjs');
++
++const ruleTester = new RuleTester({
++  parser: require.resolve('@typescript-eslint/parser'),
++  parserOptions: { ecmaVersion: 'latest', sourceType: 'module', ecmaFeatures: { jsx: true } },
++});
++
++ruleTester.run('gen-sanitized-inner-html', rule, {
++  valid: [
++    '<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(parse(value) as string) }} />',
++    '<div dangerouslySetInnerHTML={{ __html: sanitize(html) }} />',
++    "<div dangerouslySetInnerHTML={{ '__html': purify.sanitize(html) }} />",
++    '<div className="prose">{value}</div>',
++    {
++      code: '<div dangerouslySetInnerHTML={{ __html: clean(html) }} />',
++      options: [{ sanitizers: ['clean'] }],
++    },
++  ],
++  invalid: [
++    {
++      code: '<div dangerouslySetInnerHTML={{ __html: parse(value) as string }} />',
++      errors: [{ messageId: 'unsanitized' }],
++      output: null,
++    },
++    { code: '<div dangerouslySetInnerHTML={{ __html: html }} />', errors: [{ messageId: 'unsanitized' }] },
++    { code: '<div dangerouslySetInnerHTML={props} />', errors: [{ messageId: 'unsanitized' }] },
++    { code: '<div dangerouslySetInnerHTML={{ __html: escape(html) }} />', errors: [{ messageId: 'unsanitized' }] },
++    {
++      code: '<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />',
++      options: [{ sanitizers: ['clean'] }],
++      errors: [{ messageId: 'unsanitized' }],
++    },
++  ],
++});
+diff --git a/apps/react-vite/eslint-rules/gen-ui-wrappers.cjs b/apps/react-vite/eslint-rules/gen-ui-wrappers.cjs
+new file mode 100644
+index 0000000..4399386
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-ui-wrappers.cjs
+@@ -0,0 +1,106 @@
++'use strict';
++
++const fs = require('node:fs');
++const path = require('node:path');
++
++const roots = new Map();
++function appRoot(file) {
++  const start = path.dirname(file);
++  if (roots.has(start)) return roots.get(start);
++  let dir = start;
++  while (!fs.existsSync(path.join(dir, 'package.json')) && path.dirname(dir) !== dir) {
++    dir = path.dirname(dir);
++  }
++  roots.set(start, dir);
++  return dir;
++}
++
++// 'pkg' matches 'pkg' and 'pkg/sub'; '@scope/*' matches every package of the scope
++function moduleMatches(pattern, value) {
++  if (pattern.endsWith('/*')) return value.startsWith(pattern.slice(0, -1));
++  return value === pattern || value.startsWith(`${pattern}/`);
++}
++
++module.exports = {
++  meta: {
++    type: 'suggestion',
++    schema: [
++      {
++        type: 'object',
++        properties: {
++          wrappers: {
++            type: 'array',
++            items: {
++              type: 'object',
++              properties: {
++                modules: { type: 'array', items: { type: 'string' }, minItems: 1 },
++                importNames: { type: 'array', items: { type: 'string' } },
++                allowIn: { type: 'string' },
++                wrapper: { type: 'string' },
++              },
++              required: ['modules', 'allowIn', 'wrapper'],
++              additionalProperties: false,
++            },
++          },
++        },
++        required: ['wrappers'],
++        additionalProperties: false,
++      },
++    ],
++    messages: {
++      wrapped:
++        "Import {{what}} from '{{source}}' only inside {{allowIn}}. Use the project's wrapper from '{{wrapper}}' instead, or add what you need to it.",
++    },
++  },
++  create(context) {
++    const wrappers = context.options[0]?.wrappers ?? [];
++    const filename = context.filename ?? context.getFilename();
++    const rel = path.relative(appRoot(filename), filename).split(path.sep).join('/');
++    const active = wrappers.filter((w) => !rel.startsWith(w.allowIn));
++    if (active.length === 0) return {};
++
++    function report(node, source, wrapper, what) {
++      context.report({
++        node,
++        messageId: 'wrapped',
++        data: { what, source, allowIn: wrapper.allowIn, wrapper: wrapper.wrapper },
++      });
++    }
++
++    function check(node, source, specifiers, isTypeOnly) {
++      if (!source || source.type !== 'Literal' || typeof source.value !== 'string') return;
++      if (isTypeOnly) return;
++      for (const wrapper of active) {
++        if (!wrapper.modules.some((m) => moduleMatches(m, source.value))) continue;
++        if (!wrapper.importNames) {
++          report(source, source.value, wrapper, 'anything');
++          continue;
++        }
++        for (const spec of specifiers ?? []) {
++          const imported = spec.type === 'ImportSpecifier' ? spec.imported : spec.local;
++          if (spec.type !== 'ImportSpecifier' && spec.type !== 'ExportSpecifier') continue;
++          if (spec.importKind === 'type' || spec.exportKind === 'type') continue;
++          const name = imported.name ?? imported.value;
++          if (wrapper.importNames.includes(name)) report(spec, source.value, wrapper, `'${name}'`);
++        }
++      }
++    }
++
++    return {
++      ImportDeclaration: (node) =>
++        check(
++          node,
++          node.source,
++          node.specifiers,
++          node.importKind === 'type' ||
++            (node.specifiers.length > 0 && node.specifiers.every((s) => s.importKind === 'type')),
++        ),
++      ExportNamedDeclaration: (node) =>
++        check(node, node.source, node.specifiers, node.exportKind === 'type'),
++      ExportAllDeclaration: (node) => check(node, node.source, null, node.exportKind === 'type'),
++      ImportExpression: (node) => check(node, node.source, null, false),
++      'CallExpression[callee.type="Identifier"][callee.name="require"]': (node) =>
++        check(node, node.arguments[0], null, false),
++    };
++  },
++};
+diff --git a/apps/react-vite/eslint-rules/gen-ui-wrappers.test.cjs b/apps/react-vite/eslint-rules/gen-ui-wrappers.test.cjs
+new file mode 100644
+index 0000000..0ca181c
+--- /dev/null
++++ b/apps/react-vite/eslint-rules/gen-ui-wrappers.test.cjs
+@@ -0,0 +1,87 @@
++'use strict';
++
++const path = require('node:path');
++
++const { RuleTester } = require('eslint');
++
++const rule = require('./gen-ui-wrappers.cjs');
++
++const APP = path.resolve(__dirname, '..');
++const feature = path.join(APP, 'src/features/auth/components/login-form.tsx');
++const uiDialog = path.join(APP, 'src/components/ui/dialog/dialog.tsx');
++const uiForm = path.join(APP, 'src/components/ui/form/form.tsx');
++const uiLink = path.join(APP, 'src/components/ui/link/link.tsx');
++
++const options = [
++  {
++    wrappers: [
++      { modules: ['@radix-ui/*'], allowIn: 'src/components/ui/', wrapper: '@/components/ui/<component>' },
++      { modules: ['react-hook-form', '@hookform/*'], allowIn: 'src/components/ui/form/', wrapper: '@/components/ui/form' },
++      { modules: ['react-router'], importNames: ['Link'], allowIn: 'src/components/ui/link/', wrapper: '@/components/ui/link' },
++    ],
++  },
++];
++
++const ruleTester = new RuleTester({
++  parser: require.resolve('@typescript-eslint/parser'),
++  parserOptions: { ecmaVersion: 'latest', sourceType: 'module', ecmaFeatures: { jsx: true } },
++});
++
++ruleTester.run('gen-ui-wrappers', rule, {
++  valid: [
++    { filename: uiDialog, options, code: "import * as DialogPrimitive from '@radix-ui/react-dialog';" },
++    { filename: uiForm, options, code: "import { useForm } from 'react-hook-form';\nimport { zodResolver } from '@hookform/resolvers/zod';" },
++    { filename: uiLink, options, code: "import { Link as RouterLink, LinkProps } from 'react-router';" },
++    { filename: feature, options, code: "import { Form, Input } from '@/components/ui/form';\nimport { Link } from '@/components/ui/link';" },
++    { filename: feature, options, code: "import { useNavigate, useSearchParams } from 'react-router';" },
++    { filename: feature, options, code: "import type { FieldValues } from 'react-hook-form';" },
++    { filename: feature, options, code: "import { type UseFormReturn } from 'react-hook-form';\nimport { type LinkProps } from 'react-router';" },
++    { filename: feature, options, code: "import { Slot } from 'radix-ui-slot';" },
++    { filename: feature, code: "import * as DialogPrimitive from '@radix-ui/react-dialog';" },
++  ],
++  invalid: [
++    {
++      filename: feature,
++      options,
++      code: "import * as DialogPrimitive from '@radix-ui/react-dialog';",
++      errors: [{ messageId: 'wrapped' }],
++      output: null,
++    },
++    {
++      filename: path.join(APP, 'src/components/layouts/dashboard-layout.tsx'),
++      options,
++      code: "import { Cross2Icon } from '@radix-ui/react-icons';",
++      errors: [{ messageId: 'wrapped' }],
++    },
++    {
++      filename: feature,
++      options,
++      code: "import { useForm } from 'react-hook-form';",
++      errors: [{ messageId: 'wrapped' }],
++    },
++    {
++      filename: path.join(APP, 'src/components/ui/button/button.tsx'),
++      options,
++      code: "import { zodResolver } from '@hookform/resolvers/zod';",
++      errors: [{ messageId: 'wrapped' }],
++    },
++    {
++      filename: feature,
++      options,
++      code: "import { Link, useSearchParams } from 'react-router';",
++      errors: [{ messageId: 'wrapped', data: { what: "'Link'", source: 'react-router', allowIn: 'src/components/ui/link/', wrapper: '@/components/ui/link' } }],
++    },
++    {
++      filename: feature,
++      options,
++      code: "export { Link } from 'react-router';",
++      errors: [{ messageId: 'wrapped' }],
++    },
++    {
++      filename: feature,
++      options,
++      code: "const m = await import('@radix-ui/react-switch');",
++      errors: [{ messageId: 'wrapped' }],
++    },
++  ],
++});
+diff --git a/apps/react-vite/package.json b/apps/react-vite/package.json
+index 5d81cb7..2050633 100644
+--- a/apps/react-vite/package.json
++++ b/apps/react-vite/package.json
+@@ -83,6 +83,7 @@
+     "eslint-plugin-import": "^2.29.1",
+     "eslint-plugin-jest-dom": "^5.4.0",
+     "eslint-plugin-jsx-a11y": "^6.8.0",
++    "eslint-plugin-local-rules": "3.0.2",
+     "eslint-plugin-playwright": "^1.6.0",
+     "eslint-plugin-prettier": "^5.1.3",
+     "eslint-plugin-react": "^7.34.1",
+diff --git a/apps/react-vite/yarn.lock b/apps/react-vite/yarn.lock
+index c719b0c..088ea81 100644
+--- a/apps/react-vite/yarn.lock
++++ b/apps/react-vite/yarn.lock
+@@ -5168,6 +5168,11 @@ eslint-plugin-jsx-a11y@^6.8.0:
+     object.entries "^1.1.7"
+     object.fromentries "^2.0.7"
+ 
++eslint-plugin-local-rules@3.0.2:
++  version "3.0.2"
++  resolved "https://registry.yarnpkg.com/eslint-plugin-local-rules/-/eslint-plugin-local-rules-3.0.2.tgz#84c02ea1d604ecb00970779ad27f00738ff361ae"
++  integrity sha512-IWME7GIYHXogTkFsToLdBCQVJ0U4kbSuVyDT+nKoR4UgtnVrrVeNWuAZkdEu1nxkvi9nsPccGehEEF6dgA28IQ==
++
+ eslint-plugin-playwright@^1.6.0:
+   version "1.6.0"
+   resolved "https://registry.yarnpkg.com/eslint-plugin-playwright/-/eslint-plugin-playwright-1.6.0.tgz#29f4af0e939f17d94b66f301350fb5267c8e1e2f"
+@@ -9552,7 +9557,16 @@ string-argv@0.3.2:
+   resolved "https://registry.yarnpkg.com/string-argv/-/string-argv-0.3.2.tgz#2b6d0ef24b656274d957d54e0a4bbf6153dc02b6"
+   integrity sha512-aqD2Q0144Z+/RqG52NeHEkZauTAUWJO8c6yTftGJKO3Tja5tUgIfmIl6kExvhtxSDP7fXB6DvzkfMpCd/F3G+Q==
+ 
+-"string-width-cjs@npm:string-width@^4.2.0", string-width@^4.1.0, string-width@^4.2.0, string-width@^4.2.3:
++"string-width-cjs@npm:string-width@^4.2.0":
++  version "4.2.3"
++  resolved "https://registry.yarnpkg.com/string-width/-/string-width-4.2.3.tgz#269c7117d27b05ad2e536830a8ec895ef9c6d010"
++  integrity sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==
++  dependencies:
++    emoji-regex "^8.0.0"
++    is-fullwidth-code-point "^3.0.0"
++    strip-ansi "^6.0.1"
++
++string-width@^4.1.0, string-width@^4.2.0, string-width@^4.2.3:
+   version "4.2.3"
+   resolved "https://registry.yarnpkg.com/string-width/-/string-width-4.2.3.tgz#269c7117d27b05ad2e536830a8ec895ef9c6d010"
+   integrity sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==
+@@ -9639,7 +9653,14 @@ string_decoder@~1.1.1:
+   dependencies:
+     safe-buffer "~5.1.0"
+ 
+-"strip-ansi-cjs@npm:strip-ansi@^6.0.1", strip-ansi@^6.0.0, strip-ansi@^6.0.1:
++"strip-ansi-cjs@npm:strip-ansi@^6.0.1":
++  version "6.0.1"
++  resolved "https://registry.yarnpkg.com/strip-ansi/-/strip-ansi-6.0.1.tgz#9e26c63d30f53443e9489495b2105d37b67a85d9"
++  integrity sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A==
++  dependencies:
++    ansi-regex "^5.0.1"
++
++strip-ansi@^6.0.0, strip-ansi@^6.0.1:
+   version "6.0.1"
+   resolved "https://registry.yarnpkg.com/strip-ansi/-/strip-ansi-6.0.1.tgz#9e26c63d30f53443e9489495b2105d37b67a85d9"
+   integrity sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A==
+@@ -10632,7 +10653,7 @@ wordwrap@^1.0.0:
+   resolved "https://registry.yarnpkg.com/wordwrap/-/wordwrap-1.0.0.tgz#27584810891456a4171c8d0226441ade90cbcaeb"
+   integrity sha512-gvVzJFlPycKc5dZN4yPkP8w7Dc37BtP1yczEneOb4uq34pXZcvrtRTmWV8W+Ume+XCxKgbjM+nevkyFPMybd4Q==
+ 
+-"wrap-ansi-cjs@npm:wrap-ansi@^7.0.0", wrap-ansi@^7.0.0:
++"wrap-ansi-cjs@npm:wrap-ansi@^7.0.0":
+   version "7.0.0"
+   resolved "https://registry.yarnpkg.com/wrap-ansi/-/wrap-ansi-7.0.0.tgz#67e145cff510a6a6984bdf1152911d69d2eb9e43"
+   integrity sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==
+@@ -10650,6 +10671,15 @@ wrap-ansi@^6.2.0:
+     string-width "^4.1.0"
+     strip-ansi "^6.0.0"
+ 
++wrap-ansi@^7.0.0:
++  version "7.0.0"
++  resolved "https://registry.yarnpkg.com/wrap-ansi/-/wrap-ansi-7.0.0.tgz#67e145cff510a6a6984bdf1152911d69d2eb9e43"
++  integrity sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==
++  dependencies:
++    ansi-styles "^4.0.0"
++    string-width "^4.1.0"
++    strip-ansi "^6.0.0"
++
+ wrap-ansi@^8.1.0:
+   version "8.1.0"
+   resolved "https://registry.yarnpkg.com/wrap-ansi/-/wrap-ansi-8.1.0.tgz#56dc22368ee570face1b49819975d9b9a5ead214"
+diff --git a/codemyrules-report.md b/codemyrules-report.md
+new file mode 100644
+index 0000000..c3e468c
+--- /dev/null
++++ b/codemyrules-report.md
+@@ -0,0 +1,237 @@
++# codemyrules report
++
++Project: `apps/react-vite` (React, Vite, TanStack Query, ESLint 8.57 with legacy `.eslintrc.cjs`).
++Stacks: frontend only (JS/TS goes to `eslint-pattern-rules`).
++There is no backend language in the repo, so `backend-pattern-rules` did not run.
++The Next.js apps were left alone, as `CLAUDE.md` asks.
++No generated source folders (`generators/` holds Plop templates and is already ignored by ESLint).
++This is the first run: there was no earlier `baseline.json`.
++
++## Frontend
++
++### Setup changes
++
++- Dependencies installed from the lockfile: `yarn install --frozen-lockfile --ignore-scripts --ignore-engines` (`node_modules` is git-ignored).
++- The legacy config had no local-rules mechanism, so one dev dependency was added at an exact version:
++  `yarn add -D --exact eslint-plugin-local-rules@3.0.2 --ignore-scripts` (changes `package.json` and `yarn.lock`).
++  Rule ids are therefore `local-rules/gen-<name>`, not `local/gen-<name>`.
++- Rules live in `apps/react-vite/eslint-rules/gen-<name>.cjs`, each with its own `gen-<name>.test.cjs`.
++  The index is `apps/react-vite/eslint-local-rules.cjs`.
++- Tests: 12 files, 150 RuleTester cases, all passing:
++  `cd apps/react-vite && VITE_APP_API_URL=https://api.bulletproofapp.com npx vitest run eslint-rules`.
++  The project's vitest setup file needs `VITE_APP_API_URL`; CI provides it with `mv .env.example .env` before `yarn test`, so the rule tests run in CI's `yarn test` as they are.
++- The project's full build and test suite were not run, as instructed.
++
++### Rules in the main config (0 open hits, run in CI by `yarn lint`)
++
++| Rule | Convention (source) | Hits | Scope |
++|---|---|---|---|
++| `local-rules/gen-no-raw-http` | One API client: no `axios` import, `fetch` or `XMLHttpRequest` outside it (AGENTS.md L132, docs/api-layer.md L3-7) | 0 | `src/**`, except `src/lib/api-client.ts` |
++| `local-rules/gen-api-calls-in-api-folder` | The API client and `useQuery`/`useMutation`/... only in a feature's `api/` folder (AGENTS.md L67, L130-133) | 0 | `src/**`, except `src/features/*/api/**` and `src/lib/**` |
++| `local-rules/gen-fetcher-outside-hook` | Separate fetcher functions from hooks: no `api.*` call inside a `use*` function, `queryFn` or `mutationFn` (AGENTS.md L120, docs/api-layer.md L17-19) | 0 | `src/features/*/api/**` |
++| `local-rules/gen-query-key-from-options` | Literal query keys only inside `queryOptions(...)`/`infiniteQueryOptions(...)`; everywhere else, take them from the query options (docs/state-management.md L41) | 0 | all TS |
++| `local-rules/gen-no-feature-barrel` | No barrel files in features; import files directly (docs/project-structure.md L61) | 0 | all TS |
++| `local-rules/gen-ui-wrappers` | Radix only inside `src/components/ui/`, react-hook-form and `@hookform/*` only inside `src/components/ui/form/` (AGENTS.md L103, L125, docs/components-and-styling.md L52, docs/state-management.md L59) | 0 | `src/**` |
++| `local-rules/gen-no-nested-render-functions` | No `render*` functions returning JSX inside components; extract a component (AGENTS.md L98, docs/components-and-styling.md L9-34) | 0 | `src/**/*.tsx`, except tests |
++| `local-rules/gen-lazy-state-initializer` | `useState(fn())` becomes `useState(() => fn())` (suggestion fix) (AGENTS.md L194, docs/performance.md L17-25) | 0 | all TS |
++| `local-rules/gen-sanitized-inner-html` | `dangerouslySetInnerHTML` only as `{ __html: <x>.sanitize(...) }` (AGENTS.md L182, docs/security.md L23-25) | 0 | all TS |
++| `local-rules/gen-no-http-mocking` | Tests do not mock `axios`, the API client or `fetch`; answer requests with MSW (AGENTS.md L165, docs/testing.md L53) | 0 | test files and `src/testing/**` |
++| `check-file/filename-naming-convention` (existing rule, new key) | Hook files are named `use-*.ts` (AGENTS.md L228) | 0 | `src/**/hooks/*.{ts,tsx}` |
++| `@typescript-eslint/naming-convention` (installed plugin, not enabled before) | camelCase variables and functions, PascalCase allowed for components, UPPER_CASE for constants (AGENTS.md L85-86) | 0 | all TS |
++
++Each rule was run over the real code with `try-rule.mjs` and through the project's own ESLint.
++The project's `eslint src` with the main config still reports 0 problems.
++Every main-config rule was confirmed to fire in the project's ESLint on a violating snippet.
++`try-rule` hits that need explaining: `gen-no-raw-http` reports `src/lib/api-client.ts:1` (the client itself, which the config excludes), and `gen-api-calls-in-api-folder` reports 25 hits, all in `src/features/*/api/**` and `src/lib/**`, which the config excludes.
++
++Config change (`apps/react-vite/.eslintrc.cjs`, shortened):
++
++```diff
++-  plugins: ['check-file'],
+++  plugins: ['check-file', 'local-rules'],
++   ...
++             '**/*.{ts,tsx}': 'KEBAB_CASE',
+++            'src/**/hooks/*.{ts,tsx}': 'use-+([a-z0-9-])',
++   ...
+++        '@typescript-eslint/naming-convention': ['error',
+++          { selector: 'variable', format: ['camelCase', 'PascalCase', 'UPPER_CASE'], leadingUnderscore: 'allow' },
+++          { selector: 'function', format: ['camelCase', 'PascalCase'] }],
+++        'local-rules/gen-query-key-from-options': 'error',
+++        'local-rules/gen-lazy-state-initializer': 'error',
+++        'local-rules/gen-sanitized-inner-html': 'error',
+++        'local-rules/gen-no-feature-barrel': 'error',
+++    { files: ['src/**/*.ts', 'src/**/*.tsx'], rules: { 'local-rules/gen-ui-wrappers': ['error', { wrappers: [radix, react-hook-form] }] } },
+++    { files: [...src TS], excludedFiles: ['src/lib/api-client.ts'], rules: { 'local-rules/gen-no-raw-http': 'error' } },
+++    { files: [...src TS], excludedFiles: ['src/features/*/api/**', 'src/lib/**'], rules: { 'local-rules/gen-api-calls-in-api-folder': 'error' } },
+++    { files: ['src/features/*/api/**/*.ts(x)'], rules: { 'local-rules/gen-fetcher-outside-hook': 'error' } },
+++    { files: ['src/**/*.tsx'], excludedFiles: [tests, 'src/testing/**'], rules: { 'local-rules/gen-no-nested-render-functions': 'error' } },
+++    { files: [tests, 'src/testing/**'], rules: { 'local-rules/gen-no-http-mocking': 'error' } },
++```
++
++### Suggestions layer (`apps/react-vite/.eslintrc.suggestions.cjs`, rules the existing code breaks)
++
++| Rule | Convention (source) | Open hits | A few hits |
++|---|---|---|---|
++| `local-rules/gen-absolute-imports` | Use `@/` imports instead of `../` (AGENTS.md L80, docs/project-standards.md L25-51); offers a suggestion fix to the `@/` path | 48 in 37 files | `src/components/errors/main.tsx:1` `'../ui/button'`, `src/features/discussions/components/discussions-list.tsx:11` `'../api/get-discussions'`, `src/hooks/__tests__/use-disclosure.test.ts:3` |
++| `no-restricted-imports` (built-in) | Feature components never call `useNotifications`; the success notification goes in the mutation hook's `onSuccess` (docs/api-layer.md L18) | 7 in 7 files | `src/features/discussions/components/create-discussion.tsx:5`, `src/features/comments/components/delete-comment.tsx:5`, `src/features/users/components/update-profile.tsx:5` |
++| `local-rules/gen-ui-wrappers` (adds the `Link` entry on top of the main config) | `Link` only through `@/components/ui/link` (docs/components-and-styling.md L52-54) | 2 in 2 files | `src/features/auth/components/login-form.tsx:1`, `src/features/auth/components/register-form.tsx:2` |
++| `local-rules/gen-lazy-routes` | Route modules load through `lazy: () => import(...)` (AGENTS.md L188, docs/performance.md L7-9) | 1 | `src/app/router.tsx:12` (static import of `./routes/app/root`) |
++
++- Run it: `cd apps/react-vite && npx --no-install eslint -c .eslintrc.suggestions.cjs <files>` (it merges over `.eslintrc.cjs`).
++- CI keeps running only the main config, so nothing old breaks.
++- Proposed script (not added; `package.json` was changed only by the dependency install): `"lint:suggestions": "eslint -c .eslintrc.suggestions.cjs src"`.
++- When a rule's open hits reach 0, move it into `.eslintrc.cjs` and out of the suggestions file.
++- `gen-ui-wrappers` has 0 hits for Radix and react-hook-form, and those entries already run in the main config; only the `Link` entry is suggestions-only.
++
++### Agent-doc lines
++
++`AGENTS.md` is always loaded.
++Changes there, each now covered by a verified rule:
++
++| Line (before) | Action | Rule |
++|---|---|---|
++| L80 "Absolute imports - Use `@/` prefix for all src imports" | deleted | `gen-absolute-imports` (suggestions layer, which the loop runs) |
++| L98 "Extract render functions" | deleted | `gen-no-nested-render-functions` |
++| L103 "Headless UI components using Radix UI primitives" | shortened to a pointer that names the wrapper folder and the rule | `gen-ui-wrappers` |
++| L120 "Separate fetcher functions from hooks" | deleted | `gen-fetcher-outside-hook` |
++| L125 "Create reusable Form and Input components" | turned into a pointer: forms use `@/components/ui/form` | `gen-ui-wrappers` |
++| L127-148 "API Layer" structure and example code | shortened to a 3-line pointer with the canonical example file and rule names | `gen-api-calls-in-api-folder`, `gen-fetcher-outside-hook`, `gen-no-raw-http`, `gen-query-key-from-options` |
++| L165 "Use real HTTP requests with MSW instead of mocking fetch" | deleted | `gen-no-http-mocking` |
++| L182 "Use DOMPurify for HTML content sanitization" | deleted | `gen-sanitized-inner-html` |
++| L188 "Route-level splitting - Lazy load pages/routes" | deleted | `gen-lazy-routes` (suggestions layer) |
++| L194 "State initializer functions" | deleted | `gen-lazy-state-initializer` |
++| L228 "Hooks: `use-kebab-case.ts`" | deleted | `check-file/filename-naming-convention` |
++
++- Removed: 539 characters, about **135 tokens per session** (always loaded); `AGENTS.md` went from 9161 to 8622 characters.
++- On-demand tokens removed: 0.
++- The old API example in `AGENTS.md` used a literal `queryKey` inside `useQuery`, which `gen-query-key-from-options` now forbids, so replacing it with a pointer to the real `get-discussions.ts` also removes a misleading example.
++- Where the pointers went: the root `AGENTS.md`.
++  These rules apply to the whole app, and `AGENTS.md` is the only agent doc that describes the app's structure.
++  A folder `CLAUDE.md` would not load earlier, since all work happens in `apps/react-vite`.
++- Kept, because only part of them is covered: L85-86 PascalCase/camelCase (the rule allows PascalCase for any variable or function, so it does not force components to be PascalCase or plain functions to be camelCase), L181 "Sanitize all user inputs" (wider than `dangerouslySetInnerHTML`), L189 "Avoid excessive splitting".
++- Kept, because the rules that cover them existed before this run: L84 and L227-231 kebab-case (check-file), L89-90 cross-feature and unidirectional imports (`import/no-restricted-paths`).
++- Kept: the matching lines in `docs/*.md` (project-standards L25-51, api-layer L3-19, state-management L41 and L59, components-and-styling L9-54, performance L7-25, security L23-25, testing L53, project-structure L61).
++  These files are Bulletproof React's published guide for human readers, and agents only open them through links in `CLAUDE.md`, so they cost no tokens per session.
++  Cutting them would damage the guide and save nothing.
++- Note: `AGENTS.md` also describes the two Next.js apps, which do not run these rules.
++  The deleted lines no longer guide work there.
++  That is acceptable while `CLAUDE.md` limits work to `apps/react-vite`; if the Next.js apps come back into scope, port the rules to their ESLint configs.
++
++The token count is the smaller benefit.
++The larger one is fewer fix rounds: an agent that breaks one of these conventions is told exactly what to change on the line it just wrote, instead of a reviewer finding it later.
++That shows up in the failure log and in review, not in the character count.
++
++### General rules (not picked: the instructions say to pick only conventions from the agent docs)
++
++Counted with one `--rule` run over `src/**/*.{ts,tsx}`, without changing the config:
++
++| Rule | Standard value | Hits |
++|---|---|---|
++| `max-lines-per-function` (skip blanks and comments) | 50 | 18 in 17 files |
++| `no-else-return` | on | 2 in 2 files |
++| `no-console` | error | 2 in 2 files |
++| `react/no-danger` | on | 1 (the sanitized `md-preview.tsx`; `gen-sanitized-inner-html` covers the project's version of this) |
++| `complexity` 10, `max-depth` 4, `max-params` 3, `no-nested-ternary`, `max-lines` 400, `eqeqeq`, `no-unreachable-loop`, `no-self-compare`, `no-constant-binary-expression`, `array-callback-return`, `no-implied-eval`, `no-new-func`, `no-script-url`, `vitest/no-focused-tests`, `vitest/no-disabled-tests` | standard | 0 each |
++
++- Already covered: unused vars (`@typescript-eslint/no-unused-vars`), React hooks rules, `no-debugger`, `no-eval`, `no-fallthrough`, `no-unsafe-optional-chaining`, `no-constant-condition`, `react/jsx-no-target-blank`, `vitest/expect-expect` and `vitest/no-identical-title` (presets), and ignores for the generated folders.
++- Need a type-aware config (`parserOptions.project`), which the project does not have: `@typescript-eslint/no-floating-promises`, `no-misused-promises`, `switch-exhaustiveness-check`.
++- Need a plugin the project lacks: `sonarjs/no-commented-code` (`yarn add -D --exact eslint-plugin-sonarjs@<version>`).
++- Report-only tools: `knip` for unused files and exports, a secret scanner (gitleaks or trufflehog) in CI.
++
++### Conventions not built
++
++- "Lucide React for icons" (AGENTS.md L255): contradicted, because 4 files in `src/components/ui` use `@radix-ui/react-icons`. A question for the team, so neither side was built.
++- "Limit prop count" (AGENTS.md L99, docs/components-and-styling.md L40-42): no rule counts a component's props without type information.
++- "PascalCase for React components" (AGENTS.md L85): telling a component from a function needs heuristics that `naming-convention` lacks; only partly covered (see above).
++- "Error Boundaries at feature level", "Colocation", "Composition over props", "Type-first", "Zustand for global state", "Zod for forms": design guidance, no reliable lint signal.
++- "JWT in HttpOnly cookies (preferred) or localStorage": a preference with an allowed alternative, not a rule.
++- Barrel files in `src/components/ui/*/index.ts` (13 files): the docs advise against barrels only for features, so the rule is scoped to `src/features`.
++- Implicit conventions found only in code (not built, as instructed): `useQueryClient().invalidateQueries` always runs inside the mutation hook's `onSuccess`.
++
++### Scan log
++
++| Signal | Good form | Bad form | Verdict |
++|---|---|---|---|
++| `../` imports vs `@/` | 81 files use `@/` | 37 files (48 imports) use `../` | suggestions layer |
++| `axios` import / `fetch(` | only `src/lib/api-client.ts` | 0 | main |
++| API client imports | 12, all in `features/*/api` | 0 | main |
++| `useQuery`/`useMutation` outside `api/` | - | 0 | main |
++| inline `api.*` in `queryFn`/`mutationFn`/hooks | 16 fetchers | 0 | main |
++| literal `queryKey` outside `queryOptions` | 5 inside | 0 | main |
++| `index.ts` in `src/features` | - | 0 (13 in `src/components`) | main, features only |
++| `@radix-ui/*` outside `components/ui` | 12 inside | 0 | main |
++| `react-hook-form` outside `components/ui/form` | 6 inside | 0 | main |
++| `Link` from `react-router` outside the wrapper | wrapper used elsewhere | 2 | suggestions layer |
++| `useNotifications` in `features/*/components` | 0 in `api/` | 7 | suggestions layer (see question 1) |
++| nested `render*` functions | - | 0 | main |
++| `useState(call())` | - | 0 | main |
++| `dangerouslySetInnerHTML` without sanitize | 1 sanitized | 0 | main |
++| `vi.mock`/`spyOn` of HTTP | `vi.mock('zustand')` only | 0 | main |
++| static route imports in `router.tsx` | 5 lazy | 1 (`root`) | suggestions layer |
++| hook files not `use-*` | 1 | 0 | main |
++| naming-convention violations | - | 0 | main |
++| lint and TypeScript suppression comments in `src` | - | 0 | no rule is fighting the code |
++
++## Backend
++
++None: the repo has no backend language that `backend-pattern-rules` covers.
++
++## Feedback loop: installed
++
++- Installed with `node .claude/skills/codemyrules/scripts/install.mjs . --config /tmp/cmr/loop.json --apply`.
++- Created: `.claude/codemyrules/{guard,lint-edited,lint-turn,lib}.mjs`, `.claude/codemyrules/loop.json`, `.claude/settings.local.json` (PreToolUse guard, PostToolUse fast check, Stop full check).
++- Added to `.git/info/exclude`: `.claude/codemyrules/` and `.claude/settings.local.json`, so no tracked file changed.
++- Fast tier: none.
++  The project has no `eslint_d` and no ast-grep config, so ESLint runs once per turn.
++- Full tier: ESLint for `.ts` and `.tsx`, with the suggestions config, so suggestions-layer rules also guard every changed line.
++  The hooks run from the repo root, but the project's own config (the import resolver and the `import/no-restricted-paths` zones) needs `apps/react-vite` as the working directory.
++  So the command is a short `node -e` wrapper: it changes into `apps/react-vite`, keeps only that app's files, and runs `node_modules/.bin/eslint -c .eslintrc.suggestions.cjs --format json`.
++  Smoke-tested through the hook library: on `login-form.tsx` it reports `local-rules/gen-ui-wrappers` at line 1.
++- Protected paths (edits ask the user first): `**/.eslintrc*` (including the suggestions config), `**/eslint.config.*`, `**/.prettierrc`, `apps/react-vite/eslint-rules/**`, `apps/react-vite/eslint-local-rules.cjs`, plus `.claude/codemyrules/` and `.claude/settings.local.json`.
++- Not guarded: lint settings inside `package.json` (`lint-staged`, the `lint` script).
++- The guard is already active in this session: it stopped the first write of this report, because the scan log quoted suppression-comment tokens literally (the row now describes them in words).
++- To uninstall: delete `.claude/codemyrules/` and remove the three entries from `.claude/settings.local.json`.
++
++## Baseline
++
++`.claude/codemyrules/baseline.json`, written 2026-11-02:
++- Always-loaded doc tokens: **2286 per session** (root `CLAUDE.md` + `AGENTS.md`, after the cleanup; about 2444 before).
++- On-demand doc tokens: 0 (the measure counts folder-level agent docs; the linked `docs/*.md` guide is not counted).
++- Rules: 15, with 58 open hits in total (`gen-absolute-imports` 48, `no-restricted-imports` 7, `gen-ui-wrappers` 2, `gen-lazy-routes` 1, all others 0).
++- `no-restricted-imports` holds only the `useNotifications` convention, so its count is not shared with anything else.
++- `check-file/filename-naming-convention` shares its id with the existing kebab-case rule; both are at 0 hits.
++
++On the next run, `measure.mjs report` compares against this.
++A rule that keeps failing in `failures.log` is a sign agents need a one-line pointer for it up front.
++
++## Design questions answered on your behalf
++
++Nobody could answer during the run, so I took the safer side where there was a choice:
++
++1. **`useNotifications` in feature components (docs/api-layer.md L18 vs 7 components that do it).**
++   Answer: enforce the doc, in the suggestions layer only, so new code follows it and CI stays green.
++   Reason: the doc states it as a firm rule and you asked for every documented convention.
++   Alternative: treat it as a contradiction and update the doc to match the code (all 7 mutations show their notification in the component today).
++2. **Scope of "Use `@/` for all src imports".**
++   Answer: forbid only parent-relative `../` imports (48 hits), and allow sibling `./` imports.
++   Reason: narrower, and it matches the reason the docs give (avoid `../../../`).
++   Alternative: forbid `./` as well, which flags about 51 more files.
++3. **Fixes.**
++   Answer: `gen-absolute-imports` and `gen-lazy-state-initializer` offer `suggest` fixes, not autofixes; the other rules have no fix.
++   Alternative: `fix` for `gen-absolute-imports`, where the resolved path is provably the same.
++4. **Type-only imports.**
++   Answer: `import type` from `react-hook-form`, `@radix-ui/*` or the API client is allowed outside the wrapper folders.
++   Alternative: flag those too.
++5. **`gen-lazy-routes` and the app layout.**
++   Answer: the static import of `./routes/app/root` in `router.tsx` counts as a hit (suggestions layer).
++   Alternative: allow the layout route and move the rule to the main config at 0 hits.
++6. **`NavLink`.**
++   Answer: only `Link` must go through `@/components/ui/link`; `NavLink` in `dashboard-layout.tsx` stays allowed, since the docs show a wrapper only for `Link`.
++   Alternative: add `NavLink` to the rule (1 more hit).
++7. **Custom rules through a new dev dependency.**
++   Answer: added `eslint-plugin-local-rules@3.0.2`, because the legacy config cannot load local rules otherwise and you approved exact-version dev dependencies.
++   Alternative: express the zero-logic conventions as `no-restricted-imports` / `no-restricted-syntax` without a new package.
++   Several of those would then share one rule id and override each other across `overrides` blocks, which is why I chose named rules.
++8. **Pointer placement.**
++   Answer: the remaining pointers (UI wrappers, forms, API layer) stay in the root `AGENTS.md`.
++   Alternative: move them to `apps/react-vite/src/features/CLAUDE.md` (API layer) and `apps/react-vite/src/components/CLAUDE.md` (wrappers).
