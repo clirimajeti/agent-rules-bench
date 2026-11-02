@@ -30,6 +30,10 @@ First public replication on jhipster-sample-app (24 sessions, all raw data, see 
 - With a short, prominent link to the conventions, every arm followed both rules and costs were equal within 1%.
 - So rules + pointer stay cost-neutral when the agent sees the prose, and the internal failures depend on how buried the prose is.
 
+Pooled over the four public studies (112 runs per side, [studies/pooled.md](studies/pooled.md)):
+- Against prose the agent can miss: rules + loop cost **-14% (95% interval -22% to -5%)**, with first drafts broken in 0/56 runs against 17/56.
+- Against always-loaded prose: **-0% (-11% to +12%)**, no breaks on either side.
+
 ## How it works
 
 ```bash
@@ -49,6 +53,8 @@ node bench/bench.mjs summarize studies/<study>/study.json   # summary.md and run
 3. **summarize** reports mean and spread per arm and model: total cost split into draft and fix, turns, tokens, time, runs broken after the task and at the end, feedback-loop catches, builds, and each arm against the baseline arm.
 
 Use `run --dry-run` to see the planned sessions before spending anything, and `run --arms a,b` to run only some arms.
+
+`pool` combines several studies: for each prose arm against the `rules` arm it reports the cost ratio with a 95% bootstrap interval, and a pooled geometric mean per kind of prose (arms named `prose_*loaded*` are always-loaded, other `prose_*` arms are prose the agent can miss).
 
 ## A study
 
