@@ -75,7 +75,7 @@ export function validateStudy(s, studyDir) {
       });
       if (v.steps.every((st) => st?.setup)) errs.push('verify.steps has only setup steps, so nothing is checked');
     }
-    for (const k of ['exclude', 'keep']) if (v?.[k] !== undefined && !(Array.isArray(v[k]) && v[k].every((x) => typeof x === 'string' && x))) errs.push(`verify.${k} must be a list of strings`);
+    for (const k of ['exclude', 'keep', 'testFiles']) if (v?.[k] !== undefined && !(Array.isArray(v[k]) && v[k].every((x) => typeof x === 'string' && x))) errs.push(`verify.${k} must be a list of strings`);
   }
   return errs;
 }
@@ -111,6 +111,7 @@ export function loadStudy(file) {
     verify: s.verify ? {
       exclude: s.verify.exclude ?? ['*.md', '.claude/*'],
       keep: s.verify.keep ?? [],
+      testFiles: s.verify.testFiles ?? [],
       steps: s.verify.steps.map((st) => ({ ...st, command: sub(st.command), cwd: st.cwd ?? '.', timeoutSec: st.timeoutSec ?? 900, retries: st.retries ?? 0, setup: st.setup ?? false })),
     } : undefined,
   };

@@ -20,5 +20,5 @@
     { "name": "rules", "format": "ast-grep", "command": ["npx", "-y", "-p", "@ast-grep/cli@0.51.0", "ast-grep", "scan", "-c", "{study}/sgconfig.yml", "--json=compact", "{files}"], "extensions": [".py"] }
   ],
   "fix": { "prompt": "Code review feedback on your uncommitted change: the new code in backend/app breaks two project rules. Database access goes through functions in app/crud.py; route handlers must not call session.exec, session.get, session.add, session.delete or session.commit themselves. Status codes come from fastapi's status module (for example status.HTTP_404_NOT_FOUND), never integer literals like status_code=404. Fix the new code accordingly; tests are not affected. Do not run the tests or the app." },
-  "verify": {"steps": [{"name": "setup", "command": ["bash", "{study}/verify.sh", "setup"], "setup": true}, {"name": "typecheck", "command": ["bash", "{study}/verify.sh", "typecheck"]}, {"name": "tests", "retries": 2, "command": ["bash", "{study}/verify.sh", "tests"]}]}
+  "verify": {"testFiles": ["backend/tests/*"], "steps": [{"name": "setup", "command": ["bash", "{study}/verify.sh", "setup"], "setup": true}, {"name": "typecheck", "command": ["bash", "{study}/verify.sh", "typecheck"]}, {"name": "tests", "retries": 2, "command": ["bash", "{study}/verify.sh", "tests"]}]}
 }

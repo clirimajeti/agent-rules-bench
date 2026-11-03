@@ -64,6 +64,9 @@
     "prompt": "Code review feedback on your uncommitted change: the new code breaks two project rules. Time must come from an injected java.time.Clock (call Instant.now(clock), never Instant.now() or another now() without a clock), and authority names must come from AuthoritiesConstants, never string literals like \"ROLE_ADMIN\". Fix the new code accordingly. Do not run the build."
   },
   "verify": {
+    "testFiles": [
+      "src/test/*"
+    ],
     "steps": [
       {
         "name": "build",

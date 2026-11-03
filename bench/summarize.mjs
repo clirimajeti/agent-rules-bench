@@ -26,6 +26,9 @@ function verifiedSummary(rs) {
   const names = [...new Set(vs.flatMap((v) => Object.keys(v.steps)))];
   const parts = names.map((n) => `${n} ${vs.filter((v) => v.steps[n]?.ok).length}/${vs.length}`);
   const unapplied = vs.filter((v) => !v.patchApplied).length;
+  // production code that passes the project's original suite: the run passed, or passed without its own tests
+  const prod = vs.filter((v) => v.ok || v.withoutOwnTests?.ok).length;
+  if (vs.some((v) => v.withoutOwnTests)) parts.push(`code without own tests ${prod}/${vs.length}`);
   const flaky = vs.filter((v) => Object.values(v.steps).some((s) => s.flaky)).length;
   return [...parts, ...(flaky ? [`flaky ${flaky}`] : []), ...(unapplied ? [`patch failed ${unapplied}`] : [])].join(', ');
 }
@@ -83,8 +86,8 @@ export function markdown(study, rows) {
 }
 
 export function csv(results) {
-  const cols = ['id', 'arm', 'model', 'task', 'rep', 'ok', 'turns', 'taskCost', 'fixCost', 'seconds', 'fixed', 'breaksAfterTask', 'breaksFinal', 'hookCatches', 'changedFiles', 'buildOk', 'verifyOk'];
-  const row = (r) => [r.id, r.arm, r.model, r.task, r.rep, r.ok, r.turns, r.taskCost, r.fixCost, r.seconds, r.fixed, r.breaksAfterTask, r.breaksFinal, r.hookCatches, r.changedFiles, r.build ? r.build.ok : '', r.verify ? r.verify.ok : ''].join(',');
+  const cols = ['id', 'arm', 'model', 'task', 'rep', 'ok', 'turns', 'taskCost', 'fixCost', 'seconds', 'fixed', 'breaksAfterTask', 'breaksFinal', 'hookCatches', 'changedFiles', 'buildOk', 'verifyOk', 'verifyOkWithoutOwnTests'];
+  const row = (r) => [r.id, r.arm, r.model, r.task, r.rep, r.ok, r.turns, r.taskCost, r.fixCost, r.seconds, r.fixed, r.breaksAfterTask, r.breaksFinal, r.hookCatches, r.changedFiles, r.build ? r.build.ok : '', r.verify ? r.verify.ok : '', r.verify ? Boolean(r.verify.ok || r.verify.withoutOwnTests?.ok) : ''].join(',');
   return [cols.join(','), ...results.map(row)].join('\n') + '\n';
 }
 

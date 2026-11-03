@@ -56,33 +56,47 @@ function runStep(study, step, dir, logFile) {
   return { ok: false, status: r.status, timedOut: r.error?.code === 'ETIMEDOUT', attempts: step.retries + 1, seconds: Math.round((Date.now() - start) / 1000) };
 }
 
-export function verifyRun(study, result, dir) {
+// Applies the run's patch minus the excluded paths and runs the non-setup steps; setup steps run first.
+function check(study, result, dir, exclude, suffix) {
   const runDir = path.join(study.resultsDir, result.id);
   resetCheckout(study, dir);
-  const patch = path.join(runDir, 'diff.patch');
-  const apply = git(dir, 'apply', '--allow-empty', '--whitespace=nowarn', ...study.verify.exclude.map((e) => `--exclude=${e}`), patch);
+  const apply = git(dir, 'apply', '--allow-empty', '--whitespace=nowarn', ...exclude.map((e) => `--exclude=${e}`), path.join(runDir, 'diff.patch'));
   const out = { patchApplied: apply.status === 0, patchError: apply.status === 0 ? undefined : apply.stderr.trim(), steps: {} };
   let failed = !out.patchApplied;
   for (const step of study.verify.steps) {
+    const log = path.join(runDir, `verify-${step.name}${suffix}.log`);
     if (step.setup) {
       // Setup steps prepare the environment (dependencies, a database); their failure is not the agent's.
-      const s = runStep(study, step, dir, path.join(runDir, `verify-${step.name}.log`));
-      if (!s.ok) throw new Error(`verify setup step "${step.name}" failed for ${result.id}; see ${runDir}/verify-${step.name}.log`);
+      if (!runStep(study, step, dir, log).ok) throw new Error(`verify setup step "${step.name}" failed for ${result.id}; see ${log}`);
       continue;
     }
-    out.steps[step.name] = failed ? { ok: false, skipped: true } : runStep(study, step, dir, path.join(runDir, `verify-${step.name}.log`));
+    out.steps[step.name] = failed ? { ok: false, skipped: true } : runStep(study, step, dir, log);
     failed ||= !out.steps[step.name].ok;
   }
   out.ok = !failed;
-  fs.writeFileSync(path.join(runDir, 'verify.json'), JSON.stringify(out, null, 2) + '\n');
   return out;
 }
 
-export function verifyStudy(study, { arms, rerun = false, log = console.log } = {}) {
+// When a run fails and the study names its test files, it is checked again without the agent's changes to them:
+// passing then means only the agent's own tests failed, and the production code passes the project's original suite.
+export function verifyRun(study, result, dir) {
+  const out = check(study, result, dir, study.verify.exclude, '');
+  if (!out.ok && out.patchApplied && study.verify.testFiles.length) {
+    out.withoutOwnTests = check(study, result, dir, [...study.verify.exclude, ...study.verify.testFiles], '-without-own-tests');
+  }
+  fs.writeFileSync(path.join(study.resultsDir, result.id, 'verify.json'), JSON.stringify(out, null, 2) + '\n');
+  return out;
+}
+
+export function verifyStudy(study, { arms, rerun = false, failed = false, log = console.log } = {}) {
   if (!study.verify) throw new Error('the study has no "verify" section');
   const todo = loadResults(study.resultsDir)
     .filter((r) => r.ok && (!arms || arms.includes(r.arm)))
-    .filter((r) => rerun || !fs.existsSync(path.join(study.resultsDir, r.id, 'verify.json')));
+    .filter((r) => {
+      const f = path.join(study.resultsDir, r.id, 'verify.json');
+      if (!fs.existsSync(f)) return true;
+      return rerun || (failed && JSON.parse(fs.readFileSync(f, 'utf8')).ok === false);
+    });
   log(`${todo.length} runs to verify`);
   if (!todo.length) return [];
   const dir = ensureCheckout(study);
@@ -90,7 +104,8 @@ export function verifyStudy(study, { arms, rerun = false, log = console.log } = 
   for (const r of todo) {
     const v = verifyRun(study, r, dir);
     const steps = Object.entries(v.steps).map(([n, s]) => `${n} ${s.skipped ? 'skipped' : s.ok ? (s.flaky ? 'ok (flaky)' : 'ok') : 'FAILED'}`).join(', ');
-    log(`${r.id}: ${v.patchApplied ? '' : 'patch did not apply, '}${steps}`);
+    const own = v.withoutOwnTests ? `; without its own tests: ${v.withoutOwnTests.ok ? 'ok' : 'FAILED'}` : '';
+    log(`${r.id}: ${v.patchApplied ? '' : 'patch did not apply, '}${steps}${own}`);
     outs.push(v);
   }
   resetCheckout(study, dir);

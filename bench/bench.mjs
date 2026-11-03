@@ -11,7 +11,7 @@ import { verifyStudy } from './verify.mjs';
 const USAGE = `usage:
   node bench/bench.mjs prepare   <study.json> [--arms a,b]
   node bench/bench.mjs run       <study.json> [--arms a,b] [--dry-run]
-  node bench/bench.mjs verify    <study.json> [--arms a,b] [--rerun]
+  node bench/bench.mjs verify    <study.json> [--arms a,b] [--rerun | --failed]
   node bench/bench.mjs summarize <study.json>
   node bench/bench.mjs pool      <study.json>... [--exclude study/model/arm,...] [--rules-arm id] [--out file.md]`;
 
@@ -44,7 +44,7 @@ export async function main(argv) {
       if (!rest.includes('--dry-run')) summarizeStudy(study);
     }
     if (cmd === 'verify') {
-      verifyStudy(study, { arms, rerun: rest.includes('--rerun') });
+      verifyStudy(study, { arms, rerun: rest.includes('--rerun'), failed: rest.includes('--failed') });
       summarizeStudy(study);
     }
     if (cmd === 'summarize') summarizeStudy(study);

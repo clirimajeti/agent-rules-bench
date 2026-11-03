@@ -154,7 +154,7 @@ test('prepare refuses a workdir inside the source repo', (t) => {
 
 test('verify applies each diff to the plain upstream commit and runs the steps', async (t) => {
   // "tests" passes only when the agent's export is there and has no BAD; "setup" stands for installing dependencies.
-  const check = "const s = require('fs').readFileSync('src.ts', 'utf8'); process.exit(s.includes('added') && !s.includes('BAD') && !require('fs').existsSync('stale') ? 0 : 1)";
+  const check = "const s = require('fs').readFileSync('src.ts', 'utf8'); process.exit(s.includes('added') && !s.includes('BAD') && !require('fs').existsSync('stale') && !require('fs').existsSync('own.test') ? 0 : 1)";
   const verify = { keep: ['deps'], steps: [
     { name: 'setup', setup: true, command: ['node', '-e', "require('fs').mkdirSync('deps', { recursive: true }); require('fs').writeFileSync('stale', '')"] },
     { name: 'clean', command: ['node', '-e', "require('fs').rmSync('stale'); process.exit(require('fs').existsSync('deps') ? 0 : 1)"] },
@@ -188,6 +188,18 @@ test('verify applies each diff to the plain upstream commit and runs the steps',
   fs.writeFileSync(broken, 'diff --git a/src.ts b/src.ts\n--- a/src.ts\n+++ b/src.ts\n@@ -1 +1 @@\n-not there\n+x\n');
   verifyStudy(study, { arms: ['rules'], rerun: true, log: () => {} });
   assert.deepEqual([v('rules-sonnet-T1-2').patchApplied, v('rules-sonnet-T1-2').steps.tests.skipped], [false, true]);
+
+  // a run whose own new test fails, while its production code passes the original suite
+  const ownTest = path.join(study.resultsDir, 'rules-sonnet-T1-1', 'diff.patch');
+  fs.appendFileSync(ownTest, 'diff --git a/own.test b/own.test\nnew file mode 100644\n--- /dev/null\n+++ b/own.test\n@@ -0,0 +1 @@\n+own test\n');
+  const withTests = { ...study, verify: { ...study.verify, testFiles: ['*.test'] } };
+  verifyStudy(withTests, { arms: ['rules'], rerun: true, log: () => {} });
+  assert.deepEqual([v('rules-sonnet-T1-1').ok, v('rules-sonnet-T1-1').withoutOwnTests.ok], [false, true]);
+  assert.equal(v('rules-sonnet-T1-2').withoutOwnTests, undefined); // the patch did not apply: nothing to compare
+  const failedOnly = [];
+  verifyStudy(withTests, { failed: true, log: (m) => failedOnly.push(m) });
+  assert.match(failedOnly[0], /^2 runs to verify/);
+  assert.match(summarizeStudy(study, () => {}), /\| rules \| sonnet \|.*code without own tests 1\/2/);
 
   // a step that passes only on a retry counts as passed and is marked flaky
   const flakyStudy = { ...study, verify: { ...study.verify, steps: [{ name: 'tests', command: ['node', '-e', "const f = 'deps/tries'; const n = require('fs').existsSync(f) ? 1 : 0; require('fs').writeFileSync(f, ''); process.exit(n ? 0 : 1)"], cwd: '.', timeoutSec: 60, retries: 1, setup: false }] } };
