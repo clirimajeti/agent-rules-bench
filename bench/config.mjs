@@ -12,7 +12,7 @@ const isStrList = (v) => Array.isArray(v) && v.length > 0 && v.every((x) => type
 export function validateStudy(s, studyDir) {
   const errs = [];
   if (!s || typeof s !== 'object' || Array.isArray(s)) return ['the study must be a JSON object'];
-  const known = ['name', 'description', 'repo', 'workdir', 'tasks', 'arms', 'baselineArm', 'models', 'repeats', 'maxTurns', 'allowedTools', 'eval', 'fix', 'build'];
+  const known = ['name', 'description', 'repo', 'workdir', 'tasks', 'arms', 'baselineArm', 'models', 'repeats', 'maxTurns', 'allowedTools', 'eval', 'fix', 'build', 'verify'];
   for (const k of Object.keys(s)) if (!known.includes(k)) errs.push(`unknown key "${k}"`);
   if (typeof s.name !== 'string' || !NAME.test(s.name)) errs.push('name must be lowercase letters, digits and "-"');
   if (!s.repo || typeof s.repo.source !== 'string' || !s.repo.source) errs.push('repo.source must be a git URL or a local path');
@@ -57,6 +57,26 @@ export function validateStudy(s, studyDir) {
     if (!isStrList(s.build?.command)) errs.push('build.command must be a list of strings');
     if (s.build?.timeoutSec !== undefined && !(Number.isInteger(s.build.timeoutSec) && s.build.timeoutSec > 0)) errs.push('build.timeoutSec must be a positive integer');
   }
+  if (s.verify !== undefined) {
+    const v = s.verify;
+    if (!v || !Array.isArray(v.steps) || !v.steps.length) errs.push('verify.steps must be a non-empty list');
+    else {
+      const names = new Set();
+      v.steps.forEach((st, i) => {
+        const at = `verify.steps[${i}]`;
+        if (!ID.test(st?.name ?? '')) errs.push(`${at}.name must be letters, digits or "_"`);
+        else if (names.has(st.name)) errs.push(`${at}.name "${st.name}" is used twice`);
+        else names.add(st.name);
+        if (!isStrList(st?.command)) errs.push(`${at}.command must be a list of strings`);
+        if (st?.cwd !== undefined && (typeof st.cwd !== 'string' || path.isAbsolute(st.cwd) || st.cwd.split(/[\\/]/).includes('..'))) errs.push(`${at}.cwd must be a path inside the checkout`);
+        if (st?.timeoutSec !== undefined && !(Number.isInteger(st.timeoutSec) && st.timeoutSec > 0)) errs.push(`${at}.timeoutSec must be a positive integer`);
+        if (st?.retries !== undefined && !(Number.isInteger(st.retries) && st.retries >= 0)) errs.push(`${at}.retries must be a non-negative integer`);
+        if (st?.setup !== undefined && typeof st.setup !== 'boolean') errs.push(`${at}.setup must be true or false`);
+      });
+      if (v.steps.every((st) => st?.setup)) errs.push('verify.steps has only setup steps, so nothing is checked');
+    }
+    for (const k of ['exclude', 'keep']) if (v?.[k] !== undefined && !(Array.isArray(v[k]) && v[k].every((x) => typeof x === 'string' && x))) errs.push(`verify.${k} must be a list of strings`);
+  }
   return errs;
 }
 
@@ -87,6 +107,12 @@ export function loadStudy(file) {
     arms: s.arms.map((a) => ({ ...a, setup: a.setup ? path.resolve(studyDir, a.setup) : undefined, fix: a.fix ?? false })),
     eval: s.eval.map((e) => ({ ...e, command: sub(e.command), tier: 'full' })),
     build: s.build ? { ...s.build, command: sub(s.build.command), timeoutSec: s.build.timeoutSec ?? 600 } : undefined,
+    // Agent-infra files (docs, hooks) are left out of the patch: verify judges the code on the plain upstream commit.
+    verify: s.verify ? {
+      exclude: s.verify.exclude ?? ['*.md', '.claude/*'],
+      keep: s.verify.keep ?? [],
+      steps: s.verify.steps.map((st) => ({ ...st, command: sub(st.command), cwd: st.cwd ?? '.', timeoutSec: st.timeoutSec ?? 900, retries: st.retries ?? 0, setup: st.setup ?? false })),
+    } : undefined,
   };
 }
 

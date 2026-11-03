@@ -8,12 +8,27 @@ export function loadResults(resultsDir) {
   return fs.readdirSync(resultsDir).sort()
     .map((d) => path.join(resultsDir, d, 'result.json'))
     .filter((f) => fs.existsSync(f))
-    .map((f) => JSON.parse(fs.readFileSync(f, 'utf8')));
+    .map((f) => {
+      const r = JSON.parse(fs.readFileSync(f, 'utf8'));
+      const v = path.join(path.dirname(f), 'verify.json');
+      return fs.existsSync(v) ? { ...r, verify: JSON.parse(fs.readFileSync(v, 'utf8')) } : r;
+    });
 }
 
 const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 const sd = (xs) => { const m = mean(xs); return xs.length > 1 ? Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1)) : 0; };
 const tokensIn = (u) => (u ? u.input + u.cacheWrite + u.cacheRead : 0);
+
+// "build 8/8, tests 7/8" over the runs that were verified; a step skipped after an earlier failure counts as failed.
+function verifiedSummary(rs) {
+  const vs = rs.filter((r) => r.verify).map((r) => r.verify);
+  if (!vs.length) return '-';
+  const names = [...new Set(vs.flatMap((v) => Object.keys(v.steps)))];
+  const parts = names.map((n) => `${n} ${vs.filter((v) => v.steps[n]?.ok).length}/${vs.length}`);
+  const unapplied = vs.filter((v) => !v.patchApplied).length;
+  const flaky = vs.filter((v) => Object.values(v.steps).some((s) => s.flaky)).length;
+  return [...parts, ...(flaky ? [`flaky ${flaky}`] : []), ...(unapplied ? [`patch failed ${unapplied}`] : [])].join(', ');
+}
 
 export function aggregate(results) {
   const groups = new Map();
@@ -39,6 +54,7 @@ export function aggregate(results) {
       runsWithBreaksLeft: rs.filter((r) => r.breaksFinal > 0).length,
       hookCatches: rs.reduce((n, r) => n + r.hookCatches, 0),
       builds: builds.length ? `${builds.filter((r) => r.build.ok).length}/${builds.length}` : '-',
+      verified: verifiedSummary(rs),
     };
   });
 }
@@ -47,10 +63,10 @@ const money = (x) => `$${x.toFixed(3)}`;
 
 export function markdown(study, rows) {
   const lines = [`# ${study.name}`, '', `Repo: ${study.repo.source} @ ${study.repo.commit}, baseline arm: ${study.baselineArm}.`, ''];
-  lines.push('| arm | model | runs | ok | total cost | draft | fix | fix sessions | turns | input tokens | output tokens | seconds | runs broken after task | runs broken at end | hook catches | builds |');
-  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
+  lines.push('| arm | model | runs | ok | total cost | draft | fix | fix sessions | turns | input tokens | output tokens | seconds | runs broken after task | runs broken at end | hook catches | builds | verified |');
+  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of rows) {
-    lines.push(`| ${r.arm} | ${r.model} | ${r.runs} | ${r.ok} | ${money(r.totalCost)} ±${r.totalCostSd.toFixed(3)} | ${money(r.taskCost)} | ${money(r.fixCost)} | ${r.fixSessions} | ${r.turns.toFixed(1)} | ${Math.round(r.inputTokens)} | ${Math.round(r.outputTokens)} | ${Math.round(r.seconds)} | ${r.runsWithBreaksAfterTask} | ${r.runsWithBreaksLeft} | ${r.hookCatches} | ${r.builds} |`);
+    lines.push(`| ${r.arm} | ${r.model} | ${r.runs} | ${r.ok} | ${money(r.totalCost)} ±${r.totalCostSd.toFixed(3)} | ${money(r.taskCost)} | ${money(r.fixCost)} | ${r.fixSessions} | ${r.turns.toFixed(1)} | ${Math.round(r.inputTokens)} | ${Math.round(r.outputTokens)} | ${Math.round(r.seconds)} | ${r.runsWithBreaksAfterTask} | ${r.runsWithBreaksLeft} | ${r.hookCatches} | ${r.builds} | ${r.verified} |`);
   }
   const diffs = [];
   for (const model of new Set(rows.map((r) => r.model))) {
@@ -67,8 +83,8 @@ export function markdown(study, rows) {
 }
 
 export function csv(results) {
-  const cols = ['id', 'arm', 'model', 'task', 'rep', 'ok', 'turns', 'taskCost', 'fixCost', 'seconds', 'fixed', 'breaksAfterTask', 'breaksFinal', 'hookCatches', 'changedFiles', 'buildOk'];
-  const row = (r) => [r.id, r.arm, r.model, r.task, r.rep, r.ok, r.turns, r.taskCost, r.fixCost, r.seconds, r.fixed, r.breaksAfterTask, r.breaksFinal, r.hookCatches, r.changedFiles, r.build ? r.build.ok : ''].join(',');
+  const cols = ['id', 'arm', 'model', 'task', 'rep', 'ok', 'turns', 'taskCost', 'fixCost', 'seconds', 'fixed', 'breaksAfterTask', 'breaksFinal', 'hookCatches', 'changedFiles', 'buildOk', 'verifyOk'];
+  const row = (r) => [r.id, r.arm, r.model, r.task, r.rep, r.ok, r.turns, r.taskCost, r.fixCost, r.seconds, r.fixed, r.breaksAfterTask, r.breaksFinal, r.hookCatches, r.changedFiles, r.build ? r.build.ok : '', r.verify ? r.verify.ok : ''].join(',');
   return [cols.join(','), ...results.map(row)].join('\n') + '\n';
 }
 

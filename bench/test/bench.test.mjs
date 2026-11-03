@@ -9,6 +9,7 @@ import { loadStudy, validateStudy } from '../config.mjs';
 import { prepareStudy } from '../prepare.mjs';
 import { runStudy } from '../run.mjs';
 import { aggregate, loadResults, summarizeStudy } from '../summarize.mjs';
+import { checkoutPath, verifyStudy } from '../verify.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FAKE_CLAUDE = path.join(here, 'fixtures', 'fake-claude.mjs');
@@ -149,4 +150,62 @@ test('prepare refuses a workdir inside the source repo', (t) => {
   raw.workdir = path.join(src, 'work');
   fs.writeFileSync(file, JSON.stringify(raw));
   assert.throws(() => prepareStudy(loadStudy(file), () => {}), /lies inside the source repo/);
+});
+
+test('verify applies each diff to the plain upstream commit and runs the steps', async (t) => {
+  // "tests" passes only when the agent's export is there and has no BAD; "setup" stands for installing dependencies.
+  const check = "const s = require('fs').readFileSync('src.ts', 'utf8'); process.exit(s.includes('added') && !s.includes('BAD') && !require('fs').existsSync('stale') ? 0 : 1)";
+  const verify = { keep: ['deps'], steps: [
+    { name: 'setup', setup: true, command: ['node', '-e', "require('fs').mkdirSync('deps', { recursive: true }); require('fs').writeFileSync('stale', '')"] },
+    { name: 'clean', command: ['node', '-e', "require('fs').rmSync('stale'); process.exit(require('fs').existsSync('deps') ? 0 : 1)"] },
+    { name: 'tests', command: ['node', '-e', check] },
+  ] };
+  const { file } = setup(t, { verify });
+  const study = loadStudy(file);
+  prepareStudy(study, () => {});
+  await runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: () => {} });
+
+  // one run also edited the arm's own docs, which upstream does not have: excluded from the patch
+  const docs = path.join(study.resultsDir, 'prose-sonnet-T1-1', 'diff.patch');
+  fs.appendFileSync(docs, 'diff --git a/AGENTS.md b/AGENTS.md\n--- a/AGENTS.md\n+++ b/AGENTS.md\n@@ -1 +1,2 @@\n Never write BAD.\n+Notes.\n');
+  // one run left a break in its final code
+  const broken = path.join(study.resultsDir, 'rules-sonnet-T1-2', 'diff.patch');
+  fs.writeFileSync(broken, fs.readFileSync(broken, 'utf8').replace('GOOD', 'BAD'));
+
+  const outs = verifyStudy(study, { log: () => {} });
+  assert.equal(outs.length, 4);
+  const v = (id) => JSON.parse(fs.readFileSync(path.join(study.resultsDir, id, 'verify.json'), 'utf8'));
+  assert.deepEqual([v('prose-sonnet-T1-1').patchApplied, v('prose-sonnet-T1-1').ok], [true, true]);
+  assert.equal(v('rules-sonnet-T1-2').steps.tests.ok, false);
+  assert.ok(fs.existsSync(path.join(study.resultsDir, 'rules-sonnet-T1-2', 'verify-tests.log')));
+  assert.match(summarizeStudy(study, () => {}), /\| rules \| sonnet \|.*\| clean 2\/2, tests 1\/2 \|/);
+
+  const again = [];
+  verifyStudy(study, { log: (m) => again.push(m) });
+  assert.match(again[0], /0 runs to verify/);
+
+  // a patch that does not apply fails every step without running it
+  fs.writeFileSync(broken, 'diff --git a/src.ts b/src.ts\n--- a/src.ts\n+++ b/src.ts\n@@ -1 +1 @@\n-not there\n+x\n');
+  verifyStudy(study, { arms: ['rules'], rerun: true, log: () => {} });
+  assert.deepEqual([v('rules-sonnet-T1-2').patchApplied, v('rules-sonnet-T1-2').steps.tests.skipped], [false, true]);
+
+  // a step that passes only on a retry counts as passed and is marked flaky
+  const flakyStudy = { ...study, verify: { ...study.verify, steps: [{ name: 'tests', command: ['node', '-e', "const f = 'deps/tries'; const n = require('fs').existsSync(f) ? 1 : 0; require('fs').writeFileSync(f, ''); process.exit(n ? 0 : 1)"], cwd: '.', timeoutSec: 60, retries: 1, setup: false }] } };
+  fs.mkdirSync(path.join(checkoutPath(study), 'deps'), { recursive: true });
+  verifyStudy(flakyStudy, { arms: ['prose'], rerun: true, log: () => {} });
+  fs.rmSync(path.join(checkoutPath(study), 'deps'), { recursive: true });
+  assert.deepEqual([v('prose-sonnet-T1-1').ok, v('prose-sonnet-T1-1').steps.tests.flaky], [true, true]);
+  assert.match(summarizeStudy(study, () => {}), /\| prose \| sonnet \|.*tests 2\/2, flaky 1/);
+
+  // a failing setup step is an environment problem, not the agent's: verify stops
+  const bad = { ...study, verify: { ...study.verify, steps: [{ ...study.verify.steps[0], command: ['node', '-e', 'process.exit(3)'] }, study.verify.steps[2]] } };
+  assert.throws(() => verifyStudy(bad, { rerun: true, log: () => {} }), /setup step "setup" failed/);
+  assert.ok(fs.existsSync(checkoutPath(study)));
+});
+
+test('validateStudy checks the verify section', () => {
+  const base = { name: 'x', repo: { source: 'x', commit: 'y' }, tasks: [{ id: 'T', prompt: 'p' }], arms: [{ id: 'a' }], eval: [{ name: 'e', format: 'eslint', command: ['x', '{files}'], extensions: ['.ts'] }] };
+  const errs = validateStudy({ ...base, verify: { keep: 'deps', steps: [{ name: 'a-b', command: [], cwd: '../up', setup: 1 }, { name: 'ok', command: ['x'], setup: true }] } }, os.tmpdir()).join('\n');
+  for (const want of [/verify\.steps\[0\]\.name/, /verify\.steps\[0\]\.command/, /verify\.steps\[0\]\.cwd/, /verify\.steps\[0\]\.setup/, /verify\.keep/]) assert.match(errs, want);
+  assert.match(validateStudy({ ...base, verify: { steps: [{ name: 's', command: ['x'], setup: true }] } }, os.tmpdir()).join('\n'), /only setup steps/);
 });

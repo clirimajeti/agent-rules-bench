@@ -20,12 +20,15 @@ export function copyPath(study, armId) {
   return path.join(study.workdir, armId);
 }
 
+const isLocal = (study) => !/^[a-z]+:\/\//.test(study.repo.source) && !study.repo.source.includes('@');
+
+// The URL or absolute path to clone from.
+export function repoSource(study) {
+  return isLocal(study) ? path.resolve(study.studyDir, study.repo.source) : study.repo.source;
+}
+
 export function prepareStudy(study, log = console.log) {
-  const local = !/^[a-z]+:\/\//.test(study.repo.source) && !study.repo.source.includes('@');
-  if (local) {
-    const src = path.resolve(study.studyDir, study.repo.source);
-    if (inside(study.workdir, src)) throw new Error(`workdir ${study.workdir} lies inside the source repo ${src}; pick a workdir outside it`);
-  }
+  if (isLocal(study) && inside(study.workdir, repoSource(study))) throw new Error(`workdir ${study.workdir} lies inside the source repo ${repoSource(study)}; pick a workdir outside it`);
   assertNoClaudeMemoryAbove(study.workdir);
   fs.mkdirSync(study.workdir, { recursive: true });
   for (const arm of study.arms) {
@@ -36,8 +39,7 @@ export function prepareStudy(study, log = console.log) {
       log(`${arm.id}: already prepared at ${dest}, kept as it is`);
       continue;
     }
-    const source = local ? path.resolve(study.studyDir, study.repo.source) : study.repo.source;
-    git(study.workdir, 'clone', '-q', '--no-hardlinks', source, dest);
+    git(study.workdir, 'clone', '-q', '--no-hardlinks', repoSource(study), dest);
     git(dest, 'checkout', '-q', '-B', 'bench', study.repo.commit);
     git(dest, 'remote', 'remove', 'origin');
     if (arm.setup) {

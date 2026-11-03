@@ -39,6 +39,7 @@ Pooled over the four public studies (152 runs, [studies/pooled.md](studies/poole
 ```bash
 node bench/bench.mjs prepare   studies/<study>/study.json [--arms a,b]   # one fresh copy per arm, at the pinned commit
 node bench/bench.mjs run       studies/<study>/study.json   # all sessions, resumable; prints the summary
+node bench/bench.mjs verify    studies/<study>/study.json   # build and test each run's final code; resumable
 node bench/bench.mjs summarize studies/<study>/study.json   # summary.md and runs.csv from the results
 ```
 
@@ -51,7 +52,10 @@ node bench/bench.mjs summarize studies/<study>/study.json   # summary.md and run
    For arms with `"fix": true`, a run that broke a rule gets one more session with the study's review feedback.
    An optional build command runs at the end.
    Each run writes `results/<arm>-<model>-<task>-<rep>/result.json`; finished runs are skipped when you run again, and failed ones (for example on a usage limit) are run again.
-3. **summarize** reports mean and spread per arm and model: total cost split into draft and fix, turns, tokens, time, runs broken after the task and at the end, feedback-loop catches, builds, and each arm against the baseline arm.
+3. **verify** checks that the code works, independently of the rule checkers: it applies each run's `diff.patch` to a clean checkout of the pinned commit, without any arm's setup or docs, and runs the study's `verify` steps (for example build and tests).
+   A test step can be retried; a pass on a retry is recorded as flaky.
+   Each run gets a `verify.json` and one log per step.
+4. **summarize** reports mean and spread per arm and model: total cost split into draft and fix, turns, tokens, time, runs broken after the task and at the end, feedback-loop catches, builds, verify pass rates, and each arm against the baseline arm.
 
 Use `run --dry-run` to see the planned sessions before spending anything, and `run --arms a,b` to run only some arms.
 

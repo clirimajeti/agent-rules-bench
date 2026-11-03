@@ -18,5 +18,6 @@
   "eval": [
     { "name": "rules", "format": "ast-grep", "command": ["npx", "-y", "-p", "@ast-grep/cli@0.51.0", "ast-grep", "scan", "-c", "{study}/sgconfig.yml", "--json=compact", "{files}"], "extensions": [".java"] }
   ],
-  "fix": { "prompt": "Code review feedback on your uncommitted change: the new code breaks two project rules. Time must come from an injected java.time.Clock (call Instant.now(clock), never Instant.now() or another now() without a clock), and authority names must come from AuthoritiesConstants, never string literals like \"ROLE_ADMIN\". Fix the new code accordingly. Do not run the build." }
+  "fix": { "prompt": "Code review feedback on your uncommitted change: the new code breaks two project rules. Time must come from an injected java.time.Clock (call Instant.now(clock), never Instant.now() or another now() without a clock), and authority names must come from AuthoritiesConstants, never string literals like \"ROLE_ADMIN\". Fix the new code accordingly. Do not run the build." },
+  "verify": {"steps": [{"name": "build", "command": ["./mvnw", "-B", "-q", "-Dskip.npm", "-Dskip.installnodenpm", "test-compile"]}, {"name": "tests", "retries": 2, "command": ["./mvnw", "-B", "-q", "-Dskip.npm", "-Dskip.installnodenpm", "verify"], "timeoutSec": 1200}]}
 }

@@ -6,10 +6,12 @@ import { prepareStudy } from './prepare.mjs';
 import { runStudy } from './run.mjs';
 import { summarizeStudy } from './summarize.mjs';
 import { poolStudies } from './pool.mjs';
+import { verifyStudy } from './verify.mjs';
 
 const USAGE = `usage:
   node bench/bench.mjs prepare   <study.json> [--arms a,b]
   node bench/bench.mjs run       <study.json> [--arms a,b] [--dry-run]
+  node bench/bench.mjs verify    <study.json> [--arms a,b] [--rerun]
   node bench/bench.mjs summarize <study.json>
   node bench/bench.mjs pool      <study.json>... [--exclude study/model/arm,...] [--rules-arm id] [--out file.md]`;
 
@@ -22,7 +24,7 @@ export async function main(argv) {
     try { poolStudies(files, { exclude: opt('--exclude')?.split(',') ?? [], out: opt('--out'), rulesArm: opt('--rules-arm') ?? 'rules' }); } catch (e) { console.error(`agent-rules-bench: ${e.message}`); return 1; }
     return 0;
   }
-  if (!['prepare', 'run', 'summarize'].includes(cmd) || !file) {
+  if (!['prepare', 'run', 'verify', 'summarize'].includes(cmd) || !file) {
     console.error(USAGE);
     return 2;
   }
@@ -40,6 +42,10 @@ export async function main(argv) {
     if (cmd === 'run') {
       await runStudy(study, { arms, dryRun: rest.includes('--dry-run') });
       if (!rest.includes('--dry-run')) summarizeStudy(study);
+    }
+    if (cmd === 'verify') {
+      verifyStudy(study, { arms, rerun: rest.includes('--rerun') });
+      summarizeStudy(study);
     }
     if (cmd === 'summarize') summarizeStudy(study);
   } catch (e) {

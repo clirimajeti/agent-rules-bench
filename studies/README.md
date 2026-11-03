@@ -40,6 +40,7 @@ Copy [`_template/`](_template/) to `studies/<name>/` and fill it in.
 | `eval` | checkers run on changed files after each session, in ESLint, ast-grep or Ruff JSON format; `{files}` is replaced by the changed files, `{study}` by the study folder |
 | `fix.prompt` | the review feedback for fix sessions |
 | `build` | optional command run in the copy after each run |
+| `verify` | optional checks that the final code works, run by `verify` after the runs: `steps` (each `name`, `command`, optional `cwd`, `timeoutSec`, `retries`, `setup`), `exclude` (patch paths left out, default `*.md` and `.claude/*`) and `keep` (ignored paths kept between runs, such as installed dependencies) |
 
 ## Good practice
 
@@ -48,4 +49,5 @@ Copy [`_template/`](_template/) to `studies/<name>/` and fill it in.
 - **Arms differ in one thing** where possible; a second difference makes the result hard to read.
 - **Fresh copies of the same kind** for every arm: an earlier study found a cost difference that came from a differently prepared copy, not from the setup under test.
 - **At least 8 runs per arm and model**; the spread between runs of the same setup is large.
+- **Verify on the plain upstream code**: `verify` applies each run's patch to a clean checkout of the pinned commit, without any arm's setup, so every arm's code is built and tested the same way. Give test steps `retries` and read `flaky` in the summary: a suite that fails under load must not count against the agent. A step with `"setup": true` prepares the environment; when it fails, `verify` stops instead of blaming the run.
 - Check `run --dry-run` first: it lists every session and the number still to run.
