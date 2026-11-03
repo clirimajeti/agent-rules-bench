@@ -19,6 +19,7 @@
   "models": ["sonnet", "haiku"],
   "repeats": 4,
   "maxTurns": 30,
+  "designRules": ["no-restricted-imports"],
   "eval": [
     { "name": "eslint", "format": "eslint", "command": ["node", "{study}/node_modules/eslint/bin/eslint.js", "-c", "{study}/eslint.config.mjs", "--no-inline-config", "--format", "json", "{files}"], "extensions": [".ts", ".tsx"] }
   ],

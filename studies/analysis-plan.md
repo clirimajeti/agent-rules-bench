@@ -48,6 +48,17 @@ The two primary hypotheses are tested separately, each at 0.05, without correcti
 - Every stratum is reported, not only the pooled result.
 - Runs that did less work (for example wrote no tests, as in F7) stay in the primary analysis; a split by "wrote tests" is reported as exploratory.
 
+## How to reproduce
+
+```bash
+S="studies/jhipster-buried/study.json studies/fastapi-crud-status/study.json studies/bulletproof-notify-querykey/study.json"
+node bench/bench.mjs compare $S --arm pointer_only --against rules_control --out studies/ablation-loop.md     # H1, H3
+node bench/bench.mjs compare $S --arm rule_only --against rules_control --out studies/ablation-pointer.md     # H2, H3
+```
+
+`bench/compare.mjs` implements the tests; `bench/test/compare.test.mjs` checks them against hand-computed values.
+
 ## Deviations
 
-None yet.
+- 2026-11-04, clarifications, no change of substance: the CMH test is the exact conditional version (the per-stratum hypergeometric distributions convolved, one-sided), which suits the small counts and the zero cells expected in `rules_control`; the bootstrap per stratum resamples runs within each arm; design-shaping rules are listed per study in `designRules` (use-clock-injection, db-access-in-crud, no-restricted-imports).
+- 2026-11-04, timing: the analysis code was written and committed while the runs were in progress (101 of 144 had results). It was checked only on the exploratory arms (`prose_buried` against `rules`); no output for the three ablation arms was looked at before this commit.

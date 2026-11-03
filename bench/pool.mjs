@@ -8,7 +8,7 @@ import path from 'node:path';
 import { loadStudy } from './config.mjs';
 import { loadResults } from './summarize.mjs';
 
-function rng(seed) { // mulberry32
+export function rng(seed) { // mulberry32
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
@@ -17,9 +17,9 @@ function rng(seed) { // mulberry32
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-const mean = (xs) => xs.reduce((s, x) => s + x, 0) / xs.length;
-const resampleMean = (xs, rand) => { let s = 0; for (let i = 0; i < xs.length; i++) s += xs[Math.floor(rand() * xs.length)]; return s / xs.length; };
-const percentiles = (xs) => { const s = [...xs].sort((a, b) => a - b); const at = (q) => s[Math.min(s.length - 1, Math.floor(q * s.length))]; return [at(0.025), at(0.975)]; };
+export const mean = (xs) => xs.reduce((s, x) => s + x, 0) / xs.length;
+export const resampleMean = (xs, rand) => { let s = 0; for (let i = 0; i < xs.length; i++) s += xs[Math.floor(rand() * xs.length)]; return s / xs.length; };
+export const percentiles = (xs) => { const s = [...xs].sort((a, b) => a - b); const at = (q) => s[Math.min(s.length - 1, Math.floor(q * s.length))]; return [at(0.025), at(0.975)]; };
 const total = (r) => r.taskCost + r.fixCost;
 
 export function comparisons(results, { seed = 1, iterations = 10000, rulesArm = 'rules' } = {}) {

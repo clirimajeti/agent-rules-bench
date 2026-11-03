@@ -12,7 +12,7 @@ const isStrList = (v) => Array.isArray(v) && v.length > 0 && v.every((x) => type
 export function validateStudy(s, studyDir) {
   const errs = [];
   if (!s || typeof s !== 'object' || Array.isArray(s)) return ['the study must be a JSON object'];
-  const known = ['name', 'description', 'repo', 'workdir', 'tasks', 'arms', 'baselineArm', 'models', 'repeats', 'maxTurns', 'allowedTools', 'eval', 'fix', 'build', 'verify'];
+  const known = ['name', 'description', 'repo', 'workdir', 'tasks', 'arms', 'baselineArm', 'models', 'repeats', 'maxTurns', 'allowedTools', 'eval', 'fix', 'build', 'verify', 'designRules'];
   for (const k of Object.keys(s)) if (!known.includes(k)) errs.push(`unknown key "${k}"`);
   if (typeof s.name !== 'string' || !NAME.test(s.name)) errs.push('name must be lowercase letters, digits and "-"');
   if (!s.repo || typeof s.repo.source !== 'string' || !s.repo.source) errs.push('repo.source must be a git URL or a local path');
@@ -57,6 +57,7 @@ export function validateStudy(s, studyDir) {
     if (!isStrList(s.build?.command)) errs.push('build.command must be a list of strings');
     if (s.build?.timeoutSec !== undefined && !(Number.isInteger(s.build.timeoutSec) && s.build.timeoutSec > 0)) errs.push('build.timeoutSec must be a positive integer');
   }
+  if (s.designRules !== undefined && !isStrList(s.designRules)) errs.push('designRules must be a non-empty list of rule ids');
   if (s.verify !== undefined) {
     const v = s.verify;
     if (!v || !Array.isArray(v.steps) || !v.steps.length) errs.push('verify.steps must be a non-empty list');
@@ -104,6 +105,7 @@ export function loadStudy(file) {
     repeats: s.repeats ?? 4,
     maxTurns: s.maxTurns ?? 30,
     allowedTools: s.allowedTools ?? DEFAULT_TOOLS,
+    designRules: s.designRules ?? [],
     arms: s.arms.map((a) => ({ ...a, setup: a.setup ? path.resolve(studyDir, a.setup) : undefined, fix: a.fix ?? false })),
     eval: s.eval.map((e) => ({ ...e, command: sub(e.command), tier: 'full' })),
     build: s.build ? { ...s.build, command: sub(s.build.command), timeoutSec: s.build.timeoutSec ?? 600 } : undefined,

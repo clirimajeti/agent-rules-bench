@@ -19,6 +19,7 @@
   "models": ["sonnet", "haiku"],
   "repeats": 4,
   "maxTurns": 30,
+  "designRules": ["db-access-in-crud"],
   "eval": [
     { "name": "rules", "format": "ast-grep", "command": ["npx", "-y", "-p", "@ast-grep/cli@0.51.0", "ast-grep", "scan", "-c", "{study}/sgconfig.yml", "--json=compact", "{files}"], "extensions": [".py"] }
   ],
