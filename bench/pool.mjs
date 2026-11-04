@@ -70,7 +70,8 @@ export function poolComparisons(cs, { seed = 1, iterations = 10000, exclude = []
   return out;
 }
 
-const pct = (r) => `${r >= 1 ? '+' : ''}${((r - 1) * 100).toFixed(0)}%`;
+// A change that rounds to 0 is written "0%", never "-0%" or "+0%".
+const pct = (r) => { const v = Math.round((r - 1) * 100); return v === 0 ? '0%' : `${v > 0 ? '+' : ''}${v}%`; };
 const KIND = { missable: 'prose the agent can miss (linked or buried)', loaded: 'always-loaded prose' };
 
 export function poolMarkdown(cs, pooled, exclude, rulesArm = 'rules') {

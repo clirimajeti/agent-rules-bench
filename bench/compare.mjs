@@ -99,7 +99,8 @@ export function compare(studies, arm, against, { seed = 1, iterations = 10000 } 
   };
 }
 
-const pct = (r) => `${r >= 1 ? '+' : ''}${((r - 1) * 100).toFixed(0)}%`;
+// A change that rounds to 0 is written "0%", never "-0%" or "+0%".
+const pct = (r) => { const v = Math.round((r - 1) * 100); return v === 0 ? '0%' : `${v > 0 ? '+' : ''}${v}%`; };
 const p3 = (p) => (p < 0.001 ? '<0.001' : p.toFixed(3));
 const share = (lo, hi) => `${(lo * 100).toFixed(0)}-${(hi * 100).toFixed(0)}%`;
 

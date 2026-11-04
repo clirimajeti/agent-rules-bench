@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { comparisons, poolComparisons } from '../pool.mjs';
+import { comparisons, poolComparisons, poolMarkdown } from '../pool.mjs';
 
 const run = (study, arm, model, cost, broken = 0) => ({ study, arm, model, taskCost: cost, fixCost: 0, breaksAfterTask: broken });
 const cell = (study, arm, model, costs, broken = []) => costs.map((c, i) => run(study, arm, model, c, broken[i] ?? 0));
@@ -43,4 +43,9 @@ test('comparisons can put another arm on the rules side', () => {
   const results = [...cell('s', 'prose_buried', 'haiku', [2, 2]), ...cell('s', 'rules', 'haiku', [1, 1]), ...cell('s', 'generated', 'haiku', [0.5, 0.5])];
   assert.equal(comparisons(results, { iterations: 100 })[0].ratio, 0.5);
   assert.equal(comparisons(results, { iterations: 100, rulesArm: 'generated' })[0].ratio, 0.25);
+});
+
+test('a change that rounds to zero is written 0%, without a sign', () => {
+  const md = poolMarkdown([{ study: 's', model: 'm', prose: 'prose_loaded', ratio: 0.997, ci: [0.89, 1.004], proseBroken: 0, n: 8, rulesBroken: 0, rulesN: 8 }], [], []);
+  assert.match(md, /\| s \| m \| prose_loaded \| 0% \| -11% to 0% \|/);
 });

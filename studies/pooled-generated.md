@@ -26,7 +26,7 @@ Excluded from pooling: fastapi-crud-status/sonnet/prose_loaded.
 | fastapi-crud-status | haiku | prose_buried | -56% | -68% to -39% | 2/8 | 0/8 |
 | fastapi-crud-status | haiku | prose_loaded | -43% | -56% to -25% | 0/8 | 0/8 |
 | fastapi-crud-status | sonnet | prose_buried | -55% | -66% to -38% | 0/8 | 0/8 |
-| fastapi-crud-status | sonnet | prose_loaded | -28% | -48% to +0% | 0/8 | 0/8 |
+| fastapi-crud-status | sonnet | prose_loaded | -28% | -48% to 0% | 0/8 | 0/8 |
 | bulletproof-notify-querykey | haiku | prose_buried | -23% | -36% to -6% | 5/8 | 0/8 |
 | bulletproof-notify-querykey | haiku | prose_loaded | -16% | -30% to +4% | 0/8 | 0/8 |
 | bulletproof-notify-querykey | sonnet | prose_buried | -5% | -25% to +19% | 1/8 | 0/8 |

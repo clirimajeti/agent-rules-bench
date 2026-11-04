@@ -3,10 +3,10 @@
 A benchmark for one question: **where should a coding rule live so an AI coding agent follows it, and what does that cost?**
 
 A team can state a rule like "inject a `Clock`, never call `now()` directly" in several places:
-- as prose in an instructions file the agent only reads when it follows a link,
-- as prose in an always-loaded file (`CLAUDE.md`, `AGENTS.md`),
-- as a lint rule the agent learns about only when it breaks it,
-- as a lint rule plus a one-line pointer, with a feedback loop that lints every edit.
+- as text in a separate doc that `CLAUDE.md` links to, which the agent reads only if it follows the link: either a short doc of its own (`prose_linked`) or one bullet among thousands of tokens of other conventions (`prose_buried`),
+- as text in `CLAUDE.md` itself, which Claude Code loads into every session (`prose_loaded`),
+- as a lint rule (ESLint for TypeScript, ast-grep for Java and Python) that a feedback loop runs on every edit, telling the agent when it breaks the rule (`rule_only`),
+- as that lint rule plus a one-line pointer in a folder `CLAUDE.md` naming it (`rules`, the setup [codemyrules](https://github.com/clirimajeti/codemyrules) builds).
 
 agent-rules-bench runs the same coding tasks as headless Claude Code sessions against identical copies of a repository, one copy per setup ("arm"), and measures for each run:
 - whether the code the agent added breaks the rules,
@@ -24,10 +24,13 @@ Public data: 344 runs (377 headless sessions, counting review fixes) on three op
 200 runs are exploratory (four studies), 144 confirmatory (an ablation with an [analysis plan](studies/analysis-plan.md) committed before its runs).
 An internal Kotlin/Spring pilot (124 sessions, aggregate numbers only, see [studies/internal-backend](studies/internal-backend/README.md)) shaped the design and is not part of any pooled number.
 
-Exploratory, pooled over the 152 runs that compare prose with rules + pointer + loop ([studies/pooled.md](studies/pooled.md)):
-- Against prose the agent can miss (linked or buried): runs with a rule broken in the first draft 17/56 against 0/56; total cost including the review fix **-14% (95% interval -22% to -5%)**.
-- Against always-loaded prose: no breaks on either side; cost **-0% (-11% to +12%)**.
-- With a short, prominent link to the conventions, every setup followed both rules at equal cost ([jhipster-clock-authorities](studies/jhipster-clock-authorities/README.md)), so prose fails when it is buried, not because it is prose.
+Exploratory, pooled over the 152 runs that compare text with the lint rule + pointer + loop ([studies/pooled.md](studies/pooled.md)):
+- Rule as text the agent can miss (linked or buried): the agent broke it in 17 of 56 runs; as a lint rule, in 0 of 56.
+  Counting the review fix each broken run needed, the lint rule was **14% cheaper (95% interval 5% to 22% cheaper)**.
+- Rule as text in `CLAUDE.md`, which the agent always reads: followed in all 32 runs, as was the lint rule, at the **same cost (0%, interval 11% cheaper to 12% more)**.
+  The lint rule's advantages there lie outside these tasks: `CLAUDE.md` stays short, and it is loaded and paid for in every session, and the rule still holds when the docs grow.
+- Rule as a short doc with one clear link from `CLAUDE.md`: followed in every run, at equal cost ([jhipster-clock-authorities](studies/jhipster-clock-authorities/README.md)).
+  So text fails when it is buried among other text, not because it is text.
 
 Confirmatory ablation, 144 runs ([studies/ablation.md](studies/ablation.md)):
 - Without the feedback loop, 8/48 runs broke a rule against 0/48 (exact CMH p = 0.001); all 8 were a mechanical rule that no prose stated.

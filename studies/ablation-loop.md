@@ -5,7 +5,7 @@ Stratified by study x model. Breaks are runs with a production-code break after 
 ## Pooled
 
 - Runs broken: pointer_only 8/48, rules_control 0/48; exact CMH, one-sided (pointer_only breaks more): p = 0.001.
-- Cost: +12% (95% stratified bootstrap interval +0% to +24%).
+- Cost: +12% (95% stratified bootstrap interval 0% to +24%).
 
 ## Per stratum
 
