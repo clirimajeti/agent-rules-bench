@@ -15,4 +15,5 @@ const lines = [
   { type: 'message_end', message: { role: 'assistant', model: 'fake', usage: usage(20), stopReason: 'stop' } }, { type: 'turn_end' },
   { type: 'agent_end' }, { type: 'agent_settled' },
 ];
+if (process.env.FAKE_PI_CAP && !fix) fs.writeFileSync(process.env.BENCH_PI_STATE, JSON.stringify({ capped: true, turns: 30 })); // the loop extension's cap
 for (const l of lines) console.log(JSON.stringify(l));

@@ -56,6 +56,7 @@ export function aggregate(results) {
       runsWithBreaksAfterTask: rs.filter((r) => r.breaksAfterTask > 0).length,
       runsWithBreaksLeft: rs.filter((r) => r.breaksFinal > 0).length,
       hookCatches: rs.reduce((n, r) => n + r.hookCatches, 0),
+      capped: rs.filter((r) => r.capped).length,
       builds: builds.length ? `${builds.filter((r) => r.build.ok).length}/${builds.length}` : '-',
       verified: verifiedSummary(rs),
     };
@@ -66,10 +67,10 @@ const money = (x) => `$${x.toFixed(3)}`;
 
 export function markdown(study, rows) {
   const lines = [`# ${study.name}`, '', `Repo: ${study.repo.source} @ ${study.repo.commit}, baseline arm: ${study.baselineArm}.`, ''];
-  lines.push('| arm | model | runs | ok | total cost | draft | fix | fix sessions | turns | input tokens | output tokens | seconds | runs broken after task | runs broken at end | hook catches | builds | verified |');
-  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
+  lines.push('| arm | model | runs | ok | total cost | draft | fix | fix sessions | turns | input tokens | output tokens | seconds | runs broken after task | runs broken at end | hook catches | capped | builds | verified |');
+  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of rows) {
-    lines.push(`| ${r.arm} | ${r.model} | ${r.runs} | ${r.ok} | ${money(r.totalCost)} ±${r.totalCostSd.toFixed(3)} | ${money(r.taskCost)} | ${money(r.fixCost)} | ${r.fixSessions} | ${r.turns.toFixed(1)} | ${Math.round(r.inputTokens)} | ${Math.round(r.outputTokens)} | ${Math.round(r.seconds)} | ${r.runsWithBreaksAfterTask} | ${r.runsWithBreaksLeft} | ${r.hookCatches} | ${r.builds} | ${r.verified} |`);
+    lines.push(`| ${r.arm} | ${r.model} | ${r.runs} | ${r.ok} | ${money(r.totalCost)} ±${r.totalCostSd.toFixed(3)} | ${money(r.taskCost)} | ${money(r.fixCost)} | ${r.fixSessions} | ${r.turns.toFixed(1)} | ${Math.round(r.inputTokens)} | ${Math.round(r.outputTokens)} | ${Math.round(r.seconds)} | ${r.runsWithBreaksAfterTask} | ${r.runsWithBreaksLeft} | ${r.hookCatches} | ${r.capped} | ${r.builds} | ${r.verified} |`);
   }
   const diffs = [];
   for (const model of new Set(rows.map((r) => r.model))) {

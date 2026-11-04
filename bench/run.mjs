@@ -135,7 +135,9 @@ async function runOne(study, run, cmds, log, { first = true } = {}) {
   }
   const result = {
     id: run.id, arm: run.arm.id, model: run.model, agent: run.spec.agent, task: run.task.id, rep: run.rep,
-    ok: task.json?.is_error === false,
+    // A session that ran out of turns is a result, not a failure: rerunning it would resample until one finishes.
+    ok: task.json?.is_error === false || task.json?.subtype === 'error_max_turns',
+    capped: task.json?.subtype === 'error_max_turns',
     turns: (task.json?.num_turns ?? 0) + (fix?.json?.num_turns ?? 0),
     taskCost: task.json?.total_cost_usd ?? 0,
     fixCost: fix?.json?.total_cost_usd ?? 0,

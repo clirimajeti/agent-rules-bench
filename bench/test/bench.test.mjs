@@ -272,6 +272,17 @@ test('pi agent: its own copy and setup, isolated flags, and its events read as a
   assert.equal(calls[0].maxTurns, '30');
   assert.match(fs.readFileSync(path.join(calls[0].agentDir, 'models.json'), 'utf8'), /"qwen3\.6:35b-a3b-coding"/);
   assert.ok(results.find((r) => r.model === 'sonnet').ok); // the Claude runs are unaffected
+
+  // a session that hits the turn cap is done (not rerun) and flagged
+  process.env.FAKE_PI_CAP = '1';
+  t.after(() => { delete process.env.FAKE_PI_CAP; });
+  fs.rmSync(path.join(study.resultsDir, 'prose-local-T1-1'), { recursive: true });
+  const [capped] = await runStudy(study, { models: ['local'], piCmd: ['node', path.join(here, 'fixtures', 'fake-pi.mjs')], log: () => {} });
+  assert.deepEqual([capped.ok, capped.capped, capped.fixed], [true, true, true]);
+  const again = [];
+  await runStudy(study, { models: ['local'], piCmd: ['node', path.join(here, 'fixtures', 'fake-pi.mjs')], log: (m) => again.push(m) });
+  assert.match(again[0], /1 runs planned, 1 already done, 0 to run/);
+  assert.match(summarizeStudy(study, () => {}), /\| prose \| local \|(?:[^|]*\|){13} 1 \|/); // capped column
 });
 
 test('pi: a capped run is an error, and edits map to the hook input the loop scripts read', async () => {
