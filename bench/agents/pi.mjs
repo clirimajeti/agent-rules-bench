@@ -30,7 +30,7 @@ export function piCommand(study, spec, prompt, { agentDir, stateFile, cmd = ['pi
   const args = ['-p', '--mode', 'json', '--no-session', '--no-skills', '--no-extensions', '-e', LOOP_EXTENSION,
     '--no-mcp', '--no-prompt-templates', '--no-themes', '--no-approve', '--offline',
     '--tools', piTools(study.allowedTools).join(','), '--model', spec.model, '--', prompt];
-  const env = { ...process.env, PI_CODING_AGENT_DIR: agentDir, PI_OFFLINE: '1', PI_TELEMETRY: '0', PI_SKIP_VERSION_CHECK: '1', BENCH_MAX_TURNS: String(study.maxTurns), BENCH_PI_STATE: stateFile };
+  const env = { ...process.env, PI_CODING_AGENT_DIR: agentDir, PI_OFFLINE: '1', PI_TELEMETRY: '0', PI_SKIP_VERSION_CHECK: '1', BENCH_MAX_TURNS: String(spec.maxTurns ?? study.maxTurns), BENCH_PI_STATE: stateFile };
   return { cmd: cmd[0], args: [...cmd.slice(1), ...args], env };
 }
 

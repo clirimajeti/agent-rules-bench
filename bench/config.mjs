@@ -52,6 +52,7 @@ export function validateStudy(s, studyDir) {
           if (!AGENTS.includes(m.agent)) errs.push(`models[${i}].agent is "${m.agent}", expected one of ${AGENTS.join(', ')}`);
           if (typeof m.model !== 'string' || !m.model) errs.push(`models[${i}].model must name the agent's model, for example "ollama/qwen3.6:35b-a3b-coding"`);
           if (m.baseUrl !== undefined && typeof m.baseUrl !== 'string') errs.push(`models[${i}].baseUrl must be a URL`);
+          if (m.maxTurns !== undefined && !(Number.isInteger(m.maxTurns) && m.maxTurns > 0)) errs.push(`models[${i}].maxTurns must be a positive integer`);
         }
         if (id && seen.has(id)) errs.push(`models[${i}] id "${id}" is used twice`);
         seen.add(id);

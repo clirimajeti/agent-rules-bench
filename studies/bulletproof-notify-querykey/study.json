@@ -16,7 +16,7 @@
     { "id": "pointer_only", "setup": "arms/rules.sh", "fix": true }
   ],
   "baselineArm": "prose_buried",
-  "models": ["sonnet", "haiku", "opus", { "id": "qwen36", "agent": "pi", "model": "ollama/qwen3.6:35b-a3b-coding" }, { "id": "qwen36codex", "agent": "codex", "model": "ollama/qwen3.6:35b-a3b-coding" }],
+  "models": ["sonnet", "haiku", "opus", { "id": "qwen36", "agent": "pi", "model": "ollama/qwen3.6:35b-a3b-coding", "maxTurns": 60 }, { "id": "qwen36codex", "agent": "codex", "model": "ollama/qwen3.6:35b-a3b-coding", "maxTurns": 60 }],
   "repeats": 4,
   "maxTurns": 30,
   "designRules": ["no-restricted-imports"],

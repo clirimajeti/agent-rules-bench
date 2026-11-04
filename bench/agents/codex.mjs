@@ -32,7 +32,7 @@ export function codexHome(root, spec) {
 
 export function codexCommand(study, spec, prompt, { home, stateFile, cmd = ['codex'] }) {
   const args = ['exec', '--json', '--ephemeral', '--dangerously-bypass-hook-trust', '--sandbox', 'workspace-write', prompt];
-  const env = { ...process.env, CODEX_HOME: home, BENCH_MAX_TURNS: String(study.maxTurns), BENCH_CODEX_STATE: stateFile };
+  const env = { ...process.env, CODEX_HOME: home, BENCH_MAX_TURNS: String(spec.maxTurns ?? study.maxTurns), BENCH_CODEX_STATE: stateFile };
   return { cmd: cmd[0], args: [...cmd.slice(1), ...args], env };
 }
 

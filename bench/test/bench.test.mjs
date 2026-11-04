@@ -270,6 +270,7 @@ test('pi agent: its own copy and setup, isolated flags, and its events read as a
   for (const flag of ['--no-session', '--no-skills', '--no-extensions', '--no-mcp', '--no-approve', '-e']) assert.ok(calls[0].argv.includes(flag), flag);
   assert.equal(calls[0].argv[calls[0].argv.indexOf('--tools') + 1], 'read,edit,write,find,grep,ls'); // no shell
   assert.equal(calls[0].maxTurns, '30');
+  assert.match(validateStudy({ ...JSON.parse(fs.readFileSync(file, 'utf8')), models: [{ id: 'x', agent: 'pi', model: 'a/b', maxTurns: 0 }] }, path.dirname(file)).join('\n'), /models\[0\]\.maxTurns/);
   assert.match(fs.readFileSync(path.join(calls[0].agentDir, 'models.json'), 'utf8'), /"qwen3\.6:35b-a3b-coding"/);
   assert.ok(results.find((r) => r.model === 'sonnet').ok); // the Claude runs are unaffected
 

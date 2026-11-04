@@ -1,0 +1,111 @@
+diff --git a/apps/react-vite/src/features/users/api/update-user-role.ts b/apps/react-vite/src/features/users/api/update-user-role.ts
+new file mode 100644
+index 0000000..97b3b7d
+--- /dev/null
++++ b/apps/react-vite/src/features/users/api/update-user-role.ts
+@@ -0,0 +1,47 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++
++import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
++import { MutationConfig } from '@/lib/react-query';
++
++import { getUsersQueryOptions } from './get-users';
++
++export type UpdateUserRoleDTO = {
++  userId: string;
++  newRole: 'ADMIN' | 'USER';
++};
++
++export const updateUserRole = ({ userId, newRole }: UpdateUserRoleDTO) => {
++  return api.patch(`/users/${userId}/role`, { newRole });
++};
++
++type UseUpdateUserRoleOptions = {
++  mutationConfig?: MutationConfig<typeof updateUserRole>;
++};
++
++export const useUpdateUserRole = ({
++  mutationConfig,
++}: UseUpdateUserRoleOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications.getState();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      queryClient.invalidateQueries({
++        queryKey: getUsersQueryOptions().queryKey,
++      });
++
++      addNotification({
++        type: 'success',
++        title: 'Success',
++        message: 'User role updated successfully',
++      });
++
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateUserRole,
++  });
++};
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..04f3379 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,11 +1,43 @@
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
+ import { formatDate } from '@/utils/format';
++import { User } from '@/types/api';
+ 
+ import { useUsers } from '../api/get-users';
++import { useUpdateUserRole } from '../api/update-user-role';
+ 
+ import { DeleteUser } from './delete-user';
+ 
++// Helper component for the role select
++const UserRoleSelect = ({
++  userId,
++  currentRole,
++}: {
++  userId: string;
++  currentRole: 'ADMIN' | 'USER';
++}) => {
++  const { mutate, isLoading } = useUpdateUserRole();
++
++  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
++    mutate({
++      userId,
++      newRole: e.target.value as 'ADMIN' | 'USER',
++    });
++  };
++
++  return (
++    <select
++      value={currentRole}
++      onChange={handleChange}
++      disabled={isLoading}
++      className="block w-full rounded-md border-gray-300 py-1 pl-2 pr-8 text-sm focus:border-blue-500 focus:ring-blue-500"
++    >
++      <option value="ADMIN">ADMIN</option>
++      <option value="USER">USER</option>
++    </select>
++  );
++};
++
+ export const UsersList = () => {
+   const usersQuery = useUsers();
+ 
+@@ -40,6 +72,9 @@ export const UsersList = () => {
+         {
+           title: 'Role',
+           field: 'role',
++          Cell({ entry }: { entry: User }) {
++            return <UserRoleSelect userId={entry.id} currentRole={entry.role} />;
++          },
+         },
+         {
+           title: 'Created At',

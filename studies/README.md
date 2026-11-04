@@ -35,7 +35,7 @@ Copy [`_template/`](_template/) to `studies/<name>/` and fill it in.
 | `tasks` | the prompts; ids use letters, digits or `_` |
 | `arms` | one copy each; `setup` is a script run inside the fresh copy (env: `BENCH_COPY`, `BENCH_STUDY_DIR`, `BENCH_ARM`), `fix: true` gives runs that broke a rule one review-fix session |
 | `baselineArm` | the arm others are compared with; default the first |
-| `models` | Claude Code model aliases (`sonnet`, `haiku`, `opus`), or agent specs such as `{ "id": "qwen36", "agent": "pi", "model": "ollama/qwen3.6:35b-a3b-coding" }` (optional `baseUrl`, `timeoutSec`); the `id` is the model's name in run ids and summaries |
+| `models` | Claude Code model aliases (`sonnet`, `haiku`, `opus`), or agent specs such as `{ "id": "qwen36", "agent": "pi", "model": "ollama/qwen3.6:35b-a3b-coding" }` (optional `baseUrl`, `timeoutSec`, and `maxTurns` to override the study's cap for that model); the `id` is the model's name in run ids and summaries |
 | `repeats`, `maxTurns`, `allowedTools` | defaults 4, 30, and read/edit tools plus `git status`, `git diff`, `ls` |
 | `eval` | checkers run on changed files after each session, in ESLint, ast-grep or Ruff JSON format; `{files}` is replaced by the changed files, `{study}` by the study folder |
 | `fix.prompt` | the review feedback for fix sessions |

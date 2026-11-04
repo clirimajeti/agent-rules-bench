@@ -65,7 +65,7 @@ function agentProcess(study, spec, prompt, outBase, cmds) {
     };
     return { ...c, parse, timeoutSec: spec.timeoutSec ?? 3600 };
   }
-  const args = ['-p', prompt, '--output-format', 'json', '--model', spec.model, '--max-turns', String(study.maxTurns),
+  const args = ['-p', prompt, '--output-format', 'json', '--model', spec.model, '--max-turns', String(spec.maxTurns ?? study.maxTurns),
     '--permission-mode', 'acceptEdits', '--setting-sources', 'project,local', '--allowedTools', study.allowedTools.join(' ')];
   return { cmd: cmds.claude[0], args: [...cmds.claude.slice(1), ...args], env: process.env, parse: (out) => JSON.parse(out), timeoutSec: spec.timeoutSec };
 }
