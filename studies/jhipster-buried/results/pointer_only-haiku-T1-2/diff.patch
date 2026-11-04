@@ -1,0 +1,139 @@
+diff --git a/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+new file mode 100644
+index 00000000..92db0269
+--- /dev/null
++++ b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+@@ -0,0 +1,17 @@
++package io.github.jhipster.sample.config;
++
++import java.time.Clock;
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++
++/**
++ * Provides the {@link Clock} used for all time-dependent logic, so that it can be replaced in tests.
++ */
++@Configuration
++public class ClockConfiguration {
++
++    @Bean
++    public Clock clock() {
++        return Clock.systemDefaultZone();
++    }
++}
+diff --git a/src/main/java/io/github/jhipster/sample/repository/UserRepository.java b/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
+index 2799b7b3..1fbecc9c 100644
+--- a/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
++++ b/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
+@@ -8,6 +8,8 @@ import org.springframework.cache.annotation.Cacheable;
+ import org.springframework.data.domain.*;
+ import org.springframework.data.jpa.repository.EntityGraph;
+ import org.springframework.data.jpa.repository.JpaRepository;
++import org.springframework.data.jpa.repository.Query;
++import org.springframework.data.repository.query.Param;
+ import org.springframework.stereotype.Repository;
+ 
+ /**
+@@ -38,4 +40,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
+     Optional<User> findOneByLogin(String login);
+ 
+     Page<User> findAllByIdNotNullAndActivatedIsTrue(Pageable pageable);
++
++    @Query(
++        value = "select u.login from User u where u.createdDate >= :since order by u.createdDate desc, u.login asc",
++        countQuery = "select count(u) from User u where u.createdDate >= :since"
++    )
++    Page<String> findLoginsCreatedSince(@Param("since") Instant since, Pageable pageable);
+ }
+diff --git a/src/main/java/io/github/jhipster/sample/service/UserService.java b/src/main/java/io/github/jhipster/sample/service/UserService.java
+index a032acc0..491d26da 100644
+--- a/src/main/java/io/github/jhipster/sample/service/UserService.java
++++ b/src/main/java/io/github/jhipster/sample/service/UserService.java
+@@ -9,6 +9,7 @@ import io.github.jhipster.sample.security.AuthoritiesConstants;
+ import io.github.jhipster.sample.security.SecurityUtils;
+ import io.github.jhipster.sample.service.dto.AdminUserDTO;
+ import io.github.jhipster.sample.service.dto.UserDTO;
++import java.time.Clock;
+ import java.time.Instant;
+ import java.time.temporal.ChronoUnit;
+ import java.util.*;
+@@ -33,6 +34,8 @@ public class UserService {
+ 
+     private static final Logger LOG = LoggerFactory.getLogger(UserService.class);
+ 
++    private static final int RECENTLY_CREATED_WINDOW_DAYS = 7;
++
+     private final UserRepository userRepository;
+ 
+     private final PasswordEncoder passwordEncoder;
+@@ -41,16 +44,20 @@ public class UserService {
+ 
+     private final CacheManager cacheManager;
+ 
++    private final Clock clock;
++
+     public UserService(
+         UserRepository userRepository,
+         PasswordEncoder passwordEncoder,
+         AuthorityRepository authorityRepository,
+-        CacheManager cacheManager
++        CacheManager cacheManager,
++        Clock clock
+     ) {
+         this.userRepository = userRepository;
+         this.passwordEncoder = passwordEncoder;
+         this.authorityRepository = authorityRepository;
+         this.cacheManager = cacheManager;
++        this.clock = clock;
+     }
+ 
+     public Optional<User> activateRegistration(String key) {
+@@ -272,6 +279,18 @@ public class UserService {
+         return userRepository.findAllByIdNotNullAndActivatedIsTrue(pageable).map(UserDTO::new);
+     }
+ 
++    /**
++     * Get the logins of the users created in the last {@value #RECENTLY_CREATED_WINDOW_DAYS} days.
++     *
++     * @param pageable the pagination information.
++     * @return a page of logins, newest first.
++     */
++    @Transactional(readOnly = true)
++    public Page<String> getRecentlyCreatedUserLogins(Pageable pageable) {
++        Instant since = Instant.now(clock).minus(RECENTLY_CREATED_WINDOW_DAYS, ChronoUnit.DAYS);
++        return userRepository.findLoginsCreatedSince(since, pageable);
++    }
++
+     @Transactional(readOnly = true)
+     public Optional<User> getUserWithAuthoritiesByLogin(String login) {
+         return userRepository.findOneWithAuthoritiesByLogin(login);
+diff --git a/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java b/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
+index 7f7dcef5..9ad052ed 100644
+--- a/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
++++ b/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
+@@ -177,6 +177,25 @@ public class UserResource {
+         return pageable.getSort().stream().map(Sort.Order::getProperty).allMatch(ALLOWED_ORDERED_PROPERTIES::contains);
+     }
+ 
++    /**
++     * {@code GET /admin/users/recently-created} : get the logins of the users created in the last 7 days.
++     *
++     * @param pageable the pagination information.
++     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the logins of the recently created users.
++     */
++    @GetMapping("/users/recently-created")
++    @PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")")
++    public ResponseEntity<List<String>> getRecentlyCreatedUserLogins(@org.springdoc.core.annotations.ParameterObject Pageable pageable) {
++        LOG.debug("REST request to get logins of recently created Users");
++        if (!onlyContainsAllowedProperties(pageable)) {
++            return ResponseEntity.badRequest().build();
++        }
++
++        final Page<String> page = userService.getRecentlyCreatedUserLogins(pageable);
++        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
++        return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
++    }
++
+     /**
+      * {@code GET /admin/users/:login} : get the "login" user.
+      *

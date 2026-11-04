@@ -1,0 +1,222 @@
+diff --git a/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+new file mode 100644
+index 00000000..eb7a8610
+--- /dev/null
++++ b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+@@ -0,0 +1,17 @@
++package io.github.jhipster.sample.config;
++
++import java.time.Clock;
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++
++/**
++ * Provides the {@link Clock} used for all time-dependent logic, so tests can supply a fixed clock.
++ */
++@Configuration
++public class ClockConfiguration {
++
++    @Bean
++    public Clock clock() {
++        return Clock.systemDefaultZone();
++    }
++}
+diff --git a/src/main/java/io/github/jhipster/sample/config/SecurityConfiguration.java b/src/main/java/io/github/jhipster/sample/config/SecurityConfiguration.java
+index 4d37884d..eef5c658 100644
+--- a/src/main/java/io/github/jhipster/sample/config/SecurityConfiguration.java
++++ b/src/main/java/io/github/jhipster/sample/config/SecurityConfiguration.java
+@@ -72,6 +72,7 @@ public class SecurityConfiguration {
+                     .requestMatchers("/api/account/reset-password/init").permitAll()
+                     .requestMatchers("/api/account/reset-password/finish").permitAll()
+                     .requestMatchers("/api/admin/**").hasAuthority(AuthoritiesConstants.ADMIN)
++                    .requestMatchers(HttpMethod.GET, "/api/operations/recent").hasAuthority(AuthoritiesConstants.ADMIN)
+                     .requestMatchers("/api/**").authenticated()
+                     .requestMatchers("/v3/api-docs/**").hasAuthority(AuthoritiesConstants.ADMIN)
+                     .requestMatchers("/management/health").permitAll()
+diff --git a/src/main/java/io/github/jhipster/sample/repository/OperationRepository.java b/src/main/java/io/github/jhipster/sample/repository/OperationRepository.java
+index 8be1aca3..f932096f 100644
+--- a/src/main/java/io/github/jhipster/sample/repository/OperationRepository.java
++++ b/src/main/java/io/github/jhipster/sample/repository/OperationRepository.java
+@@ -1,6 +1,7 @@
+ package io.github.jhipster.sample.repository;
+ 
+ import io.github.jhipster.sample.domain.Operation;
++import java.time.Instant;
+ import java.util.List;
+ import java.util.Optional;
+ import org.springframework.data.domain.Page;
+@@ -40,4 +41,14 @@ public interface OperationRepository extends OperationRepositoryWithBagRelations
+ 
+     @Query("select operation from Operation operation left join fetch operation.bankAccount where operation.id =:id")
+     Optional<Operation> findOneWithToOneRelationships(@Param("id") Long id);
++
++    default Page<Operation> findAllWithEagerRelationshipsDatedBetween(Instant from, Instant to, Pageable pageable) {
++        return this.fetchBagRelationships(this.findAllWithToOneRelationshipsDatedBetween(from, to, pageable));
++    }
++
++    @Query(
++        value = "select operation from Operation operation left join fetch operation.bankAccount where operation.date between :from and :to",
++        countQuery = "select count(operation) from Operation operation where operation.date between :from and :to"
++    )
++    Page<Operation> findAllWithToOneRelationshipsDatedBetween(@Param("from") Instant from, @Param("to") Instant to, Pageable pageable);
+ }
+diff --git a/src/main/java/io/github/jhipster/sample/web/rest/OperationResource.java b/src/main/java/io/github/jhipster/sample/web/rest/OperationResource.java
+index 11545693..fd0b93e9 100644
+--- a/src/main/java/io/github/jhipster/sample/web/rest/OperationResource.java
++++ b/src/main/java/io/github/jhipster/sample/web/rest/OperationResource.java
+@@ -2,11 +2,15 @@ package io.github.jhipster.sample.web.rest;
+ 
+ import io.github.jhipster.sample.domain.Operation;
+ import io.github.jhipster.sample.repository.OperationRepository;
++import io.github.jhipster.sample.security.AuthoritiesConstants;
+ import io.github.jhipster.sample.web.rest.errors.BadRequestAlertException;
+ import jakarta.validation.Valid;
+ import jakarta.validation.constraints.NotNull;
+ import java.net.URI;
+ import java.net.URISyntaxException;
++import java.time.Clock;
++import java.time.Instant;
++import java.time.temporal.ChronoUnit;
+ import java.util.List;
+ import java.util.Objects;
+ import java.util.Optional;
+@@ -15,9 +19,12 @@ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ import org.springframework.beans.factory.annotation.Value;
+ import org.springframework.data.domain.Page;
++import org.springframework.data.domain.PageRequest;
+ import org.springframework.data.domain.Pageable;
++import org.springframework.data.domain.Sort;
+ import org.springframework.http.HttpHeaders;
+ import org.springframework.http.ResponseEntity;
++import org.springframework.security.access.prepost.PreAuthorize;
+ import org.springframework.transaction.annotation.Transactional;
+ import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+@@ -37,13 +44,20 @@ public class OperationResource {
+ 
+     private static final String ENTITY_NAME = "operation";
+ 
++    private static final long RECENT_OPERATIONS_DAYS = 30;
++
++    private static final List<String> ALLOWED_ORDERED_PROPERTIES = List.of("id", "date", "description", "amount");
++
+     @Value("${jhipster.clientApp.name:jhipsterSampleApplication}")
+     private String applicationName;
+ 
+     private final OperationRepository operationRepository;
+ 
+-    public OperationResource(OperationRepository operationRepository) {
++    private final Clock clock;
++
++    public OperationResource(OperationRepository operationRepository, Clock clock) {
+         this.operationRepository = operationRepository;
++        this.clock = clock;
+     }
+ 
+     /**
+@@ -166,6 +180,30 @@ public class OperationResource {
+         return ResponseEntity.ok().headers(headers).body(page.getContent());
+     }
+ 
++    /**
++     * {@code GET  /operations/recent} : get the Operations dated within the last 30 days, including the current moment.
++     *
++     * @param pageable the pagination information, sorted by date descending by default.
++     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of recent Operations in body,
++     * or with status {@code 400 (Bad Request)} if the sort uses a property that is not allowed.
++     */
++    @GetMapping("/recent")
++    @PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")")
++    public ResponseEntity<List<Operation>> getRecentOperations(@org.springdoc.core.annotations.ParameterObject Pageable pageable) {
++        LOG.debug("REST request to get a page of Operations dated within the last {} days", RECENT_OPERATIONS_DAYS);
++        if (!onlyContainsAllowedProperties(pageable)) {
++            return ResponseEntity.badRequest().build();
++        }
++        Pageable sortedPageable = pageable.getSort().isSorted()
++            ? pageable
++            : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "date", "id"));
++        Instant now = Instant.now(clock);
++        Instant from = now.minus(RECENT_OPERATIONS_DAYS, ChronoUnit.DAYS);
++        Page<Operation> page = operationRepository.findAllWithEagerRelationshipsDatedBetween(from, now, sortedPageable);
++        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
++        return ResponseEntity.ok().headers(headers).body(page.getContent());
++    }
++
+     /**
+      * {@code GET  /operations/:id} : get the "id" operation.
+      *
+@@ -194,6 +232,10 @@ public class OperationResource {
+             .build();
+     }
+ 
++    private boolean onlyContainsAllowedProperties(Pageable pageable) {
++        return pageable.getSort().stream().map(Sort.Order::getProperty).allMatch(ALLOWED_ORDERED_PROPERTIES::contains);
++    }
++
+     private <T> void updateIfPresent(Consumer<T> setter, T value) {
+         if (value != null) {
+             setter.accept(value);
+diff --git a/src/test/java/io/github/jhipster/sample/web/rest/OperationResourceIT.java b/src/test/java/io/github/jhipster/sample/web/rest/OperationResourceIT.java
+index b7aa5c6e..47053492 100644
+--- a/src/test/java/io/github/jhipster/sample/web/rest/OperationResourceIT.java
++++ b/src/test/java/io/github/jhipster/sample/web/rest/OperationResourceIT.java
+@@ -5,6 +5,7 @@ import static io.github.jhipster.sample.web.rest.TestUtil.createUpdateProxyForBe
+ import static io.github.jhipster.sample.web.rest.TestUtil.sameNumber;
+ import static org.assertj.core.api.Assertions.assertThat;
+ import static org.hamcrest.Matchers.hasItem;
++import static org.hamcrest.Matchers.not;
+ import static org.mockito.Mockito.*;
+ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+@@ -12,9 +13,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
+ import io.github.jhipster.sample.IntegrationTest;
+ import io.github.jhipster.sample.domain.Operation;
+ import io.github.jhipster.sample.repository.OperationRepository;
++import io.github.jhipster.sample.security.AuthoritiesConstants;
+ import jakarta.persistence.EntityManager;
+ import java.math.BigDecimal;
++import java.time.Clock;
+ import java.time.Instant;
++import java.time.temporal.ChronoUnit;
+ import java.util.ArrayList;
+ import java.util.Random;
+ import java.util.concurrent.atomic.AtomicLong;
+@@ -70,6 +74,9 @@ class OperationResourceIT {
+     @Autowired
+     private EntityManager em;
+ 
++    @Autowired
++    private Clock clock;
++
+     @Autowired
+     private MockMvc restOperationMockMvc;
+ 
+@@ -450,6 +457,27 @@ class OperationResourceIT {
+         return operationRepository.count();
+     }
+ 
++    @Test
++    @Transactional
++    @WithMockUser(authorities = AuthoritiesConstants.ADMIN)
++    void getRecentOperationsReturnsOnlyOperationsFromTheLastThirtyDays() throws Exception {
++        Instant now = Instant.now(clock);
++        Operation recent = operationRepository.saveAndFlush(createEntity().date(now.minus(1, ChronoUnit.DAYS)));
++        Operation old = operationRepository.saveAndFlush(createEntity().date(now.minus(60, ChronoUnit.DAYS)));
++
++        restOperationMockMvc
++            .perform(get(ENTITY_API_URL + "/recent"))
++            .andExpect(status().isOk())
++            .andExpect(jsonPath("$.[*].id").value(hasItem(recent.getId().intValue())))
++            .andExpect(jsonPath("$.[*].id").value(not(hasItem(old.getId().intValue()))));
++    }
++
++    @Test
++    @Transactional
++    void getRecentOperationsIsForbiddenForNonAdministrators() throws Exception {
++        restOperationMockMvc.perform(get(ENTITY_API_URL + "/recent")).andExpect(status().isForbidden());
++    }
++
+     protected void assertIncrementedRepositoryCount(long countBefore) {
+         assertThat(countBefore + 1).isEqualTo(getRepositoryCount());
+     }

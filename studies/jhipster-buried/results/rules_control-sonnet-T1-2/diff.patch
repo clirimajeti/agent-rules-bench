@@ -1,0 +1,101 @@
+diff --git a/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+new file mode 100644
+index 00000000..e65e848e
+--- /dev/null
++++ b/src/main/java/io/github/jhipster/sample/config/ClockConfiguration.java
+@@ -0,0 +1,17 @@
++package io.github.jhipster.sample.config;
++
++import java.time.Clock;
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++
++/**
++ * Provides the {@link Clock} used for time-dependent logic, so it can be replaced in tests.
++ */
++@Configuration
++public class ClockConfiguration {
++
++    @Bean
++    public Clock clock() {
++        return Clock.systemUTC();
++    }
++}
+diff --git a/src/main/java/io/github/jhipster/sample/repository/UserRepository.java b/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
+index 2799b7b3..c54e5850 100644
+--- a/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
++++ b/src/main/java/io/github/jhipster/sample/repository/UserRepository.java
+@@ -38,4 +38,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
+     Optional<User> findOneByLogin(String login);
+ 
+     Page<User> findAllByIdNotNullAndActivatedIsTrue(Pageable pageable);
++
++    List<User> findAllByCreatedDateAfter(Instant createdAfter);
+ }
+diff --git a/src/main/java/io/github/jhipster/sample/service/UserService.java b/src/main/java/io/github/jhipster/sample/service/UserService.java
+index a032acc0..f12d540c 100644
+--- a/src/main/java/io/github/jhipster/sample/service/UserService.java
++++ b/src/main/java/io/github/jhipster/sample/service/UserService.java
+@@ -9,6 +9,7 @@ import io.github.jhipster.sample.security.AuthoritiesConstants;
+ import io.github.jhipster.sample.security.SecurityUtils;
+ import io.github.jhipster.sample.service.dto.AdminUserDTO;
+ import io.github.jhipster.sample.service.dto.UserDTO;
++import java.time.Clock;
+ import java.time.Instant;
+ import java.time.temporal.ChronoUnit;
+ import java.util.*;
+@@ -41,16 +42,30 @@ public class UserService {
+ 
+     private final CacheManager cacheManager;
+ 
++    private final Clock clock;
++
+     public UserService(
+         UserRepository userRepository,
+         PasswordEncoder passwordEncoder,
+         AuthorityRepository authorityRepository,
+-        CacheManager cacheManager
++        CacheManager cacheManager,
++        Clock clock
+     ) {
+         this.userRepository = userRepository;
+         this.passwordEncoder = passwordEncoder;
+         this.authorityRepository = authorityRepository;
+         this.cacheManager = cacheManager;
++        this.clock = clock;
++    }
++
++    /**
++     * Gets the logins of the users created in the last 7 days.
++     * @return the logins of recently created users.
++     */
++    @Transactional(readOnly = true)
++    public List<String> getRecentlyCreatedLogins() {
++        Instant since = Instant.now(clock).minus(7, ChronoUnit.DAYS);
++        return userRepository.findAllByCreatedDateAfter(since).stream().map(User::getLogin).toList();
+     }
+ 
+     public Optional<User> activateRegistration(String key) {
+diff --git a/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java b/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
+index 7f7dcef5..b7d0d5c0 100644
+--- a/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
++++ b/src/main/java/io/github/jhipster/sample/web/rest/UserResource.java
+@@ -177,6 +177,18 @@ public class UserResource {
+         return pageable.getSort().stream().map(Sort.Order::getProperty).allMatch(ALLOWED_ORDERED_PROPERTIES::contains);
+     }
+ 
++    /**
++     * {@code GET /admin/users/recently-created} : get the logins of users created in the last 7 days.
++     *
++     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the list of logins.
++     */
++    @GetMapping("/users/recently-created")
++    @PreAuthorize("hasAuthority(\"" + AuthoritiesConstants.ADMIN + "\")")
++    public ResponseEntity<List<String>> getRecentlyCreatedUsers() {
++        LOG.debug("REST request to get logins of recently created users");
++        return ResponseEntity.ok(userService.getRecentlyCreatedLogins());
++    }
++
+     /**
+      * {@code GET /admin/users/:login} : get the "login" user.
+      *

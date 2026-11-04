@@ -51,9 +51,9 @@ The two primary hypotheses are tested separately, each at 0.05, without correcti
 ## How to reproduce
 
 ```bash
-S="studies/jhipster-buried/study.json studies/fastapi-crud-status/study.json studies/bulletproof-notify-querykey/study.json"
-node bench/bench.mjs compare $S --arm pointer_only --against rules_control --out studies/ablation-loop.md     # H1, H3
-node bench/bench.mjs compare $S --arm rule_only --against rules_control --out studies/ablation-pointer.md     # H2, H3
+S=(studies/jhipster-buried/study.json studies/fastapi-crud-status/study.json studies/bulletproof-notify-querykey/study.json)
+node bench/bench.mjs compare "${S[@]}" --arm pointer_only --against rules_control --out studies/ablation-loop.md     # H1, H3
+node bench/bench.mjs compare "${S[@]}" --arm rule_only --against rules_control --out studies/ablation-pointer.md     # H2, H3
 ```
 
 `bench/compare.mjs` implements the tests; `bench/test/compare.test.mjs` checks them against hand-computed values.
@@ -62,3 +62,5 @@ node bench/bench.mjs compare $S --arm rule_only --against rules_control --out st
 
 - 2026-11-04, clarifications, no change of substance: the CMH test is the exact conditional version (the per-stratum hypergeometric distributions convolved, one-sided), which suits the small counts and the zero cells expected in `rules_control`; the bootstrap per stratum resamples runs within each arm; design-shaping rules are listed per study in `designRules` (use-clock-injection, db-access-in-crud, no-restricted-imports).
 - 2026-11-04, timing: the analysis code was written and committed while the runs were in progress (101 of 144 had results). It was checked only on the exploratory arms (`prose_buried` against `rules`); no output for the three ablation arms was looked at before this commit.
+- 2026-11-04, after the runs: the reproduce snippet used an unquoted string, which zsh does not split into words; it now uses an array. No change to the analysis.
+- 2026-11-04, runs: 17 bulletproof Haiku sessions ended with `is_error` after a usage limit (most after one turn) and were rerun, as the Design section provides.

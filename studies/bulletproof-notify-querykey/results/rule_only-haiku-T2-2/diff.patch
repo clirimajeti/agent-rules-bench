@@ -1,0 +1,240 @@
+diff --git a/apps/react-vite/src/components/ui/form/select.tsx b/apps/react-vite/src/components/ui/form/select.tsx
+index 6b38621..e66787e 100644
+--- a/apps/react-vite/src/components/ui/form/select.tsx
++++ b/apps/react-vite/src/components/ui/form/select.tsx
+@@ -14,20 +14,35 @@ type SelectFieldProps = FieldWrapperPassThroughProps & {
+   options: Option[];
+   className?: string;
+   defaultValue?: string;
+-  registration: Partial<UseFormRegisterReturn>;
++  value?: string;
++  disabled?: boolean;
++  onChange?: React.ChangeEventHandler<HTMLSelectElement>;
++  registration?: Partial<UseFormRegisterReturn>;
+ };
+ 
+ export const Select = (props: SelectFieldProps) => {
+-  const { label, options, error, className, defaultValue, registration } =
+-    props;
++  const {
++    label,
++    options,
++    error,
++    className,
++    defaultValue,
++    value,
++    disabled,
++    onChange,
++    registration,
++  } = props;
+   return (
+     <FieldWrapper label={label} error={error}>
+       <select
+         className={cn(
+-          'mt-1 block w-full rounded-md border-gray-600 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm',
++          'mt-1 block w-full rounded-md border-gray-600 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm',
+           className,
+         )}
+-        defaultValue={defaultValue}
++        defaultValue={value === undefined ? defaultValue : undefined}
++        value={value}
++        disabled={disabled}
++        onChange={onChange}
+         {...registration}
+       >
+         {options.map(({ label, value }) => (
+diff --git a/apps/react-vite/src/features/users/api/update-user-role.ts b/apps/react-vite/src/features/users/api/update-user-role.ts
+new file mode 100644
+index 0000000..3ff8a3f
+--- /dev/null
++++ b/apps/react-vite/src/features/users/api/update-user-role.ts
+@@ -0,0 +1,51 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { useNotifications } from '@/components/ui/notifications';
++import { api } from '@/lib/api-client';
++import { MutationConfig } from '@/lib/react-query';
++
++import { getUsersQueryOptions } from './get-users';
++
++export const updateUserRoleInputSchema = z.object({
++  role: z.enum(['ADMIN', 'USER']),
++});
++
++export type UpdateUserRoleInput = z.infer<typeof updateUserRoleInputSchema>;
++
++export type UpdateUserRoleDTO = {
++  userId: string;
++  data: UpdateUserRoleInput;
++};
++
++export const updateUserRole = ({ userId, data }: UpdateUserRoleDTO) => {
++  return api.patch(`/users/${userId}/role`, data);
++};
++
++type UseUpdateUserRoleOptions = {
++  mutationConfig?: MutationConfig<typeof updateUserRole>;
++};
++
++export const useUpdateUserRole = ({
++  mutationConfig,
++}: UseUpdateUserRoleOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      queryClient.invalidateQueries({
++        queryKey: getUsersQueryOptions().queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'Role Updated',
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateUserRole,
++  });
++};
+diff --git a/apps/react-vite/src/features/users/components/update-user-role.tsx b/apps/react-vite/src/features/users/components/update-user-role.tsx
+new file mode 100644
+index 0000000..97f128c
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/update-user-role.tsx
+@@ -0,0 +1,41 @@
++import { Select } from '@/components/ui/form';
++import { useUser } from '@/lib/auth';
++import { User } from '@/types/api';
++
++import {
++  updateUserRoleInputSchema,
++  useUpdateUserRole,
++} from '../api/update-user-role';
++
++const roleOptions = [
++  { label: 'Admin', value: 'ADMIN' },
++  { label: 'User', value: 'USER' },
++];
++
++type UpdateUserRoleProps = {
++  id: string;
++  role: User['role'];
++};
++
++export const UpdateUserRole = ({ id, role }: UpdateUserRoleProps) => {
++  const user = useUser();
++  const updateUserRoleMutation = useUpdateUserRole();
++
++  // Admins cannot change their own role, to avoid locking themselves out.
++  const isCurrentUser = user.data?.id === id;
++
++  return (
++    <Select
++      options={roleOptions}
++      value={role}
++      disabled={isCurrentUser || updateUserRoleMutation.isPending}
++      onChange={(event) => {
++        const parsed = updateUserRoleInputSchema.safeParse({
++          role: event.target.value,
++        });
++        if (!parsed.success) return;
++        updateUserRoleMutation.mutate({ userId: id, data: parsed.data });
++      }}
++    />
++  );
++};
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..526feb8 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -5,6 +5,7 @@ import { formatDate } from '@/utils/format';
+ import { useUsers } from '../api/get-users';
+ 
+ import { DeleteUser } from './delete-user';
++import { UpdateUserRole } from './update-user-role';
+ 
+ export const UsersList = () => {
+   const usersQuery = useUsers();
+@@ -40,6 +41,9 @@ export const UsersList = () => {
+         {
+           title: 'Role',
+           field: 'role',
++          Cell({ entry: { id, role } }) {
++            return <UpdateUserRole id={id} role={role} />;
++          },
+         },
+         {
+           title: 'Created At',
+diff --git a/apps/react-vite/src/testing/mocks/handlers/users.ts b/apps/react-vite/src/testing/mocks/handlers/users.ts
+index 444b918..042ccfc 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/users.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/users.ts
+@@ -17,6 +17,10 @@ type ProfileBody = {
+   bio: string;
+ };
+ 
++type RoleBody = {
++  role: string;
++};
++
+ export const usersHandlers = [
+   http.get(`${env.API_URL}/users`, async ({ cookies }) => {
+     await networkDelay();
+@@ -72,6 +76,53 @@ export const usersHandlers = [
+     }
+   }),
+ 
++  http.patch(
++    `${env.API_URL}/users/:userId/role`,
++    async ({ request, cookies, params }) => {
++      await networkDelay();
++
++      try {
++        const { user, error } = requireAuth(cookies);
++        if (error) {
++          return HttpResponse.json({ message: error }, { status: 401 });
++        }
++        requireAdmin(user);
++        const userId = params.userId as string;
++        const body = (await request.json()) as RoleBody;
++        if (body.role !== 'ADMIN' && body.role !== 'USER') {
++          return HttpResponse.json(
++            { message: 'Invalid role' },
++            { status: 400 },
++          );
++        }
++        const result = db.user.update({
++          where: {
++            id: {
++              equals: userId,
++            },
++            teamId: {
++              equals: user?.teamId,
++            },
++          },
++          data: { role: body.role },
++        });
++        if (!result) {
++          return HttpResponse.json(
++            { message: 'User not found' },
++            { status: 404 },
++          );
++        }
++        await persistDb('user');
++        return HttpResponse.json(sanitizeUser(result));
++      } catch (error: any) {
++        return HttpResponse.json(
++          { message: error?.message || 'Server Error' },
++          { status: 500 },
++        );
++      }
++    },
++  ),
++
+   http.delete(`${env.API_URL}/users/:userId`, async ({ cookies, params }) => {
+     await networkDelay();
+ 
