@@ -81,16 +81,64 @@ Written before any of these runs, under the same rules as the plan above.
 - Descriptive: within `prose_buried`, the share of T2 and T3 runs with a break after a chain whose earlier session broke the rule, against after one that did not.
   This is the compounding itself, but with 8 chains per model it is reported, not tested.
 
-## F3: does a stronger model follow buried prose?
+## F3: does a stronger model follow buried prose? (dropped)
 
-- Study bulletproof-notify-querykey, model `opus` added, arms `prose_buried` and `rules` only: 8 runs per arm, 16 in all.
-- No hypothesis test: the question is where Opus falls against Sonnet (1/8) and Haiku (5/8) on buried prose, reported with exact 95% intervals.
-- Cost is reported as in the other studies, `rules` against `prose_buried`.
-- Both Opus copies are prepared fresh with codemyrules 1e6fa0d; their trees are identical to those of the sequence study, so Opus is compared only within its own stratum.
+- Planned: Opus on bulletproof-notify-querykey, `prose_buried` and `rules`, 16 runs, no hypothesis test.
+- Dropped on 2026-11-04, before any Opus run: it asks how strong a model must be to follow buried prose, not whether lint rules beat prose, which is the question of this work.
+  Plan 3 takes its place.
 
 ## How to reproduce
 
 ```bash
 node bench/bench.mjs compare studies/bulletproof-sequence/study.json --arm prose_buried --against rules --tasks T2,T3   # H4
-node bench/bench.mjs compare studies/bulletproof-notify-querykey/study.json --arm prose_buried --against rules --models opus   # F3, opus stratum
+```
+
+# Plan 3: rules in a large always-loaded file against lint rules
+
+Written on 2026-11-04, before any of these runs, under the same rules as the plans above.
+
+## Question
+
+Do lint rules with the feedback loop get the agent to follow conventions more efficiently than the same conventions in an always-loaded file, when that file is the size a team reaches by loading all its docs?
+So far rules beat prose the agent can miss (buried or linked), but against two rules in a short `CLAUDE.md` both were followed in all runs at the same cost: that file was about 100 words.
+
+## Design
+
+- Study `bulletproof-large-context`: bulletproof-react, the tasks T1 and T2, rules, checkers, review fix and verify of bulletproof-notify-querykey; Sonnet and Haiku; 4 repeats: 64 runs.
+- Arms:
+  - `prose_loaded_large`: `CLAUDE.md` holds the project's `AGENTS.md` and all nine guides it links from `docs/`, verbatim, about 6,600 words (49 KB, roughly 12k tokens); the two rules sit where `prose_buried` puts them, in the API-layer and state-management guides.
+    This is buried prose that is always loaded.
+  - `rules`: as in bulletproof-notify-querykey (short `CLAUDE.md`, the docs on demand, lint rules, pointer, feedback loop).
+  - `rules_large`: `rules` with the same large `CLAUDE.md` as `prose_loaded_large`, without the two rules.
+  - `prose_loaded`: as in bulletproof-notify-querykey (the two rules in a short `CLAUDE.md`).
+- The large file is the project's own text, not text written for the study; only the two rule sentences are added, as in `prose_buried`.
+- Run handling, failures and reruns as in the first plan.
+
+## Outcomes
+
+- Primary: a production-code break of a study rule after the task, before any review fix; total cost per run including the review fix.
+- Secondary: runs broken at the end, design-rule loop catches, turns, verify pass rate.
+
+## Hypotheses and tests
+
+- H5: `prose_loaded_large` has more runs broken than `rules`.
+  Exact one-sided CMH over the model strata.
+- H6: `prose_loaded_large` costs more per run than `rules`.
+  Geometric mean of the per-stratum ratios of mean total cost; supported if the 95% stratified bootstrap interval lies above no change.
+- H5 and H6 are tested at a family-wise alpha of 0.05 with Holm's correction.
+- Descriptive, not tested:
+  - The measured context tax, `rules_large` against `rules`, set against the derived price of 12k tokens: $0.071 per Sonnet session at median turns ($0.067 to $0.074 over Q1 to Q3) and $0.005 per Haiku session ([context-cost.md](context-cost.md) method).
+  - Dilution: `prose_loaded_large` against `prose_loaded`, the same rule text in a short and in a long file.
+  - Whether a large file changes what the agent does besides the rules (turns, files read, verify).
+- Power: with 16 runs per arm, H5 detects only a large difference; a null result on H5 with `rules` at 0 breaks is reported as such, not as equivalence.
+
+## How to reproduce
+
+```bash
+S=studies/bulletproof-large-context/study.json
+node bench/bench.mjs run $S --models sonnet,haiku
+node bench/bench.mjs verify $S
+node bench/bench.mjs compare $S --arm prose_loaded_large --against rules --models sonnet,haiku          # H5, H6
+node bench/bench.mjs compare $S --arm rules_large --against rules --models sonnet,haiku                 # context tax
+node bench/bench.mjs compare $S --arm prose_loaded_large --against prose_loaded --models sonnet,haiku   # dilution
 ```

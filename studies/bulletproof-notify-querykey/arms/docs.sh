@@ -26,3 +26,12 @@ if [ "$1" = buried ]; then
   awk '{print} /^- \[RTK\]\(https:\/\/redux-toolkit.js.org\/rtk-query\)/{print ""; print ENVIRON["QUERYKEY"]}' docs/state-management.md > docs/state-management.md.new && mv docs/state-management.md.new docs/state-management.md
   grep -qF 'never call `useNotifications`' docs/api-layer.md && grep -qF 'write literal key arrays' docs/state-management.md || { echo "rule placement failed" >&2; exit 1; }
 fi
+# Arms ending in _large (bulletproof-large-context) also load the project's AGENTS.md and every guide CLAUDE.md
+# links, verbatim and in that order, as a team that puts all its docs in the always-loaded file would.
+# The rules stay where the mode put them (buried: in docs/api-layer.md and docs/state-management.md).
+if [[ "${BENCH_ARM:-}" == *_large ]]; then
+  LOADED_FILE=CLAUDE.md; [ "${BENCH_AGENT:-claude}" = claude ] || LOADED_FILE=AGENTS.md
+  FILES=(docs/project-structure.md docs/project-standards.md docs/api-layer.md docs/state-management.md docs/components-and-styling.md docs/error-handling.md docs/testing.md docs/security.md docs/performance.md)
+  [ "$LOADED_FILE" = CLAUDE.md ] && FILES=(AGENTS.md "${FILES[@]}") # pi and Codex load AGENTS.md already
+  for f in "${FILES[@]}"; do printf '\n\n' >> "$LOADED_FILE"; cat "$f" >> "$LOADED_FILE"; done
+fi

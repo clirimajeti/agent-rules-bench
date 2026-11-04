@@ -1,0 +1,113 @@
+{
+  "name": "bulletproof-large-context",
+  "description": "Rules in a large always-loaded file against lint rules: the same bulletproof-react tasks, rules and checkers as bulletproof-notify-querykey (arms, plugin and ESLint config are symlinks to it). In the _large arms the always-loaded file also holds the project's AGENTS.md and all nine guides from docs/, verbatim; the two rules sit where prose_buried puts them, so prose_loaded_large is buried prose that is always loaded. Plan 3 in studies/analysis-plan.md.",
+  "repo": {
+    "source": "https://github.com/alan2207/bulletproof-react.git",
+    "commit": "9506629ed003a561c6627735480cce4994244bb4"
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "prompt": "In apps/react-vite, let the author of a comment edit it: add an update-comment API (PATCH /comments/{commentId} with the new body) and an Edit button with a form drawer in the comments list, shown only on the current user's own comments. Show a success message after saving. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T2",
+      "prompt": "In apps/react-vite, let admins change a user's role from the users list: add an update-user-role API (PATCH /users/{userId}/role with the new role) and a role select in each row of the users table. The list must show the new role after the change, and a success message should appear. Do not run tests, lint or the app."
+    }
+  ],
+  "arms": [
+    {
+      "id": "prose_loaded",
+      "setup": "arms/prose_loaded.sh",
+      "fix": true
+    },
+    {
+      "id": "prose_loaded_large",
+      "setup": "arms/prose_buried.sh",
+      "fix": true
+    },
+    {
+      "id": "rules",
+      "setup": "arms/rules.sh",
+      "fix": true
+    },
+    {
+      "id": "rules_large",
+      "setup": "arms/rules.sh",
+      "fix": true
+    }
+  ],
+  "baselineArm": "prose_loaded_large",
+  "models": [
+    "sonnet",
+    "haiku"
+  ],
+  "repeats": 4,
+  "maxTurns": 30,
+  "designRules": [
+    "no-restricted-imports"
+  ],
+  "eval": [
+    {
+      "name": "eslint",
+      "format": "eslint",
+      "command": [
+        "node",
+        "{study}/node_modules/eslint/bin/eslint.js",
+        "-c",
+        "{study}/eslint.config.mjs",
+        "--no-inline-config",
+        "--format",
+        "json",
+        "{files}"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx"
+      ]
+    }
+  ],
+  "fix": {
+    "prompt": "Code review feedback on your uncommitted change in apps/react-vite: it breaks two project rules. Success notifications are shown inside the mutation hook in the feature's api/ folder (in onSuccess); feature components must not call useNotifications. Query keys come from the feature's query options (for example getUsersQueryOptions().queryKey); literal key arrays are only allowed inside queryOptions(...). Fix the new code accordingly; tests are not affected. Do not run tests, lint or the app."
+  },
+  "verify": {
+    "testFiles": [
+      "*.test.ts",
+      "*.test.tsx",
+      "*/__tests__/*",
+      "apps/react-vite/src/testing/*"
+    ],
+    "keep": [
+      "apps/react-vite/node_modules",
+      "apps/react-vite/.env"
+    ],
+    "steps": [
+      {
+        "name": "setup",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "setup"
+        ],
+        "setup": true
+      },
+      {
+        "name": "typecheck",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "typecheck"
+        ]
+      },
+      {
+        "name": "tests",
+        "retries": 2,
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "tests"
+        ]
+      }
+    ]
+  }
+}

@@ -33,7 +33,7 @@ Turns and tokens include the review-fix session.
 
 ## What it shows
 
-- Buried prose fails in both harnesses: every run broke a rule, almost all by importing across features (`no-restricted-imports`), the rule bulletproof states only in its docs.
+- Buried prose fails in both harnesses: every run broke a rule, all but one by showing the success notification in the component instead of the mutation hook (the design-shaping rule, checked by `no-restricted-imports` on `useNotifications`); the other run left a parse error.
 - With rules and the loop, pi broke none and Codex one (fixed in review); the loop caught 7 and 10 design-rule breaks while the agent worked.
 - Always-loaded prose depends on the harness: in pi it did not help at all (8/8), in Codex it cut breaks to 3/8, all on T1, and was the cheapest arm.
   Both copies have the same `AGENTS.md`, so the difference is in how the harness presents it or how the model acts in each harness, not in the text.
