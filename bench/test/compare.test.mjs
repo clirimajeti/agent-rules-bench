@@ -64,3 +64,14 @@ test('compare stratifies by study and model and reads catches and verify from th
   assert.match(md, /\| s \| sonnet \| 2\/4 \| 0\/4 \| 0\.214 \| \+100% \|/);
   assert.throws(() => compare([study], 'rule_only', 'rules_control'), /no study has runs of both/);
 });
+
+test('context cost: the price fit recovers known prices, and N tokens cost one write plus a read per later turn', async () => {
+  const { fitPrices, costPerSession } = await import('../context-cost.mjs');
+  const truth = [3e-6, 3.75e-6, 0.3e-6, 15e-6];
+  const sessions = [[10, 30000, 200000, 4000], [20, 50000, 900000, 9000], [5, 20000, 100000, 2000], [40, 80000, 1500000, 20000], [8, 25000, 300000, 3000]]
+    .map((x) => ({ x, cost: x.reduce((a, v, i) => a + v * truth[i], 0) }));
+  const { prices, maxRelError } = fitPrices(sessions);
+  prices.forEach((p, i) => close(p, truth[i], 1e-12));
+  assert.ok(maxRelError < 1e-9);
+  close(costPerSession(1000, 11, truth), 1000 * (3.75e-6 + 10 * 0.3e-6), 1e-12);
+});
