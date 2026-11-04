@@ -245,3 +245,43 @@ test('sequence: a chain continues on its own code, counts each session\'s own li
   assert.match(logs[0], /4 runs planned, 2 already done, 2 to run/); // the chain's finished T1 runs again too
   assert.deepEqual(logs.slice(1).map((m) => m.split(':')[0]), ['prose-sonnet-T1-2', 'prose-sonnet-T2-2']);
 });
+
+test('pi agent: its own copy and setup, isolated flags, and its events read as a result', async (t) => {
+  const { root, file } = setup(t, {
+    models: ['sonnet', { id: 'local', agent: 'pi', model: 'ollama/qwen3.6:35b-a3b-coding' }], repeats: 1, build: undefined,
+    arms: [{ id: 'prose', setup: 'arms/prose.sh', fix: true }],
+  });
+  fs.appendFileSync(path.join(path.dirname(file), 'arms', 'prose.sh'), 'printf "%s" "$BENCH_AGENT" > agent.txt\n');
+  const study = loadStudy(file);
+  prepareStudy(study, () => {});
+  assert.equal(fs.readFileSync(path.join(root, 'work', 'prose', 'agent.txt'), 'utf8'), 'claude');
+  assert.equal(fs.readFileSync(path.join(root, 'work', 'prose.pi', 'agent.txt'), 'utf8'), 'pi');
+
+  const log = path.join(root, 'pi.log');
+  process.env.FAKE_PI_LOG = log;
+  t.after(() => { delete process.env.FAKE_PI_LOG; });
+  const results = await runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], piCmd: ['node', path.join(here, 'fixtures', 'fake-pi.mjs')], log: () => {} });
+  const pi = results.find((r) => r.model === 'local');
+  assert.deepEqual([pi.ok, pi.agent, pi.turns, pi.breaksAfterTask, pi.fixed, pi.breaksFinal], [true, 'pi', 4, 1, true, 0]); // 2 turns task + 2 fix
+  assert.deepEqual(pi.usage, { input: 200, cacheWrite: 0, cacheRead: 2000, output: 30 });
+  assert.ok(fs.existsSync(path.join(study.resultsDir, 'prose-local-T1-1', 'task.events.jsonl')));
+  const calls = fs.readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse);
+  assert.equal(calls[0].cwd, fs.realpathSync(path.join(root, 'work', 'prose.pi')));
+  for (const flag of ['--no-session', '--no-skills', '--no-extensions', '--no-mcp', '--no-approve', '-e']) assert.ok(calls[0].argv.includes(flag), flag);
+  assert.equal(calls[0].argv[calls[0].argv.indexOf('--tools') + 1], 'read,edit,write,find,grep,ls'); // no shell
+  assert.equal(calls[0].maxTurns, '30');
+  assert.match(fs.readFileSync(path.join(calls[0].agentDir, 'models.json'), 'utf8'), /"qwen3\.6:35b-a3b-coding"/);
+  assert.ok(results.find((r) => r.model === 'sonnet').ok); // the Claude runs are unaffected
+});
+
+test('pi: a capped run is an error, and edits map to the hook input the loop scripts read', async () => {
+  const { parsePiEvents } = await import('../agents/pi.mjs');
+  const { hookInput } = await import('../agents/pi-loop.mjs');
+  const settled = ['{"type":"message_end","message":{"role":"assistant","stopReason":"stop","usage":{"input":1,"output":2}}}', '{"type":"turn_end"}', '{"type":"agent_settled"}'].join('\n');
+  assert.equal(parsePiEvents(settled).is_error, false);
+  assert.deepEqual([parsePiEvents(settled, { capped: true }).is_error, parsePiEvents(settled, { capped: true }).subtype], [true, 'error_max_turns']);
+  assert.equal(parsePiEvents(settled.split('\n').slice(0, 2).join('\n')).is_error, true); // never settled
+  assert.deepEqual(hookInput('edit', { path: 'a.ts', edits: [{ oldText: 'x', newText: 'y' }] }), { tool_name: 'MultiEdit', tool_input: { file_path: 'a.ts', edits: [{ old_string: 'x', new_string: 'y' }] } });
+  assert.deepEqual(hookInput('write', { path: 'a.ts', content: 'c' }), { tool_name: 'Write', tool_input: { file_path: 'a.ts', content: 'c' } });
+  assert.equal(hookInput('read', { path: 'a.ts' }), null);
+});

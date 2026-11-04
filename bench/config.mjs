@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 export const FORMATS = ['eslint', 'ast-grep', 'ruff'];
+export const AGENTS = ['claude', 'pi'];
 export const DEFAULT_TOOLS = ['Read', 'Edit', 'Write', 'MultiEdit', 'Glob', 'Grep', 'Bash(git status:*)', 'Bash(git diff:*)', 'Bash(ls:*)'];
 const ID = /^[A-Za-z0-9_]+$/; // run folders are "<arm>-<model>-<task>-<rep>", so ids must not contain "-"
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
@@ -37,8 +38,26 @@ export function validateStudy(s, studyDir) {
     if (a?.fix !== undefined && typeof a.fix !== 'boolean') errs.push(`arms[${i}].fix must be true or false`);
   });
   if (s.baselineArm !== undefined && !(s.arms ?? []).some((a) => a?.id === s.baselineArm)) errs.push(`baselineArm "${s.baselineArm}" is not one of the arms`);
-  if (s.models !== undefined && !isStrList(s.models)) errs.push('models must be a non-empty list of model names');
-  else if ((s.models ?? []).some((m) => m.includes('-'))) errs.push('models must be aliases without "-" (sonnet, haiku, opus)');
+  // A model is a Claude Code alias ("sonnet") or an agent spec: { "id": "qwen36", "agent": "pi", "model": "ollama/qwen3.6:35b-a3b-coding" }.
+  if (s.models !== undefined) {
+    if (!Array.isArray(s.models) || !s.models.length) errs.push('models must be a non-empty list');
+    else {
+      const seen = new Set();
+      s.models.forEach((m, i) => {
+        const id = typeof m === 'string' ? m : m?.id;
+        if (typeof m === 'string') { if (m.includes('-')) errs.push('models must be aliases without "-" (sonnet, haiku, opus)'); }
+        else if (!m || typeof m !== 'object') errs.push(`models[${i}] must be an alias or an object`);
+        else {
+          if (!ID.test(m.id ?? '')) errs.push(`models[${i}].id must be letters, digits or "_" (it is part of every run id)`);
+          if (!AGENTS.includes(m.agent)) errs.push(`models[${i}].agent is "${m.agent}", expected one of ${AGENTS.join(', ')}`);
+          if (typeof m.model !== 'string' || !m.model) errs.push(`models[${i}].model must name the agent's model, for example "ollama/qwen3.6:35b-a3b-coding"`);
+          if (m.baseUrl !== undefined && typeof m.baseUrl !== 'string') errs.push(`models[${i}].baseUrl must be a URL`);
+        }
+        if (id && seen.has(id)) errs.push(`models[${i}] id "${id}" is used twice`);
+        seen.add(id);
+      });
+    }
+  }
   if (s.repeats !== undefined && !(Number.isInteger(s.repeats) && s.repeats > 0)) errs.push('repeats must be a positive integer');
   if (s.maxTurns !== undefined && !(Number.isInteger(s.maxTurns) && s.maxTurns > 0)) errs.push('maxTurns must be a positive integer');
   if (s.allowedTools !== undefined && !isStrList(s.allowedTools)) errs.push('allowedTools must be a non-empty list');
@@ -102,7 +121,7 @@ export function loadStudy(file) {
     workdir: path.resolve(studyDir, s.workdir ?? path.join(defaultWorkdirs(), s.name)),
     resultsDir: path.join(studyDir, 'results'),
     baselineArm: s.baselineArm ?? s.arms[0].id,
-    models: s.models ?? ['sonnet'],
+    models: (s.models ?? ['sonnet']).map((m) => (typeof m === 'string' ? { id: m, agent: 'claude', model: m } : m)),
     repeats: s.repeats ?? 4,
     maxTurns: s.maxTurns ?? 30,
     allowedTools: s.allowedTools ?? DEFAULT_TOOLS,
@@ -128,9 +147,10 @@ export function defaultWorkdirs() {
 }
 
 // The first CLAUDE.md or CLAUDE.local.md in the workdir or any folder above it, or null.
+// AGENTS.md too: other agents (pi, opencode) load it from the folders above the working directory.
 export function claudeMemoryAbove(dir) {
   for (let d = path.resolve(dir); ; d = path.dirname(d)) {
-    for (const f of ['CLAUDE.md', 'CLAUDE.local.md']) if (fs.existsSync(path.join(d, f))) return path.join(d, f);
+    for (const f of ['CLAUDE.md', 'CLAUDE.local.md', 'AGENTS.md']) if (fs.existsSync(path.join(d, f))) return path.join(d, f);
     if (path.dirname(d) === d) return null;
   }
 }

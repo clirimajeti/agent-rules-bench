@@ -16,9 +16,13 @@ const inside = (child, parent) => {
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 };
 
-export function copyPath(study, armId) {
-  return path.join(study.workdir, armId);
+// One copy per arm and agent, since a setup may place files differently for an agent (BENCH_AGENT);
+// Claude Code copies keep the plain arm name.
+export function copyPath(study, armId, agent = 'claude') {
+  return path.join(study.workdir, agent === 'claude' ? armId : `${armId}.${agent}`);
 }
+
+export const agentsOf = (study) => [...new Set(study.models.map((m) => m.agent))];
 
 const isLocal = (study) => !/^[a-z]+:\/\//.test(study.repo.source) && !study.repo.source.includes('@');
 
@@ -31,12 +35,12 @@ export function prepareStudy(study, log = console.log) {
   if (isLocal(study) && inside(study.workdir, repoSource(study))) throw new Error(`workdir ${study.workdir} lies inside the source repo ${repoSource(study)}; pick a workdir outside it`);
   assertNoClaudeMemoryAbove(study.workdir);
   fs.mkdirSync(study.workdir, { recursive: true });
-  for (const arm of study.arms) {
-    const dest = copyPath(study, arm.id);
+  for (const arm of study.arms) for (const agent of agentsOf(study)) {
+    const dest = copyPath(study, arm.id, agent);
     if (fs.existsSync(dest)) {
       const tagged = spawnSync('git', ['rev-parse', '-q', '--verify', 'bench-base'], { cwd: dest }).status === 0;
       if (!tagged) throw new Error(`${dest} exists but was not prepared by agent-rules-bench; remove it yourself and run prepare again`);
-      log(`${arm.id}: already prepared at ${dest}, kept as it is`);
+      log(`${path.basename(dest)}: already prepared at ${dest}, kept as it is`);
       continue;
     }
     git(study.workdir, 'clone', '-q', '--no-hardlinks', repoSource(study), dest);
@@ -46,7 +50,7 @@ export function prepareStudy(study, log = console.log) {
       const r = spawnSync('bash', [arm.setup], {
         cwd: dest,
         stdio: ['ignore', 'inherit', 'inherit'],
-        env: { ...process.env, BENCH_COPY: dest, BENCH_STUDY_DIR: study.studyDir, BENCH_ARM: arm.id },
+        env: { ...process.env, BENCH_COPY: dest, BENCH_STUDY_DIR: study.studyDir, BENCH_ARM: arm.id, BENCH_AGENT: agent },
       });
       if (r.status !== 0) throw new Error(`setup for arm ${arm.id} (${arm.setup}) exited with ${r.status}; ${dest} is left for inspection`);
     }
@@ -54,6 +58,6 @@ export function prepareStudy(study, log = console.log) {
     git(dest, 'commit', '-q', '--allow-empty', '-m', `bench: setup for arm ${arm.id}`);
     git(dest, 'tag', '-f', 'bench-base');
     const changed = git(dest, 'diff', '--stat', 'HEAD~1', 'HEAD').split('\n').pop() || 'no tracked changes';
-    log(`${arm.id}: prepared at ${dest} (commit ${study.repo.commit}, setup: ${changed.trim()})`);
+    log(`${path.basename(dest)}: prepared at ${dest} (commit ${study.repo.commit}, setup: ${changed.trim()})`);
   }
 }

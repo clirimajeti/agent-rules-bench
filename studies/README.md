@@ -35,7 +35,7 @@ Copy [`_template/`](_template/) to `studies/<name>/` and fill it in.
 | `tasks` | the prompts; ids use letters, digits or `_` |
 | `arms` | one copy each; `setup` is a script run inside the fresh copy (env: `BENCH_COPY`, `BENCH_STUDY_DIR`, `BENCH_ARM`), `fix: true` gives runs that broke a rule one review-fix session |
 | `baselineArm` | the arm others are compared with; default the first |
-| `models` | Claude Code model aliases (`sonnet`, `haiku`, `opus`) |
+| `models` | Claude Code model aliases (`sonnet`, `haiku`, `opus`), or agent specs such as `{ "id": "qwen36", "agent": "pi", "model": "ollama/qwen3.6:35b-a3b-coding" }` (optional `baseUrl`, `timeoutSec`); the `id` is the model's name in run ids and summaries |
 | `repeats`, `maxTurns`, `allowedTools` | defaults 4, 30, and read/edit tools plus `git status`, `git diff`, `ls` |
 | `eval` | checkers run on changed files after each session, in ESLint, ast-grep or Ruff JSON format; `{files}` is replaced by the changed files, `{study}` by the study folder |
 | `fix.prompt` | the review feedback for fix sessions |
@@ -50,4 +50,5 @@ Copy [`_template/`](_template/) to `studies/<name>/` and fill it in.
 - **Fresh copies of the same kind** for every arm: an earlier study found a cost difference that came from a differently prepared copy, not from the setup under test.
 - **At least 8 runs per arm and model**; the spread between runs of the same setup is large.
 - **Verify on the plain upstream code**: `verify` applies each run's patch to a clean checkout of the pinned commit, without any arm's setup, so every arm's code is built and tested the same way. Give test steps `retries` and read `flaky` in the summary: a suite that fails under load must not count against the agent. A step with `"setup": true` prepares the environment; when it fails, `verify` stops instead of blaming the run.
+- **Other agents** (`"agent": "pi"`): each arm gets a copy per agent (`<arm>.pi`), and setup scripts see `BENCH_AGENT`, so a file that only one agent loads by itself can be placed for each (pi loads `AGENTS.md` and skips a `CLAUDE.md` next to it, and never loads a subfolder `CLAUDE.md`). pi runs with an isolated config folder holding only the model's provider, no personal extensions, skills or context files, no shell, and the codemyrules loop through `bench/agents/pi-loop.mjs`. Local models run one copy at a time.
 - Check `run --dry-run` first: it lists every session and the number still to run.

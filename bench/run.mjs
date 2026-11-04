@@ -6,20 +6,22 @@ import path from 'node:path';
 import { changedLines, onChangedLines, runLinters } from './lib/codemyrules-lib.mjs';
 import { copyPath } from './prepare.mjs';
 import { assertNoClaudeMemoryAbove } from './config.mjs';
+import { parsePiEvents, piAgentDir, piCommand } from './agents/pi.mjs';
 
 const LOOP_DIR = '.claude/codemyrules';
 
-export function planRuns(study, onlyArms) {
+export function planRuns(study, onlyArms, onlyModels) {
   const arms = study.arms.filter((a) => !onlyArms || onlyArms.includes(a.id));
+  const models = study.models.filter((m) => !onlyModels || onlyModels.includes(m.id));
   const runs = [];
   const order = [];
-  for (const arm of arms) for (const model of study.models) {
+  for (const arm of arms) for (const model of models) {
     if (study.sequence) { for (let rep = 1; rep <= study.repeats; rep++) for (const task of study.tasks) order.push([arm, model, task, rep]); }
     else for (const task of study.tasks) for (let rep = 1; rep <= study.repeats; rep++) order.push([arm, model, task, rep]);
   }
   for (const [arm, model, task, rep] of order) {
-    const id = `${arm.id}-${model}-${task.id}-${rep}`;
-    runs.push({ id, arm, model, task, rep, dir: path.join(study.resultsDir, id) });
+    const id = `${arm.id}-${model.id}-${task.id}-${rep}`;
+    runs.push({ id, arm, model: model.id, spec: model, task, rep, copy: copyPath(study, arm.id, model.agent), dir: path.join(study.resultsDir, id) });
   }
   return runs;
 }
@@ -33,22 +35,44 @@ function reset(copy) {
   if (fs.existsSync(loop)) for (const f of fs.readdirSync(loop)) if (f === 'failures.log' || /^turn-.*\.txt$/.test(f)) fs.rmSync(path.join(loop, f));
 }
 
-function session(study, copy, model, prompt, outBase, claudeCmd) {
-  const args = ['-p', prompt, '--output-format', 'json', '--model', model, '--max-turns', String(study.maxTurns),
+// One headless session of the run's agent. The agent's own output is kept (Claude Code: task.json; pi: its event
+// stream in task.events.jsonl, reduced to the same result fields in task.json).
+function agentProcess(study, spec, prompt, outBase, cmds) {
+  if (spec.agent === 'pi') {
+    const stateFile = `${outBase}.state.json`;
+    fs.rmSync(stateFile, { force: true });
+    const agentDir = piAgentDir(path.join(path.dirname(study.workdir), '.pi-agent'), spec);
+    const c = piCommand(study, spec, prompt, { agentDir, stateFile, cmd: cmds.pi });
+    const parse = (out) => {
+      fs.writeFileSync(`${outBase}.events.jsonl`, out);
+      let state = {};
+      try { state = JSON.parse(fs.readFileSync(stateFile, 'utf8')); } catch { /* not capped */ }
+      return parsePiEvents(out, state);
+    };
+    return { ...c, parse, timeoutSec: spec.timeoutSec ?? 3600 };
+  }
+  const args = ['-p', prompt, '--output-format', 'json', '--model', spec.model, '--max-turns', String(study.maxTurns),
     '--permission-mode', 'acceptEdits', '--setting-sources', 'project,local', '--allowedTools', study.allowedTools.join(' ')];
+  return { cmd: cmds.claude[0], args: [...cmds.claude.slice(1), ...args], env: process.env, parse: (out) => JSON.parse(out), timeoutSec: spec.timeoutSec };
+}
+
+function session(study, copy, spec, prompt, outBase, cmds) {
+  const p = agentProcess(study, spec, prompt, outBase, cmds);
   const start = Date.now();
   return new Promise((resolve) => {
-    const child = spawn(claudeCmd[0], [...claudeCmd.slice(1), ...args], { cwd: copy, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(p.cmd, p.args, { cwd: copy, stdio: ['ignore', 'pipe', 'pipe'], env: p.env });
     let out = '', err = '', finished = false;
+    const timer = p.timeoutSec ? setTimeout(() => { err += `\nagent-rules-bench: session killed after ${p.timeoutSec}s\n`; child.kill('SIGTERM'); }, p.timeoutSec * 1000) : null;
     child.stdout.on('data', (d) => { out += d; });
     child.stderr.on('data', (d) => { err += d; });
     const done = (code) => {
       if (finished) return; // 'error' and 'close' can both fire
       finished = true;
-      fs.writeFileSync(`${outBase}.json`, out);
-      fs.writeFileSync(`${outBase}.stderr`, err);
+      if (timer) clearTimeout(timer);
       let json = null;
-      try { json = JSON.parse(out); } catch { /* recorded as failed below */ }
+      try { json = p.parse(out); } catch { /* recorded as failed below */ }
+      fs.writeFileSync(`${outBase}.json`, spec.agent === 'claude' ? out : JSON.stringify(json, null, 2) + '\n');
+      fs.writeFileSync(`${outBase}.stderr`, err);
       resolve({ json, code, seconds: Math.round((Date.now() - start) / 1000) });
     };
     child.on('error', (e) => { err += String(e.message); done(-1); });
@@ -73,14 +97,14 @@ const usageOf = (j) => {
 
 // In a sequence study, a chain's later sessions continue on the code of the earlier ones: no reset before them,
 // and each session's result is committed, so the checks and the loop count only the lines it added.
-async function runOne(study, run, claudeCmd, log, { first = true } = {}) {
-  const copy = copyPath(study, run.arm.id);
+async function runOne(study, run, cmds, log, { first = true } = {}) {
+  const copy = run.copy;
   fs.mkdirSync(run.dir, { recursive: true });
   if (first) reset(copy);
-  const task = await session(study, copy, run.model, run.task.prompt, path.join(run.dir, 'task'), claudeCmd);
+  const task = await session(study, copy, run.spec, run.task.prompt, path.join(run.dir, 'task'), cmds);
   const afterTask = evaluate(study, copy);
   let fix = null;
-  if (run.arm.fix && study.fix && afterTask.breaks > 0) fix = await session(study, copy, run.model, study.fix.prompt, path.join(run.dir, 'fix'), claudeCmd);
+  if (run.arm.fix && study.fix && afterTask.breaks > 0) fix = await session(study, copy, run.spec, study.fix.prompt, path.join(run.dir, 'fix'), cmds);
   const final = fix ? evaluate(study, copy) : afterTask;
   git(copy, 'add', '-N', '.');
   fs.writeFileSync(path.join(run.dir, 'diff.patch'), git(copy, 'diff', 'bench-base').stdout);
@@ -96,7 +120,7 @@ async function runOne(study, run, claudeCmd, log, { first = true } = {}) {
     build = { ok: r.status === 0, status: r.status, timedOut: r.error?.code === 'ETIMEDOUT', seconds: Math.round((Date.now() - start) / 1000) };
   }
   const result = {
-    id: run.id, arm: run.arm.id, model: run.model, task: run.task.id, rep: run.rep,
+    id: run.id, arm: run.arm.id, model: run.model, agent: run.spec.agent, task: run.task.id, rep: run.rep,
     ok: task.json?.is_error === false,
     turns: (task.json?.num_turns ?? 0) + (fix?.json?.num_turns ?? 0),
     taskCost: task.json?.total_cost_usd ?? 0,
@@ -123,9 +147,10 @@ async function runOne(study, run, claudeCmd, log, { first = true } = {}) {
   return result;
 }
 
-// claudeCmd is the command that stands in for `claude`; BENCH_CLAUDE (a single executable path) overrides it.
-export async function runStudy(study, { arms: onlyArms, dryRun = false, claudeCmd = [process.env.BENCH_CLAUDE || 'claude'], log = console.log } = {}) {
-  const runs = planRuns(study, onlyArms);
+// claudeCmd and piCmd stand in for `claude` and `pi`; BENCH_CLAUDE and BENCH_PI (one executable path each) override them.
+export async function runStudy(study, { arms: onlyArms, models: onlyModels, dryRun = false, claudeCmd = [process.env.BENCH_CLAUDE || 'claude'], piCmd = [process.env.BENCH_PI || 'pi'], log = console.log } = {}) {
+  const cmds = { claude: claudeCmd, pi: piCmd };
+  const runs = planRuns(study, onlyArms, onlyModels);
   // A failed session (usage limit, crash) is not done: it is run again and its result replaced.
   const done = (r) => { try { return JSON.parse(fs.readFileSync(path.join(r.dir, 'result.json'), 'utf8')).ok === true; } catch { return false; } };
   // In a sequence study the unit is a chain (arm, model, repeat: every task in order); a chain with any run
@@ -139,17 +164,24 @@ export async function runStudy(study, { arms: onlyArms, dryRun = false, claudeCm
     return [];
   }
   if (todo.length) assertNoClaudeMemoryAbove(study.workdir);
-  for (const arm of new Set(todo.map((r) => r.arm.id))) {
-    const copy = copyPath(study, arm);
+  for (const copy of new Set(todo.map((r) => r.copy))) {
     if (git(copy, 'rev-parse', '-q', '--verify', 'bench-base').status !== 0) throw new Error(`${copy} is not prepared; run "prepare" first`);
   }
-  const byArm = new Map();
-  for (const r of todo) byArm.set(r.arm.id, [...(byArm.get(r.arm.id) ?? []), r]);
-  const results = await Promise.all([...byArm.values()].map(async (list) => {
+  // Runs on one copy go one after another. Copies run in parallel, except those of local agents (pi), which
+  // share one machine's model server and run one copy after another.
+  const byCopy = new Map();
+  for (const r of todo) byCopy.set(r.copy, [...(byCopy.get(r.copy) ?? []), r]);
+  const runCopy = async (list) => {
     const out = [];
-    for (const r of list) out.push(await runOne(study, r, claudeCmd, log, { first: !study.sequence || r.task.id === study.tasks[0].id }));
-    reset(copyPath(study, list[0].arm.id));
+    for (const r of list) out.push(await runOne(study, r, cmds, log, { first: !study.sequence || r.task.id === study.tasks[0].id }));
+    reset(list[0].copy);
     return out;
-  }));
+  };
+  const groups = [...byCopy.values()];
+  const local = groups.filter((g) => g[0].spec.agent === 'pi');
+  const results = await Promise.all([
+    ...groups.filter((g) => g[0].spec.agent !== 'pi').map(runCopy),
+    (async () => { const out = []; for (const g of local) out.push(...(await runCopy(g))); return out; })(),
+  ]);
   return results.flat();
 }

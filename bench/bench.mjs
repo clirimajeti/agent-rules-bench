@@ -11,8 +11,8 @@ import { compareStudies } from './compare.mjs';
 import { contextCost } from './context-cost.mjs';
 
 const USAGE = `usage:
-  node bench/bench.mjs prepare   <study.json> [--arms a,b]
-  node bench/bench.mjs run       <study.json> [--arms a,b] [--dry-run]
+  node bench/bench.mjs prepare   <study.json> [--arms a,b] [--models m,n]
+  node bench/bench.mjs run       <study.json> [--arms a,b] [--models m,n] [--dry-run]
   node bench/bench.mjs verify    <study.json> [--arms a,b] [--rerun | --failed]
   node bench/bench.mjs summarize <study.json>
   node bench/bench.mjs pool      <study.json>... [--exclude study/model/arm,...] [--rules-arm id] [--out file.md]
@@ -54,9 +54,12 @@ export async function main(argv) {
   try {
     const ai = rest.indexOf('--arms');
     const arms = ai >= 0 ? rest[ai + 1]?.split(',') : undefined;
-    if (cmd === 'prepare') prepareStudy(arms ? { ...study, arms: study.arms.filter((a) => arms.includes(a.id)) } : study);
+    const mi = rest.indexOf('--models');
+    const models = mi >= 0 ? rest[mi + 1]?.split(',') : undefined;
+    const withModels = models ? { ...study, models: study.models.filter((m) => models.includes(m.id)) } : study;
+    if (cmd === 'prepare') prepareStudy(arms ? { ...withModels, arms: withModels.arms.filter((a) => arms.includes(a.id)) } : withModels);
     if (cmd === 'run') {
-      await runStudy(study, { arms, dryRun: rest.includes('--dry-run') });
+      await runStudy(study, { arms, models, dryRun: rest.includes('--dry-run') });
       if (!rest.includes('--dry-run')) summarizeStudy(study);
     }
     if (cmd === 'verify') {

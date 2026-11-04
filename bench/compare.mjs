@@ -66,7 +66,7 @@ export function compare(studies, arm, against, { seed = 1, iterations = 10000, t
   const strata = [];
   for (const study of studies) {
     const results = loadResults(study.resultsDir).filter((r) => r.ok && (!tasks || tasks.includes(r.task)));
-    for (const model of study.models) {
+    for (const model of study.models.map((m) => (typeof m === 'string' ? m : m.id))) {
       const side = (a) => results.filter((r) => r.arm === a && r.model === model).map((r) => ({ ...r, ...productionBreaks(r, study.verify?.testFiles ?? []), catches: designCatches(study, r) }));
       const x = side(arm), y = side(against);
       if (!x.length || !y.length) continue;

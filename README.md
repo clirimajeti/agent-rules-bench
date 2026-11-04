@@ -45,7 +45,7 @@ Functional correctness, all 344 runs (`bench.mjs verify`: each final diff built 
 
 ```bash
 node bench/bench.mjs prepare   studies/<study>/study.json [--arms a,b]   # one fresh copy per arm, at the pinned commit
-node bench/bench.mjs run       studies/<study>/study.json   # all sessions, resumable; prints the summary
+node bench/bench.mjs run       studies/<study>/study.json [--arms a,b] [--models m,n]   # all sessions, resumable; prints the summary
 node bench/bench.mjs verify    studies/<study>/study.json   # build and test each run's final code; resumable
 node bench/bench.mjs summarize studies/<study>/study.json   # summary.md and runs.csv from the results
 ```
@@ -77,6 +77,7 @@ See [studies/README.md](studies/README.md) and the [template](studies/_template/
 
 - Node 22+ and git; no dependencies.
 - Claude Code (`claude`) logged in; each session is billed like any other Claude Code use.
+- Optional, for local models: [pi](https://github.com/earendil-works/pi-coding-agent) and a model server such as Ollama; a study names them in `models` (see [studies/README.md](studies/README.md)). The feedback loop runs in pi through an extension that calls the same codemyrules scripts as the Claude Code hooks.
   Headless sessions use the subscription's usage window faster than interactive ones, so budget for that.
 - `npm test` runs the harness against a fake `claude` and costs nothing.
 
