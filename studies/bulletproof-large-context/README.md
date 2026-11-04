@@ -29,7 +29,7 @@ Cost: total per run including the review fix.
   With Holm's correction its p = 0.016 is below the first threshold of 0.025.
 - H5 is not supported (p = 0.100 against 0.05): 3 of 16 runs broke a rule with the large file, none with lint rules.
   All 3 are Haiku showing the success notification in the component, the rule the large file states in its API-layer guide.
-- The same rule sentence held in a short `CLAUDE.md` (0/16) and slipped in the large one (3/16, all Haiku): the always-loaded file stops protecting a rule as it grows.
+- The same rule sentence held in a short `CLAUDE.md` (0/16) and slipped in the large one (3/16, all Haiku, p = 0.100): a sign that a growing always-loaded file protects a rule less, not a tested result.
 - With lint rules, the large file made the agent write the notification break in 4 of 16 runs (3 Haiku, 1 Sonnet; 5 loop catches), against none with the short file; the loop fixed all of them before the session ended.
 - The measured context tax is smaller and noisier than the derived one: `rules_large` cost Sonnet $0.030 more per run (+23%, -8% to +65%) against $0.09 derived for 15.7k tokens at median turns; for Haiku it was 4% cheaper, with fewer turns.
 - Verify: production code passes the original test suite in all 64 runs; one Haiku `rules` run failed only its own new test.

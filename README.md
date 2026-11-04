@@ -41,7 +41,7 @@ Confirmatory ablation, 144 runs ([studies/ablation.md](studies/ablation.md)):
 Confirmatory, all docs always loaded, 64 runs ([studies/bulletproof-large-context](studies/bulletproof-large-context/README.md)):
 - With the project's `AGENTS.md` and all its guides in `CLAUDE.md` (15.7k tokens in every session), a run cost **20% more than with lint rules (95% interval 1% to 42% more, p = 0.016)**.
 - Rule breaks: 3/16 with the large file, all Haiku, against 0/16 with lint rules (p = 0.100, not significant at 16 runs per arm).
-  The same rule sentence held in a short `CLAUDE.md` (0/16), so it is the file's size that let it slip.
+  The same rule sentence held in a short `CLAUDE.md` (0/16), which points to the file's size, though this difference too is not significant.
 
 Functional correctness, all 344 runs (`bench.mjs verify`: each final diff built and tested on the plain upstream commit):
 - Production code passes the project's original test suite in 340 of 344 runs; the setups do not differ, and the 4 failures are Haiku type and compile errors unrelated to the rules.
