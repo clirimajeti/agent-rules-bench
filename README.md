@@ -25,10 +25,11 @@ Public data: 344 runs (377 headless sessions, counting review fixes) on three op
 An internal Kotlin/Spring pilot (124 sessions, aggregate numbers only, see [studies/internal-backend](studies/internal-backend/README.md)) shaped the design and is not part of any pooled number.
 
 Exploratory, pooled over the 152 runs that compare text with the lint rule + pointer + loop ([studies/pooled.md](studies/pooled.md)):
-- Rule as text the agent can miss (linked or buried): the agent broke it in 17 of 56 runs; as a lint rule, in 0 of 56.
-  Counting the review fix each broken run needed, the lint rule was **14% cheaper (95% interval 5% to 22% cheaper)**.
-- Rule as text in `CLAUDE.md`, which the agent always reads: followed in all 32 runs, as was the lint rule, at the **same cost (0%, interval 11% cheaper to 12% more)**.
-  The lint rule's advantages there lie outside these tasks: `CLAUDE.md` stays short, and it is loaded and paid for in every session, and the rule still holds when the docs grow.
+- **When the convention is written somewhere the agent can miss** (a doc linked from `CLAUDE.md`, or one bullet in long docs), the agent broke it in 17 of 56 runs.
+  As a lint rule checked on every edit, it was broken in none, and the work cost **14% less (95% interval 5% to 22% less)**, because no run needed a review round to fix a break.
+- **When the convention is written in `CLAUDE.md` itself**, the agent followed it in all 32 runs, just as it did with the lint rule, and both cost the same (0%, interval 11% less to 12% more).
+  The lint rule's advantage there comes from outside these tasks: `CLAUDE.md` is loaded into every session, so every line in it costs tokens on every task, relevant or not.
+  And a lint rule keeps working when the docs grow and the convention gets buried, which these runs did not test directly.
 - Rule as a short doc with one clear link from `CLAUDE.md`: followed in every run, at equal cost ([jhipster-clock-authorities](studies/jhipster-clock-authorities/README.md)).
   So text fails when it is buried among other text, not because it is text.
 
