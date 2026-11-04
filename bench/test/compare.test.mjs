@@ -56,6 +56,7 @@ test('compare stratifies by study and model and reads catches and verify from th
   close(c.breaks.cmhP, exactUpper([{ x1: 2, n1: 4, x2: 0, n2: 4 }]));
   close(c.cost.ratio, 2);
   assert.deepEqual(c.cost.ci, [2, 2]); // no spread, so the interval is the point
+  assert.equal(c.cost.p, 0); // every resample costs more
   assert.equal(c.secondary.rules_control.catches, 4); // only the design rule, in 4 runs
   assert.deepEqual([c.secondary.rules_control.verifyOk, c.secondary.rules_control.verified], [4, 4]);
   assert.deepEqual(compare([study], 'pointer_only', 'rules_control', { iterations: 500 }), c); // seeded

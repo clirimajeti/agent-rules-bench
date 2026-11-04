@@ -97,7 +97,8 @@ export function compare(studies, arm, against, { seed = 1, iterations = 10000, t
   return {
     arm, against, strata,
     breaks: { x1: strata.reduce((n, s) => n + s.x1, 0), n1: strata.reduce((n, s) => n + s.n1, 0), x2: strata.reduce((n, s) => n + s.x2, 0), n2: strata.reduce((n, s) => n + s.n2, 0), cmhP: exactUpper(strata) },
-    cost: priced.length ? { ratio: geo(priced.map((s) => s.ratio)), ci: percentiles(boot), strata: priced.length } : null,
+    // p: share of bootstrap ratios at or below no change, one-sided (the first arm costs more)
+    cost: priced.length ? { ratio: geo(priced.map((s) => s.ratio)), ci: percentiles(boot), p: boot.filter((b) => b <= 1).length / boot.length, strata: priced.length } : null,
     secondary: { [arm]: describe(all('x')), [against]: describe(all('y')) },
   };
 }
@@ -112,7 +113,7 @@ export function compareMarkdown(c, tasks) {
   const lines = [`# ${arm} against ${against}${tasks ? ` (tasks ${tasks.join(', ')})` : ''}`, '', `Stratified by study x model. Breaks are runs with a production-code break after the task, before any review fix; cost is total cost per run including the fix (${arm} / ${against}).`, ''];
   lines.push('## Pooled', '');
   lines.push(`- Runs broken: ${arm} ${c.breaks.x1}/${c.breaks.n1}, ${against} ${c.breaks.x2}/${c.breaks.n2}; exact CMH, one-sided (${arm} breaks more): p = ${p3(c.breaks.cmhP)}.`);
-  lines.push(c.cost ? `- Cost: ${pct(c.cost.ratio)} (95% stratified bootstrap interval ${pct(c.cost.ci[0])} to ${pct(c.cost.ci[1])})${c.cost.strata < c.strata.length ? `, over the ${c.cost.strata} strata that report a cost` : ''}.` : '- Cost: no stratum reports a cost.');
+  lines.push(c.cost ? `- Cost: ${pct(c.cost.ratio)} (95% stratified bootstrap interval ${pct(c.cost.ci[0])} to ${pct(c.cost.ci[1])}; one-sided bootstrap p (${arm} costs more) = ${p3(c.cost.p)})${c.cost.strata < c.strata.length ? `, over the ${c.cost.strata} strata that report a cost` : ''}.` : '- Cost: no stratum reports a cost.');
   lines.push('', '## Per stratum', '', `| study | model | ${arm} broken | ${against} broken | Fisher p (one-sided) | cost change | 95% interval |`, '|---|---|---|---|---|---|---|');
   for (const s of c.strata) lines.push(`| ${s.study} | ${s.model} | ${s.x1}/${s.n1} | ${s.x2}/${s.n2} | ${p3(s.fisherP)} | ${s.ratio === null ? 'no cost' : pct(s.ratio)} | ${s.ci ? `${pct(s.ci[0])} to ${pct(s.ci[1])}` : '-'} |`);
   lines.push('', '## Secondary (descriptive)', '', '| arm | runs | design-rule loop catches | mean turns | runs broken at the end | verify: production code passes | exact 95% interval |', '|---|---|---|---|---|---|---|');

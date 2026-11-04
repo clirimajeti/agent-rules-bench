@@ -29,7 +29,7 @@ Exploratory, pooled over the 152 runs that compare text with the lint rule + poi
   As a lint rule checked on every edit, it was broken in none, and the work cost **14% less (95% interval 5% to 22% less)**, because no run needed a review round to fix a break.
 - **When the convention is written in `CLAUDE.md` itself**, the agent followed it in all 32 runs, just as it did with the lint rule, and both cost the same (0%, interval 11% less to 12% more).
   The lint rule's advantage there comes from outside these tasks: `CLAUDE.md` is loaded into every session, so every line in it costs tokens on every task, relevant or not.
-  And a lint rule keeps working when the docs grow and the convention gets buried, which these runs did not test directly.
+  What happens when the always-loaded file grows is the confirmatory study below.
 - Rule as a short doc with one clear link from `CLAUDE.md`: followed in every run, at equal cost ([jhipster-clock-authorities](studies/jhipster-clock-authorities/README.md)).
   So text fails when it is buried among other text, not because it is text.
 
@@ -37,6 +37,11 @@ Confirmatory ablation, 144 runs ([studies/ablation.md](studies/ablation.md)):
 - Without the feedback loop, 8/48 runs broke a rule against 0/48 (exact CMH p = 0.001); all 8 were a mechanical rule that no prose stated.
   Design-shaping rules with their one-line pointer alone were broken in 0 of 48 runs.
 - Without the pointer, runs cost 13% more (+3% to +24%): the loop caught the design-shaping rule 115 times against 45, so the agent got there through rework.
+
+Confirmatory, all docs always loaded, 64 runs ([studies/bulletproof-large-context](studies/bulletproof-large-context/README.md)):
+- With the project's `AGENTS.md` and all its guides in `CLAUDE.md` (15.7k tokens in every session), a run cost **20% more than with lint rules (95% interval 1% to 42% more, p = 0.016)**.
+- Rule breaks: 3/16 with the large file, all Haiku, against 0/16 with lint rules (p = 0.100, not significant at 16 runs per arm).
+  The same rule sentence held in a short `CLAUDE.md` (0/16), so it is the file's size that let it slip.
 
 Functional correctness, all 344 runs (`bench.mjs verify`: each final diff built and tested on the plain upstream commit):
 - Production code passes the project's original test suite in 340 of 344 runs; the setups do not differ, and the 4 failures are Haiku type and compile errors unrelated to the rules.

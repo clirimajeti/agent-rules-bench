@@ -142,3 +142,11 @@ node bench/bench.mjs compare $S --arm prose_loaded_large --against rules --model
 node bench/bench.mjs compare $S --arm rules_large --against rules --models sonnet,haiku                 # context tax
 node bench/bench.mjs compare $S --arm prose_loaded_large --against prose_loaded --models sonnet,haiku   # dilution
 ```
+
+## Deviations
+
+- 2026-11-04, after the runs, clarification: Holm's correction needs a p-value for H6, which the plan defined by its interval.
+  `compare` now also reports the one-sided bootstrap p (the share of resampled ratios at or below no change, same seed and resamples as the interval): p = 0.016 for H6.
+  The interval (+1% to +42%) gives the same answer at 0.05.
+- 2026-11-04, after the runs: the large file adds 15.7k tokens to the first request of every session (measured from the transcripts), not the 12k estimated from its size; the derived price for the context tax is scaled to 15.7k in the report.
+- Results: [bulletproof-large-context/README.md](bulletproof-large-context/README.md).
