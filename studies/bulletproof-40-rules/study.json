@@ -1,0 +1,124 @@
+{
+  "name": "bulletproof-40-rules",
+  "description": "Forty conventions, written once as one line of prose each in the always-loaded CLAUDE.md and once as forty ESLint rules with the codemyrules feedback loop (plus a one-line pointer per design-shaping convention, as codemyrules installs it), against none of them. All three arms come from one list, plugin/conventions.mjs, whose prose line is also each rule's lint message and the review's words. Plan 4 in studies/analysis-plan.md.",
+  "repo": {
+    "source": "https://github.com/alan2207/bulletproof-react.git",
+    "commit": "9506629ed003a561c6627735480cce4994244bb4"
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "prompt": "In apps/react-vite, let the author of a comment edit it: add an update-comment API (PATCH /comments/{commentId} with the new body) and an Edit button with a form drawer in the comments list, shown only on the current user's own comments. Show a success message after saving. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T2",
+      "prompt": "In apps/react-vite, let admins change a user's role from the users list: add an update-user-role API (PATCH /users/{userId}/role with the new role) and a role select in each row of the users table. The list must show the new role after the change, and a success message should appear. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T3",
+      "prompt": "In apps/react-vite, let admins rename their team: add an update-team API (PATCH /teams/{teamId} with the new name) and, on the profile page, a Team section that shows the current user's team name with a Rename button (admins only) that opens a form drawer. Show a success message after saving. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T4",
+      "prompt": "In apps/react-vite, let admins create teams: add a create-team API (POST /teams with a name and a description) and a handler for it in the mock API, and a new Teams page at /app/teams, linked in the dashboard navigation for admins only, that lists all teams with their creation date and has a Create Team button that opens a form drawer. Show a success message after saving. Do not run tests, lint or the app."
+    }
+  ],
+  "arms": [
+    {
+      "id": "none",
+      "setup": "arms/none.sh",
+      "fix": true
+    },
+    {
+      "id": "prose",
+      "setup": "arms/prose.sh",
+      "fix": true
+    },
+    {
+      "id": "rules",
+      "setup": "arms/rules.sh",
+      "fix": true
+    }
+  ],
+  "baselineArm": "prose",
+  "models": [
+    "sonnet",
+    "haiku"
+  ],
+  "repeats": 4,
+  "maxTurns": 30,
+  "designRules": [
+    "local/no-cross-feature-imports",
+    "local/notifications-in-mutation-hook",
+    "local/data-hooks-in-api",
+    "local/api-client-in-api-folder",
+    "local/schemas-in-api",
+    "local/role-checks-through-authorization",
+    "local/ownership-through-policies",
+    "local/ui-form-controls"
+  ],
+  "eval": [
+    {
+      "name": "eslint",
+      "format": "eslint",
+      "command": [
+        "node",
+        "{study}/node_modules/eslint/bin/eslint.js",
+        "-c",
+        "{study}/eslint.config.mjs",
+        "--no-inline-config",
+        "--format",
+        "json",
+        "{files}"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx"
+      ]
+    }
+  ],
+  "fix": {
+    "prompt": "Code review feedback on your uncommitted change in apps/react-vite: it breaks these project rules.\n{broken}\nFix the new code accordingly; tests are not affected. Do not run tests, lint or the app.",
+    "ruleText": "plugin/conventions.mjs"
+  },
+  "verify": {
+    "testFiles": [
+      "*.test.ts",
+      "*.test.tsx",
+      "*/__tests__/*",
+      "apps/react-vite/src/testing/*"
+    ],
+    "keep": [
+      "apps/react-vite/node_modules",
+      "apps/react-vite/.env"
+    ],
+    "steps": [
+      {
+        "name": "setup",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "setup"
+        ],
+        "setup": true
+      },
+      {
+        "name": "typecheck",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "typecheck"
+        ]
+      },
+      {
+        "name": "tests",
+        "retries": 2,
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "tests"
+        ]
+      }
+    ]
+  }
+}

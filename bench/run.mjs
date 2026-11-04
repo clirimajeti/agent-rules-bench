@@ -3,6 +3,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { changedLines, onChangedLines, runLinters } from './lib/codemyrules-lib.mjs';
 import { copyPath } from './prepare.mjs';
 import { assertNoClaudeMemoryAbove } from './config.mjs';
@@ -111,6 +112,15 @@ const usageOf = (j) => {
 
 // In a sequence study, a chain's later sessions continue on the code of the earlier ones: no reset before them,
 // and each session's result is committed, so the checks and the loop count only the lines it added.
+// The review names what the task broke: {broken} becomes one line per broken rule, in the words the study's
+// ruleText module gives it (the same words as the rule's prose line), so the review is the same in every arm.
+export async function fixPrompt(study, findings) {
+  if (!study.fix.prompt.includes('{broken}')) return study.fix.prompt;
+  const { ruleText = {} } = study.fix.ruleText ? await import(pathToFileURL(study.fix.ruleText).href) : {};
+  const lines = [...new Set(findings.map((f) => `- ${ruleText[f.ruleId] ?? f.ruleId}`))];
+  return study.fix.prompt.replace('{broken}', lines.join('\n'));
+}
+
 async function runOne(study, run, cmds, log, { first = true } = {}) {
   const copy = run.copy;
   fs.mkdirSync(run.dir, { recursive: true });
@@ -118,7 +128,7 @@ async function runOne(study, run, cmds, log, { first = true } = {}) {
   const task = await session(study, copy, run.spec, run.task.prompt, path.join(run.dir, 'task'), cmds);
   const afterTask = evaluate(study, copy);
   let fix = null;
-  if (run.arm.fix && study.fix && afterTask.breaks > 0) fix = await session(study, copy, run.spec, study.fix.prompt, path.join(run.dir, 'fix'), cmds);
+  if (run.arm.fix && study.fix && afterTask.breaks > 0) fix = await session(study, copy, run.spec, await fixPrompt(study, afterTask.findings), path.join(run.dir, 'fix'), cmds);
   const final = fix ? evaluate(study, copy) : afterTask;
   git(copy, 'add', '-N', '.');
   fs.writeFileSync(path.join(run.dir, 'diff.patch'), git(copy, 'diff', 'bench-base').stdout);

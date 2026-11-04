@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadStudy, validateStudy } from '../config.mjs';
 import { prepareStudy } from '../prepare.mjs';
-import { runStudy } from '../run.mjs';
+import { fixPrompt, runStudy } from '../run.mjs';
 import { aggregate, loadResults, summarizeStudy } from '../summarize.mjs';
 import { checkoutPath, verifyStudy } from '../verify.mjs';
 
@@ -359,4 +359,16 @@ test('codex events: warnings do not fail a run, failed turns and the cap do', as
   assert.equal(parseCodexEvents(ok, { capped: true }).subtype, 'error_max_turns');
   assert.equal(parseCodexEvents(ok + '\n{"type":"turn.failed","error":{"message":"boom"}}').errorMessage, 'boom');
   assert.equal(parseCodexEvents('{"type":"thread.started"}').is_error, true);
+});
+
+test('fix prompt: {broken} lists each broken rule once, in the words of the study\'s ruleText module', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'arb-fix-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const mod = path.join(dir, 'rules.mjs');
+  fs.writeFileSync(mod, "export const ruleText = { 'local/a': 'Rule A.', 'local/b': 'Rule B.' };\n");
+  const study = { fix: { prompt: 'Review:\n{broken}\nFix it.', ruleText: mod } };
+  const findings = [{ ruleId: 'local/a' }, { ruleId: 'local/b' }, { ruleId: 'local/a' }, { ruleId: 'other' }];
+  assert.equal(await fixPrompt(study, findings), 'Review:\n- Rule A.\n- Rule B.\n- other\nFix it.');
+  assert.equal(await fixPrompt({ fix: { prompt: 'Plain.' } }, findings), 'Plain.');
+  assert.match(validateStudy({ fix: { prompt: 'no placeholder', ruleText: 'missing.mjs' } }, dir).join('\n'), /fix\.ruleText "missing\.mjs" must be a module[\s\S]*needs a fix\.prompt with \{broken\}/);
 });

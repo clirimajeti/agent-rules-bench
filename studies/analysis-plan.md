@@ -93,6 +93,12 @@ Written before any of these runs, under the same rules as the plan above.
 node bench/bench.mjs compare studies/bulletproof-sequence/study.json --arm prose_buried --against rules --tasks T2,T3   # H4
 ```
 
+## Deviations
+
+- 2026-11-04, runs: the first F6 batch hit the account's 5-hour usage limit: all 24 Haiku sessions and 4 Sonnet sessions ended after the limit message (one Sonnet T3 session after 12-13 turns).
+  As the Design section provides, every chain with a failed session is rerun from T1 on a fresh copy; the 4 complete Sonnet chains (12 sessions) are kept.
+  Before the rerun the summary and H4 comparison were printed once on the complete chains (Sonnet only, 0/5 against 0/5 broken in T2 and T3); nothing in the plan was changed after seeing them.
+
 # Plan 3: rules in a large always-loaded file against lint rules
 
 Written on 2026-11-04, before any of these runs, under the same rules as the plans above.
@@ -150,3 +156,61 @@ node bench/bench.mjs compare $S --arm prose_loaded_large --against prose_loaded 
   The interval (+1% to +42%) gives the same answer at 0.05.
 - 2026-11-04, after the runs: the large file adds 15.7k tokens to the first request of every session (measured from the transcripts), not the 12k estimated from its size; the derived price for the context tax is scaled to 15.7k in the report.
 - Results: [bulletproof-large-context/README.md](bulletproof-large-context/README.md).
+
+# Plan 4: forty conventions as prose against forty lint rules
+
+Written on 2026-11-04, before any of these runs, under the same rules as the plans above.
+
+## Question
+
+With many conventions on both sides, do lint rules with the feedback loop get the agent to follow them more efficiently than the same conventions as prose in the always-loaded file?
+Plan 3 grew the docs around two rules; this plan grows the number of rules, with the same weight on both sides: one prose line against one lint rule per convention.
+
+## Design
+
+- Study `bulletproof-40-rules`: bulletproof-react `apps/react-vite`, tasks T1 to T3 of the sequence study (edit a comment, change a user's role, rename a team) and a new T4 (create teams: API, mock-API handler, a Teams page, navigation for admins), each in a fresh copy; Sonnet and Haiku; 4 repeats: 96 runs.
+- The 40 conventions are one list, `plugin/conventions.mjs`: 8 architecture, 6 API layer, 3 authorization, 8 UI, 3 configuration and routing, 3 TypeScript, 6 modules and files, 3 mock API.
+  Each has one prose line, which is also its lint message and the review's words, so neither side states a convention more clearly.
+  The conventions are the project's own documented ones and the patterns its code follows; the existing code breaks 6 of them in 14 places (none of these lines count, since only lines a session changes do).
+  Each rule's tests run good and bad examples through the study's ESLint config.
+- Arms:
+  - `none`: the short `CLAUDE.md` of bulletproof-notify-querykey (links the project's `AGENTS.md` and docs), no conventions.
+  - `prose`: `none` plus the 40 prose lines under `## Conventions` in `CLAUDE.md` (757 words in all).
+  - `rules`: `none` plus the 40 lint rules with the codemyrules feedback loop, and one pointer line per design-shaping convention (8) in `src/features/CLAUDE.md`, as codemyrules installs it.
+- Review fix: when the task broke a convention, one review session lists each broken convention in its prose words (the `{broken}` placeholder), the same in every arm.
+- Run handling, failures and reruns as in the first plan.
+
+## Outcomes
+
+- Primary: a production-code break of any of the 40 conventions after the task, before any review fix; total cost per run including the review fix.
+- Secondary: breaks per run (count), breaks per convention, runs broken at the end, loop catches, turns, verify pass rate, the always-loaded tokens of each arm.
+
+## Hypotheses and tests
+
+- H7: `prose` has more runs broken than `rules`.
+  Exact one-sided CMH over the model strata.
+- H8: `prose` costs more per run than `rules`.
+  Geometric mean of the per-stratum ratios of mean total cost, one-sided stratified bootstrap p (share of resampled ratios at or below no change).
+- H7 and H8 are tested at a family-wise alpha of 0.05 with Holm's correction.
+- Descriptive, not tested:
+  - `none` against `prose`: which conventions the agent follows anyway by copying the code, and what the prose adds.
+  - Breaks per convention in each arm, and which conventions the loop catches most.
+  - Breaks per run as a count, since with 40 conventions a binary outcome may saturate in `none` and `prose`.
+- Power: 32 runs per arm; if most `prose` runs break something, H7 can show a large effect, and H8 depends on how many review sessions the arms need.
+
+## Threats
+
+- All arms link the project's own `AGENTS.md`, which states a few of the conventions (cross-feature imports, kebab-case files) and shows a literal query key in an example; this is the same in every arm.
+- The tasks were not mined from the project's history; T4 was written for this study, before any run, to reach the mock-API and routing conventions.
+- One project, one set of conventions written by the experimenter from the project's docs and code.
+
+## How to reproduce
+
+```bash
+S=studies/bulletproof-40-rules/study.json
+node --test studies/bulletproof-40-rules/plugin/   # the 40 rules against their examples
+node bench/bench.mjs run $S --models sonnet,haiku
+node bench/bench.mjs verify $S
+node bench/bench.mjs compare $S --arm prose --against rules --models sonnet,haiku   # H7, H8
+node bench/bench.mjs compare $S --arm none --against prose --models sonnet,haiku    # descriptive
+```

@@ -72,6 +72,8 @@ export function validateStudy(s, studyDir) {
     if (!isStrList(e?.extensions) || !e.extensions.every((x) => x.startsWith('.'))) errs.push(`${at}.extensions must be a list like [".java"]`);
   });
   if (s.fix !== undefined && (typeof s.fix?.prompt !== 'string' || !s.fix.prompt.trim())) errs.push('fix.prompt must be a non-empty string');
+  if (s.fix?.ruleText !== undefined && (typeof s.fix.ruleText !== 'string' || !fs.existsSync(path.resolve(studyDir, s.fix.ruleText)))) errs.push(`fix.ruleText "${s.fix.ruleText}" must be a module next to the study that exports ruleText`);
+  if (s.fix?.ruleText !== undefined && !String(s.fix.prompt).includes('{broken}')) errs.push('fix.ruleText needs a fix.prompt with {broken}');
   if ((s.arms ?? []).some((a) => a?.fix) && !s.fix) errs.push('an arm has "fix": true, but the study has no fix.prompt');
   if (s.build !== undefined) {
     if (!isStrList(s.build?.command)) errs.push('build.command must be a list of strings');
@@ -130,6 +132,7 @@ export function loadStudy(file) {
     sequence: s.sequence ?? false,
     arms: s.arms.map((a) => ({ ...a, setup: a.setup ? path.resolve(studyDir, a.setup) : undefined, fix: a.fix ?? false })),
     eval: s.eval.map((e) => ({ ...e, command: sub(e.command), tier: 'full' })),
+    fix: s.fix ? { ...s.fix, ruleText: s.fix.ruleText ? path.resolve(studyDir, s.fix.ruleText) : undefined } : undefined,
     build: s.build ? { ...s.build, command: sub(s.build.command), timeoutSec: s.build.timeoutSec ?? 600 } : undefined,
     // Agent-infra files (docs, hooks) are left out of the patch: verify judges the code on the plain upstream commit.
     verify: s.verify ? {
