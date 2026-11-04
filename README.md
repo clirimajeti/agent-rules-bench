@@ -20,19 +20,22 @@ It was built to test the claims behind [codemyrules](https://github.com/clirimaj
 
 ## Results so far
 
-Six rounds on an internal Kotlin/Spring codebase (124 sessions; aggregate numbers only, see [studies/internal-backend](studies/internal-backend/README.md)):
-- Rules + a one-line pointer gave correct code in every run.
-- Against prose the agent does not load by default, that was about 22% cheaper in total once the review fix is counted.
-- Against prose the agent always loads, it was cost-neutral, adding a guarantee.
-- Always-loaded prose costs about $0.009 per 1,000 tokens per Sonnet session.
+Public data: 344 runs (377 headless sessions, counting review fixes) on three open-source projects in Java, Python and TypeScript; every setup, prompt, session, diff and log is in `studies/`.
+200 runs are exploratory (four studies), 144 confirmatory (an ablation with an [analysis plan](studies/analysis-plan.md) committed before its runs).
+An internal Kotlin/Spring pilot (124 sessions, aggregate numbers only, see [studies/internal-backend](studies/internal-backend/README.md)) shaped the design and is not part of any pooled number.
 
-First public replication on jhipster-sample-app (24 sessions, all raw data, see [studies/jhipster-clock-authorities](studies/jhipster-clock-authorities/README.md)):
-- With a short, prominent link to the conventions, every arm followed both rules and costs were equal within 1%.
-- So rules + pointer stay cost-neutral when the agent sees the prose, and the internal failures depend on how buried the prose is.
+Exploratory, pooled over the 152 runs that compare prose with rules + pointer + loop ([studies/pooled.md](studies/pooled.md)):
+- Against prose the agent can miss (linked or buried): runs with a rule broken in the first draft 17/56 against 0/56; total cost including the review fix **-14% (95% interval -22% to -5%)**.
+- Against always-loaded prose: no breaks on either side; cost **-0% (-11% to +12%)**.
+- With a short, prominent link to the conventions, every setup followed both rules at equal cost ([jhipster-clock-authorities](studies/jhipster-clock-authorities/README.md)), so prose fails when it is buried, not because it is prose.
 
-Pooled over the four public studies (152 runs, [studies/pooled.md](studies/pooled.md)):
-- Against prose the agent can miss: rules + loop cost **-14% (95% interval -22% to -5%)**, with first drafts broken in 0/56 runs against 17/56.
-- Against always-loaded prose: **-0% (-11% to +12%)**, no breaks on either side.
+Confirmatory ablation, 144 runs ([studies/ablation.md](studies/ablation.md)):
+- Without the feedback loop, 8/48 runs broke a rule against 0/48 (exact CMH p = 0.001); all 8 were a mechanical rule that no prose stated.
+  Design-shaping rules with their one-line pointer alone were broken in 0 of 48 runs.
+- Without the pointer, runs cost 13% more (+3% to +24%): the loop caught the design-shaping rule 115 times against 45, so the agent got there through rework.
+
+Functional correctness, all 344 runs (`bench.mjs verify`: each final diff built and tested on the plain upstream commit):
+- Production code passes the project's original test suite in 340 of 344 runs; the setups do not differ, and the 4 failures are Haiku type and compile errors unrelated to the rules.
 
 ## How it works
 
@@ -93,6 +96,6 @@ None of these compares where a rule lives, with rule compliance and fix-round co
 
 ## Limits
 
-- Results so far come from one module and two rules, with 8-12 runs per setup and a wide spread.
+- Three public projects, seven rules and two tasks per project, with 8 runs per setup and model and a wide spread; the tasks are designed so that copying nearby code breaks a rule, so break rates are an upper bound for everyday work.
 - The review-fix round is idealised: one precise prompt, no human time, no CI round trip.
 - Rule breaks are counted with the study's own checkers on added lines, so a checker's blind spots are the study's blind spots.
