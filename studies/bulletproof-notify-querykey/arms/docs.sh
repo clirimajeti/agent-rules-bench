@@ -3,7 +3,7 @@
 # and places the two rules according to the mode:
 #   buried: the notification rule as a bullet mid-list in docs/api-layer.md, the query-key rule as a
 #           sentence in the server-cache section of docs/state-management.md (the project's real docs)
-#   loaded: both rules in the always-loaded file (CLAUDE.md, or AGENTS.md for pi)
+#   loaded: both rules in the always-loaded file (CLAUDE.md for Claude Code, AGENTS.md for pi and Codex)
 #   none:   neither
 set -euo pipefail
 NOTIFY='- For mutations, the success notification (`useNotifications`) is shown inside the mutation hook in the feature'"'"'s `api/` folder, in `onSuccess`; feature components never call `useNotifications` themselves.'
@@ -18,9 +18,9 @@ The app to work on is `apps/react-vite` (React, Vite, TanStack Query, Zod, Tailw
 Read [AGENTS.md](AGENTS.md) for the project overview, structure and conventions.
 Detailed guides are in `docs/`: [project structure](docs/project-structure.md), [project standards](docs/project-standards.md), [API layer](docs/api-layer.md), [state management](docs/state-management.md), [components and styling](docs/components-and-styling.md), [error handling](docs/error-handling.md), [testing](docs/testing.md), [security](docs/security.md), [performance](docs/performance.md).
 MD
-# The always-loaded file is the one the agent loads by itself: CLAUDE.md for Claude Code, AGENTS.md for pi
-# (pi reads AGENTS.md and skips a CLAUDE.md in the same folder).
-if [ "${BENCH_AGENT:-claude}" = pi ]; then printf '%s' "$LOADED" >> AGENTS.md; else printf '%s' "$LOADED" >> CLAUDE.md; fi
+# The always-loaded file is the one the agent loads by itself: CLAUDE.md for Claude Code, AGENTS.md for the
+# others (pi and Codex read AGENTS.md and skip a CLAUDE.md in the same folder; tested).
+if [ "${BENCH_AGENT:-claude}" = claude ]; then printf '%s' "$LOADED" >> CLAUDE.md; else printf '%s' "$LOADED" >> AGENTS.md; fi
 if [ "$1" = buried ]; then
   awk '{print} /^- A fetcher function that calls an endpoint/{print ENVIRON["NOTIFY"]}' docs/api-layer.md > docs/api-layer.md.new && mv docs/api-layer.md.new docs/api-layer.md
   awk '{print} /^- \[RTK\]\(https:\/\/redux-toolkit.js.org\/rtk-query\)/{print ""; print ENVIRON["QUERYKEY"]}' docs/state-management.md > docs/state-management.md.new && mv docs/state-management.md.new docs/state-management.md

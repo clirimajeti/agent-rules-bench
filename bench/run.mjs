@@ -7,6 +7,7 @@ import { changedLines, onChangedLines, runLinters } from './lib/codemyrules-lib.
 import { copyPath } from './prepare.mjs';
 import { assertNoClaudeMemoryAbove } from './config.mjs';
 import { parsePiEvents, piAgentDir, piCommand } from './agents/pi.mjs';
+import { codexCommand, codexHome, parseCodexEvents } from './agents/codex.mjs';
 
 const LOOP_DIR = '.claude/codemyrules';
 
@@ -38,6 +39,19 @@ function reset(copy) {
 // One headless session of the run's agent. The agent's own output is kept (Claude Code: task.json; pi: its event
 // stream in task.events.jsonl, reduced to the same result fields in task.json).
 function agentProcess(study, spec, prompt, outBase, cmds) {
+  if (spec.agent === 'codex') {
+    const stateFile = `${outBase}.state.json`;
+    fs.rmSync(stateFile, { force: true });
+    const home = codexHome(path.join(path.dirname(study.workdir), '.codex-home'), spec);
+    const c = codexCommand(study, spec, prompt, { home, stateFile, cmd: cmds.codex });
+    const parse = (out) => {
+      fs.writeFileSync(`${outBase}.events.jsonl`, out);
+      let state = {};
+      try { state = JSON.parse(fs.readFileSync(stateFile, 'utf8')); } catch { /* no tool calls */ }
+      return parseCodexEvents(out, state);
+    };
+    return { ...c, parse, timeoutSec: spec.timeoutSec ?? 3600 };
+  }
   if (spec.agent === 'pi') {
     const stateFile = `${outBase}.state.json`;
     fs.rmSync(stateFile, { force: true });
@@ -147,9 +161,9 @@ async function runOne(study, run, cmds, log, { first = true } = {}) {
   return result;
 }
 
-// claudeCmd and piCmd stand in for `claude` and `pi`; BENCH_CLAUDE and BENCH_PI (one executable path each) override them.
-export async function runStudy(study, { arms: onlyArms, models: onlyModels, dryRun = false, claudeCmd = [process.env.BENCH_CLAUDE || 'claude'], piCmd = [process.env.BENCH_PI || 'pi'], log = console.log } = {}) {
-  const cmds = { claude: claudeCmd, pi: piCmd };
+// claudeCmd, piCmd and codexCmd stand in for the agents; BENCH_CLAUDE, BENCH_PI and BENCH_CODEX (one executable path each) override them.
+export async function runStudy(study, { arms: onlyArms, models: onlyModels, dryRun = false, claudeCmd = [process.env.BENCH_CLAUDE || 'claude'], piCmd = [process.env.BENCH_PI || 'pi'], codexCmd = [process.env.BENCH_CODEX || 'codex'], log = console.log } = {}) {
+  const cmds = { claude: claudeCmd, pi: piCmd, codex: codexCmd };
   const runs = planRuns(study, onlyArms, onlyModels);
   // A failed session (usage limit, crash) is not done: it is run again and its result replaced.
   const done = (r) => { try { return JSON.parse(fs.readFileSync(path.join(r.dir, 'result.json'), 'utf8')).ok === true; } catch { return false; } };
@@ -167,8 +181,8 @@ export async function runStudy(study, { arms: onlyArms, models: onlyModels, dryR
   for (const copy of new Set(todo.map((r) => r.copy))) {
     if (git(copy, 'rev-parse', '-q', '--verify', 'bench-base').status !== 0) throw new Error(`${copy} is not prepared; run "prepare" first`);
   }
-  // Runs on one copy go one after another. Copies run in parallel, except those of local agents (pi), which
-  // share one machine's model server and run one copy after another.
+  // Runs on one copy go one after another. Copies run in parallel, except those of agents on local models
+  // (pi, codex), which share one machine's model server and run one copy after another.
   const byCopy = new Map();
   for (const r of todo) byCopy.set(r.copy, [...(byCopy.get(r.copy) ?? []), r]);
   const runCopy = async (list) => {
@@ -178,9 +192,10 @@ export async function runStudy(study, { arms: onlyArms, models: onlyModels, dryR
     return out;
   };
   const groups = [...byCopy.values()];
-  const local = groups.filter((g) => g[0].spec.agent === 'pi');
+  const isLocal = (g) => g[0].spec.agent !== 'claude';
+  const local = groups.filter(isLocal);
   const results = await Promise.all([
-    ...groups.filter((g) => g[0].spec.agent !== 'pi').map(runCopy),
+    ...groups.filter((g) => !isLocal(g)).map(runCopy),
     (async () => { const out = []; for (const g of local) out.push(...(await runCopy(g))); return out; })(),
   ]);
   return results.flat();

@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 export const FORMATS = ['eslint', 'ast-grep', 'ruff'];
-export const AGENTS = ['claude', 'pi'];
+export const AGENTS = ['claude', 'pi', 'codex'];
 export const DEFAULT_TOOLS = ['Read', 'Edit', 'Write', 'MultiEdit', 'Glob', 'Grep', 'Bash(git status:*)', 'Bash(git diff:*)', 'Bash(ls:*)'];
 const ID = /^[A-Za-z0-9_]+$/; // run folders are "<arm>-<model>-<task>-<rep>", so ids must not contain "-"
 const NAME = /^[a-z0-9][a-z0-9-]*$/;

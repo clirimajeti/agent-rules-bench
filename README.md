@@ -77,7 +77,7 @@ See [studies/README.md](studies/README.md) and the [template](studies/_template/
 
 - Node 22+ and git; no dependencies.
 - Claude Code (`claude`) logged in; each session is billed like any other Claude Code use.
-- Optional, for local models: [pi](https://github.com/earendil-works/pi-coding-agent) and a model server such as Ollama; a study names them in `models` (see [studies/README.md](studies/README.md)). The feedback loop runs in pi through an extension that calls the same codemyrules scripts as the Claude Code hooks.
+- Optional, for local models: [pi](https://github.com/earendil-works/pi-coding-agent) or the [Codex CLI](https://github.com/openai/codex), and a model server such as Ollama; a study names them in `models` (see [studies/README.md](studies/README.md)). The feedback loop runs in pi through an extension and in Codex through its hooks, both calling the same codemyrules scripts as the Claude Code hooks.
   Headless sessions use the subscription's usage window faster than interactive ones, so budget for that.
 - `npm test` runs the harness against a fake `claude` and costs nothing.
 

@@ -285,3 +285,66 @@ test('pi: a capped run is an error, and edits map to the hook input the loop scr
   assert.deepEqual(hookInput('write', { path: 'a.ts', content: 'c' }), { tool_name: 'Write', tool_input: { file_path: 'a.ts', content: 'c' } });
   assert.equal(hookInput('read', { path: 'a.ts' }), null);
 });
+
+test('codex agent: its own copy, an isolated CODEX_HOME with the bench hooks, and its events read as a result', async (t) => {
+  const { root, file } = setup(t, {
+    models: [{ id: 'local', agent: 'codex', model: 'ollama/qwen3.6:35b-a3b-coding' }], repeats: 1, build: undefined,
+    arms: [{ id: 'prose', setup: 'arms/prose.sh', fix: true }],
+  });
+  const study = loadStudy(file);
+  prepareStudy(study, () => {});
+  const log = path.join(root, 'codex.log');
+  process.env.FAKE_CODEX_LOG = log;
+  t.after(() => { delete process.env.FAKE_CODEX_LOG; });
+  const [r] = await runStudy(study, { codexCmd: ['node', path.join(here, 'fixtures', 'fake-codex.mjs')], log: () => {} });
+  assert.deepEqual([r.ok, r.agent, r.turns, r.breaksAfterTask, r.fixed, r.breaksFinal], [true, 'codex', 4, 1, true, 0]); // (1 tool + answer) x 2 sessions
+  assert.deepEqual(r.usage, { input: 200, cacheWrite: 0, cacheRead: 800, output: 50 });
+  const [call] = fs.readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse);
+  assert.equal(call.cwd, fs.realpathSync(path.join(root, 'work', 'prose.codex')));
+  for (const flag of ['exec', '--json', '--ephemeral', '--dangerously-bypass-hook-trust']) assert.ok(call.argv.includes(flag), flag);
+  assert.equal(call.argv[call.argv.indexOf('--sandbox') + 1], 'workspace-write');
+  assert.match(fs.readFileSync(path.join(call.home, 'config.toml'), 'utf8'), /model = "qwen3\.6:35b-a3b-coding"[\s\S]*base_url = "http:\/\/127\.0\.0\.1:11434\/v1"/);
+  const hooks = JSON.parse(fs.readFileSync(path.join(call.home, 'hooks.json'), 'utf8')).hooks;
+  assert.deepEqual(Object.keys(hooks), ['PreToolUse', 'PostToolUse', 'Stop']);
+});
+
+test('codex hook: lints files a shell edit changed, once per change; blocks one stop; enforces the cap', (t) => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'arb-hook-'));
+  t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
+  git(repo, 'init', '-q');
+  fs.writeFileSync(path.join(repo, 'src.ts'), 'export const a = 1;\n');
+  git(repo, 'add', '-A'); git(repo, 'commit', '-q', '-m', 'init');
+  const loop = path.join(repo, '.claude', 'codemyrules');
+  fs.mkdirSync(loop, { recursive: true });
+  fs.copyFileSync(path.join(here, '..', 'lib', 'codemyrules-lib.mjs'), path.join(loop, 'lib.mjs'));
+  const readIn = "let d = ''; for await (const c of process.stdin) d += c; const i = JSON.parse(d);";
+  fs.writeFileSync(path.join(loop, 'lint-edited.mjs'), `import fs from 'node:fs'; ${readIn} if (fs.readFileSync(i.tool_input.file_path, 'utf8').includes('BAD')) { console.error('BAD in ' + i.tool_input.file_path); process.exit(2); }`);
+  fs.writeFileSync(path.join(loop, 'lint-turn.mjs'), `import fs from 'node:fs'; ${readIn} if (!i.stop_hook_active && fs.readFileSync('src.ts', 'utf8').includes('BAD')) { console.error('still BAD'); process.exit(2); }`);
+  fs.writeFileSync(path.join(repo, '.git', 'info', 'exclude'), '.claude/\n');
+  const HOOK = path.join(here, '..', 'agents', 'codex-hook.mjs');
+  const state = path.join(repo, '..', `${path.basename(repo)}.state.json`);
+  t.after(() => fs.rmSync(state, { force: true }));
+  const hook = (event, extra = {}, env = {}) => spawnSync('node', [HOOK, event], { cwd: repo, encoding: 'utf8', input: JSON.stringify({ session_id: 's', cwd: repo, ...extra }), env: { ...process.env, BENCH_CODEX_STATE: state, ...env } });
+
+  fs.appendFileSync(path.join(repo, 'src.ts'), 'export const b = BAD;\n'); // as `echo ... >> src.ts` would
+  const first = hook('PostToolUse', { tool_name: 'Bash' });
+  assert.deepEqual([first.status, /BAD in .*src\.ts/.test(first.stderr)], [2, true]);
+  assert.equal(hook('PostToolUse', { tool_name: 'Bash' }).status, 0); // unchanged since: not linted again
+  assert.deepEqual(JSON.parse(hook('Stop', { stop_hook_active: false }).stdout), { decision: 'block', reason: 'still BAD' });
+  assert.deepEqual(JSON.parse(hook('Stop', { stop_hook_active: true }).stdout), {});
+
+  fs.rmSync(state, { force: true });
+  assert.equal(hook('PreToolUse', {}, { BENCH_MAX_TURNS: '2' }).status, 0);
+  assert.equal(hook('PreToolUse', {}, { BENCH_MAX_TURNS: '2' }).status, 0);
+  const capped = hook('PreToolUse', {}, { BENCH_MAX_TURNS: '2' });
+  assert.deepEqual([capped.status, JSON.parse(fs.readFileSync(state, 'utf8')).capped], [2, true]);
+});
+
+test('codex events: warnings do not fail a run, failed turns and the cap do', async () => {
+  const { parseCodexEvents } = await import('../agents/codex.mjs');
+  const ok = ['{"type":"item.completed","item":{"type":"error","message":"warning"}}', '{"type":"turn.completed","usage":{"input_tokens":10,"cached_input_tokens":4,"output_tokens":2}}'].join('\n');
+  assert.equal(parseCodexEvents(ok).is_error, false);
+  assert.equal(parseCodexEvents(ok, { capped: true }).subtype, 'error_max_turns');
+  assert.equal(parseCodexEvents(ok + '\n{"type":"turn.failed","error":{"message":"boom"}}').errorMessage, 'boom');
+  assert.equal(parseCodexEvents('{"type":"thread.started"}').is_error, true);
+});
