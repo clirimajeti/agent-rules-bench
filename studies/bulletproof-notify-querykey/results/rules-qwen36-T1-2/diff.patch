@@ -1,0 +1,273 @@
+diff --git a/apps/react-vite/src/features/comments/api/update-comment.ts b/apps/react-vite/src/features/comments/api/update-comment.ts
+new file mode 100644
+index 0000000..5fdad4b
+--- /dev/null
++++ b/apps/react-vite/src/features/comments/api/update-comment.ts
+@@ -0,0 +1,55 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { api } from '@/lib/api-client';
++import { MutationConfig } from '@/lib/react-query';
++import { Comment } from '@/types/api';
++import { useNotifications } from '@/components/ui/notifications';
++
++import { getInfiniteCommentsQueryOptions } from './get-comments';
++
++export const updateCommentInputSchema = z.object({
++  body: z.string().min(1, 'Required'),
++});
++
++export type UpdateCommentInput = z.infer<typeof updateCommentInputSchema>;
++
++export const updateComment = ({
++  commentId,
++  data,
++}: {
++  commentId: string;
++  data: UpdateCommentInput;
++}): Promise<Comment> => {
++  return api.patch(`/comments/${commentId}`, data);
++};
++
++type UseUpdateCommentOptions = {
++  discussionId: string;
++  mutationConfig?: MutationConfig<typeof updateComment>;
++};
++
++export const useUpdateComment = ({
++  mutationConfig,
++  discussionId,
++}: UseUpdateCommentOptions) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      queryClient.invalidateQueries({
++        queryKey: getInfiniteCommentsQueryOptions(discussionId).queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'Comment Updated',
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateComment,
++  });
++};
+diff --git a/apps/react-vite/src/features/comments/components/comments-list.tsx b/apps/react-vite/src/features/comments/components/comments-list.tsx
+index ee30725..70e4fa2 100644
+--- a/apps/react-vite/src/features/comments/components/comments-list.tsx
++++ b/apps/react-vite/src/features/comments/components/comments-list.tsx
+@@ -1,15 +1,26 @@
+-import { ArchiveX } from 'lucide-react';
++import { useEffect, useState } from 'react';
++import { ArchiveX, Pencil } from 'lucide-react';
+ 
+ import { Button } from '@/components/ui/button';
++import { Form, Textarea } from '@/components/ui/form';
+ import { MDPreview } from '@/components/ui/md-preview';
+ import { Spinner } from '@/components/ui/spinner';
+ import { useUser } from '@/lib/auth';
+ import { POLICIES, Authorization } from '@/lib/authorization';
+ import { User } from '@/types/api';
+ import { formatDate } from '@/utils/format';
++import { 
++  Drawer, 
++  DrawerClose, 
++  DrawerContent, 
++  DrawerFooter, 
++  DrawerHeader, 
++  DrawerTitle 
++} from '@/components/ui/drawer';
++import { useDisclosure } from '@/hooks/use-disclosure';
+ 
+ import { useInfiniteComments } from '../api/get-comments';
+-
++import { useUpdateComment, updateCommentInputSchema } from '../api/update-comment';
+ import { DeleteComment } from './delete-comment';
+ 
+ type CommentsListProps = {
+@@ -19,6 +30,21 @@ type CommentsListProps = {
+ export const CommentsList = ({ discussionId }: CommentsListProps) => {
+   const user = useUser();
+   const commentsQuery = useInfiniteComments({ discussionId });
++  const [editingComment, setEditingComment] = useState<{ id: string; body: string } | null>(null);
++  const { open, close, isOpen } = useDisclosure();
++
++  const updateCommentMutation = useUpdateComment({
++    discussionId,
++    mutationConfig: {
++      onSuccess: () => {
++        setEditingComment(null);
++      },
++    },
++  });
++
++  useEffect(() => {
++    if (editingComment) open();
++  }, [editingComment, open]);
+ 
+   if (commentsQuery.isLoading) {
+     return (
+@@ -44,6 +70,66 @@ export const CommentsList = ({ discussionId }: CommentsListProps) => {
+ 
+   return (
+     <>
++      {editingComment && (
++        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50">
++          <Drawer 
++            open={isOpen} 
++            onOpenChange={(isOpen) => !isOpen && close()} 
++            side="bottom" 
++            className="w-full max-w-2xl"
++          >
++            <DrawerContent className="top-20 flex max-w-[800px] flex-col sm:max-w-[540px]">
++              <div className="flex flex-col gap-4 p-6">
++                <DrawerHeader className="px-0">
++                  <DrawerTitle className="text-xl font-bold">Edit Comment</DrawerTitle>
++                </DrawerHeader>
++                
++                <Form
++                  id="edit-comment"
++                  onSubmit={(values) => {
++                    if (editingComment) {
++                      updateCommentMutation.mutate({ 
++                        commentId: editingComment.id, 
++                        data: values 
++                      });
++                    }
++                  }}
++                  schema={updateCommentInputSchema}
++                  options={{
++                    defaultValues: {
++                      body: editingComment.body,
++                    },
++                  }}
++                >
++                  {({ register, formState }) => (
++                    <Textarea
++                      label="Body"
++                      error={formState.errors['body']}
++                      registration={register('body')}
++                    />
++                  )}
++                </Form>
++              </div>
++              <DrawerFooter className="gap-3 pt-0 sm:gap-0">
++                <DrawerClose asChild>
++                  <Button variant="outline">Close</Button>
++                </DrawerClose>
++                <Button
++                  isLoading={updateCommentMutation.isPending}
++                  disabled={updateCommentMutation.isPending}
++                  onClick={(e) => {
++                    const form = document.getElementById('edit-comment');
++                    form?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
++                  }}
++                >
++                  Update
++                </Button>
++              </DrawerFooter>
++            </DrawerContent>
++          </Drawer>
++        </div>
++      )}
++
+       <ul aria-label="comments" className="flex flex-col space-y-3">
+         {comments.map((comment, index) => (
+           <li
+@@ -69,7 +155,19 @@ export const CommentsList = ({ discussionId }: CommentsListProps) => {
+                     </span>
+                   )}
+                 </div>
+-                <DeleteComment discussionId={discussionId} id={comment.id} />
++                <div className="flex items-center gap-2">
++                  {user.data?.id === comment.author?.id && (
++                    <Button
++                      variant="ghost"
++                      size="sm"
++                      onClick={() => setEditingComment({ id: comment.id, body: comment.body })}
++                      icon={<Pencil className="size-4" />}
++                    >
++                      Edit
++                    </Button>
++                  )}
++                  <DeleteComment discussionId={discussionId} id={comment.id} />
++                </div>
+               </div>
+             </Authorization>
+ 
+diff --git a/apps/react-vite/src/lib/authorization.tsx b/apps/react-vite/src/lib/authorization.tsx
+index 563fca3..95a59c7 100644
+--- a/apps/react-vite/src/lib/authorization.tsx
++++ b/apps/react-vite/src/lib/authorization.tsx
+@@ -21,6 +21,17 @@ export const POLICIES = {
+       return true;
+     }
+ 
++    return false;
++  },
++  'comment:update': (user: User, comment: Comment) => {
++    if (user?.role === 'ADMIN') {
++      return true;
++    }
++
++    if (user?.role === 'USER' && comment.author?.id === user?.id) {
++      return true;
++    }
++
+     return false;
+   },
+ };
+diff --git a/apps/react-vite/src/testing/mocks/handlers/comments.ts b/apps/react-vite/src/testing/mocks/handlers/comments.ts
+index 5d3678c..dd6c066 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/comments.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/comments.ts
+@@ -128,4 +128,42 @@ export const commentsHandlers = [
+       }
+     },
+   ),
++
++  http.patch(`${env.API_URL}/comments/:commentId`, async ({ params, request, cookies }) => {
++    await networkDelay();
++
++    try {
++      const { user, error } = requireAuth(cookies);
++      if (error) {
++        return HttpResponse.json({ message: error }, { status: 401 });
++      }
++      const commentId = params.commentId as string;
++      const data = (await request.json()) as { body: string };
++
++      const comment = db.comment.findFirst({
++        where: { id: { equals: commentId } },
++      });
++
++      if (!comment) {
++        return HttpResponse.json({ message: 'Comment not found' }, { status: 404 });
++      }
++
++      if (comment.authorId !== user?.id) {
++        return HttpResponse.json({ message: 'Not authorized' }, { status: 403 });
++      }
++
++      const result = db.comment.update({
++        where: { id: { equals: commentId } },
++        data: { body: data.body },
++      });
++
++      await persistDb('comment');
++      return HttpResponse.json(result);
++    } catch (error: any) {
++      return HttpResponse.json(
++        { message: error?.message || 'Server Error' },
++        { status: 500 },
++      );
++    }
++  }),
+ ];

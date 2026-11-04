@@ -1,0 +1,162 @@
+diff --git a/apps/react-vite/src/features/comments/api/update-comment.ts b/apps/react-vite/src/features/comments/api/update-comment.ts
+new file mode 100644
+index 0000000..fc6662a
+--- /dev/null
++++ b/apps/react-vite/src/features/comments/api/update-comment.ts
+@@ -0,0 +1,55 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
++import { MutationConfig } from '@/lib/react-query';
++import { Comment } from '@/types/api';
++
++import { getInfiniteCommentsQueryOptions } from './get-comments';
++
++export const updateCommentInputSchema = z.object({
++  body: z.string().min(1, 'Required'),
++});
++
++export type UpdateCommentInput = z.infer<typeof updateCommentInputSchema>;
++
++export const updateComment = ({
++  commentId,
++  data,
++}: {
++  commentId: string;
++  data: UpdateCommentInput;
++}): Promise<Comment> => {
++  return api.patch(`/comments/${commentId}`, data);
++};
++
++type UseUpdateCommentOptions = {
++  discussionId: string;
++  mutationConfig?: MutationConfig<typeof updateComment>;
++};
++
++export const useUpdateComment = ({
++  mutationConfig,
++  discussionId,
++}: UseUpdateCommentOptions) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      queryClient.invalidateQueries({
++        queryKey: getInfiniteCommentsQueryOptions(discussionId).queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'Comment Updated',
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateComment,
++  });
++};
+diff --git a/apps/react-vite/src/features/comments/components/comments-list.tsx b/apps/react-vite/src/features/comments/components/comments-list.tsx
+index ee30725..463f1e9 100644
+--- a/apps/react-vite/src/features/comments/components/comments-list.tsx
++++ b/apps/react-vite/src/features/comments/components/comments-list.tsx
+@@ -11,6 +11,7 @@ import { formatDate } from '@/utils/format';
+ import { useInfiniteComments } from '../api/get-comments';
+ 
+ import { DeleteComment } from './delete-comment';
++import { EditComment } from './edit-comment';
+ 
+ type CommentsListProps = {
+   discussionId: string;
+@@ -69,7 +70,16 @@ export const CommentsList = ({ discussionId }: CommentsListProps) => {
+                     </span>
+                   )}
+                 </div>
+-                <DeleteComment discussionId={discussionId} id={comment.id} />
++                <div className="flex gap-2">
++                  {user.data && comment.author?.id === user.data.id && (
++                    <EditComment
++                      id={comment.id}
++                      discussionId={discussionId}
++                      initialBody={comment.body}
++                    />
++                  )}
++                  <DeleteComment discussionId={discussionId} id={comment.id} />
++                </div>
+               </div>
+             </Authorization>
+ 
+diff --git a/apps/react-vite/src/features/comments/components/edit-comment.tsx b/apps/react-vite/src/features/comments/components/edit-comment.tsx
+new file mode 100644
+index 0000000..1b19e4e
+--- /dev/null
++++ b/apps/react-vite/src/features/comments/components/edit-comment.tsx
+@@ -0,0 +1,65 @@
++import { Edit } from 'lucide-react';
++
++import { Button } from '@/components/ui/button';
++import { FormDrawer, Textarea } from '@/components/ui/form';
++
++import { useUpdateComment } from '../api/update-comment';
++
++type EditCommentProps = {
++  id: string;
++  discussionId: string;
++  initialBody: string;
++};
++
++export const EditComment = ({ id, discussionId, initialBody }: EditCommentProps) => {
++  const editCommentMutation = useUpdateComment({
++    discussionId,
++  });
++
++  return (
++    <FormDrawer
++      isDone={editCommentMutation.isSuccess}
++      triggerButton={
++        <Button variant="ghost" size="sm" icon={<Edit className="size-4" />}>
++          Edit Comment
++        </Button>
++      }
++      title="Edit Comment"
++      submitButton={
++        <Button
++          isLoading={editCommentMutation.isPending}
++          form="edit-comment"
++          type="submit"
++          size="sm"
++          disabled={editCommentMutation.isPending}
++        >
++          Submit
++        </Button>
++      }
++    >
++      <Form
++        id="edit-comment"
++        onSubmit={(values) => {
++          editCommentMutation.mutate({
++            commentId: id,
++            data: values,
++          });
++        }}
++        schema={updateCommentInputSchema}
++        options={{
++          defaultValues: {
++            body: initialBody,
++          },
++        }}
++      >
++        {({ register, formState }) => (
++          <Textarea
++            label="Body"
++            error={formState.errors['body']}
++            registration={register('body')}
++          />
++        )}
++      </Form>
++    </FormDrawer>
++  );
++};

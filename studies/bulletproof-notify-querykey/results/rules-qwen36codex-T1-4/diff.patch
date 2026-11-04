@@ -1,0 +1,285 @@
+diff --git a/apps/react-vite/src/features/comments/api/update-comment.ts b/apps/react-vite/src/features/comments/api/update-comment.ts
+new file mode 100644
+index 0000000..b94c794
+--- /dev/null
++++ b/apps/react-vite/src/features/comments/api/update-comment.ts
+@@ -0,0 +1,53 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
++import { MutationConfig } from '@/lib/react-query';
++import { Comment } from '@/types/api';
++
++import { getInfiniteCommentsQueryOptions } from './get-comments';
++
++export const updateCommentInputSchema = z.object({
++  body: z.string().min(1, 'Required'),
++});
++
++export type UpdateCommentInput = z.infer<typeof updateCommentInputSchema>;
++
++export const updateComment = ({
++  data,
++  commentId,
++}: {
++  data: UpdateCommentInput;
++  commentId: string;
++}): Promise<Comment> => {
++  return api.patch(`/comments/${commentId}`, data);
++};
++
++type UseUpdateCommentOptions = {
++  mutationConfig?: MutationConfig<typeof updateComment>;
++};
++
++export const useUpdateComment = ({
++  mutationConfig,
++}: UseUpdateCommentOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (data) => {
++      queryClient.invalidateQueries({
++        queryKey: getInfiniteCommentsQueryOptions(data.discussionId).queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'Comment Updated',
++      });
++      onSuccess?.(data);
++    },
++    ...restConfig,
++    mutationFn: updateComment,
++  });
++};
+diff --git a/apps/react-vite/src/features/comments/components/comments-list.tsx b/apps/react-vite/src/features/comments/components/comments-list.tsx
+index ee30725..eb53916 100644
+--- a/apps/react-vite/src/features/comments/components/comments-list.tsx
++++ b/apps/react-vite/src/features/comments/components/comments-list.tsx
+@@ -11,6 +11,7 @@ import { formatDate } from '@/utils/format';
+ import { useInfiniteComments } from '../api/get-comments';
+ 
+ import { DeleteComment } from './delete-comment';
++import { UpdateComment } from './update-comment';
+ 
+ type CommentsListProps = {
+   discussionId: string;
+@@ -45,37 +46,49 @@ export const CommentsList = ({ discussionId }: CommentsListProps) => {
+   return (
+     <>
+       <ul aria-label="comments" className="flex flex-col space-y-3">
+-        {comments.map((comment, index) => (
+-          <li
+-            aria-label={`comment-${comment.body}-${index}`}
+-            key={comment.id || index}
+-            className="w-full bg-white p-4 shadow-sm"
+-          >
+-            <Authorization
+-              policyCheck={POLICIES['comment:delete'](
+-                user.data as User,
+-                comment,
+-              )}
++        {comments.map((comment, index) => {
++          const isOwner =
++            (user.data as User)?.id === comment.author?.id;
++          return (
++            <li
++              aria-label={`comment-${comment.body}-${index}`}
++              key={comment.id || index}
++              className="w-full bg-white p-4 shadow-sm"
+             >
+-              <div className="flex justify-between">
+-                <div>
+-                  <span className="text-xs font-semibold">
+-                    {formatDate(comment.createdAt)}
+-                  </span>
+-                  {comment.author && (
+-                    <span className="text-xs font-bold">
+-                      {' '}
+-                      by {comment.author.firstName} {comment.author.lastName}
++              <Authorization
++                policyCheck={POLICIES['comment:delete'](
++                  user.data as User,
++                  comment,
++                )}
++              >
++                <div className="flex justify-between">
++                  <div>
++                    <span className="text-xs font-semibold">
++                      {formatDate(comment.createdAt)}
+                     </span>
+-                  )}
++                    {comment.author && (
++                      <span className="text-xs font-bold">
++                        {' '}
++                        by {comment.author.firstName} {comment.author.lastName}
++                      </span>
++                    )}
++                  </div>
++                  <div className="flex items-center gap-2">
++                    {isOwner && (
++                      <UpdateComment
++                        commentId={comment.id}
++                        initialBody={comment.body}
++                      />
++                    )}
++                    <DeleteComment discussionId={discussionId} id={comment.id} />
++                  </div>
+                 </div>
+-                <DeleteComment discussionId={discussionId} id={comment.id} />
+-              </div>
+-            </Authorization>
++              </Authorization>
+ 
+-            <MDPreview value={comment.body} />
+-          </li>
+-        ))}
++              <MDPreview value={comment.body} />
++            </li>
++          );
++        })}
+       </ul>
+       {commentsQuery.hasNextPage && (
+         <div className="flex items-center justify-center py-4">
+diff --git a/apps/react-vite/src/features/comments/components/update-comment.tsx b/apps/react-vite/src/features/comments/components/update-comment.tsx
+new file mode 100644
+index 0000000..6157416
+--- /dev/null
++++ b/apps/react-vite/src/features/comments/components/update-comment.tsx
+@@ -0,0 +1,72 @@
++import { Edit } from 'lucide-react';
++
++import { Button } from '@/components/ui/button';
++import { Form, FormDrawer, Textarea } from '@/components/ui/form';
++
++import {
++  updateCommentInputSchema,
++  useUpdateComment,
++} from '../api/update-comment';
++
++type UpdateCommentProps = {
++  commentId: string;
++  initialBody: string;
++};
++
++export const UpdateComment = ({
++  commentId,
++  initialBody,
++}: UpdateCommentProps) => {
++  const updateCommentMutation = useUpdateComment({
++    mutationConfig: {
++      onSuccess: () => {},
++    },
++  });
++
++  return (
++    <FormDrawer
++      isDone={updateCommentMutation.isSuccess}
++      triggerButton={
++        <Button variant="ghost" size="sm" icon={<Edit className="size-4" />}>
++          Edit Comment
++        </Button>
++      }
++      title="Edit Comment"
++      submitButton={
++        <Button
++          isLoading={updateCommentMutation.isPending}
++          form="update-comment"
++          type="submit"
++          size="sm"
++          disabled={updateCommentMutation.isPending}
++        >
++          Save
++        </Button>
++      }
++    >
++      <Form
++        id="update-comment"
++        onSubmit={(values) => {
++          updateCommentMutation.mutate({
++            data: values,
++            commentId,
++          });
++        }}
++        schema={updateCommentInputSchema}
++        options={{
++          defaultValues: {
++            body: initialBody,
++          },
++        }}
++      >
++        {({ register, formState }) => (
++          <Textarea
++            label="Body"
++            error={formState.errors['body']}
++            registration={register('body')}
++          />
++        )}
++      </Form>
++    </FormDrawer>
++  );
++};
+diff --git a/apps/react-vite/src/testing/mocks/handlers/comments.ts b/apps/react-vite/src/testing/mocks/handlers/comments.ts
+index 5d3678c..6629fff 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/comments.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/comments.ts
+@@ -10,6 +10,10 @@ type CreateCommentBody = {
+   discussionId: string;
+ };
+ 
++type UpdateCommentBody = {
++  body: string;
++};
++
+ export const commentsHandlers = [
+   http.get(`${env.API_URL}/comments`, async ({ request, cookies }) => {
+     await networkDelay();
+@@ -95,6 +99,43 @@ export const commentsHandlers = [
+     }
+   }),
+ 
++  http.patch(
++    `${env.API_URL}/comments/:commentId`,
++    async ({ params, request, cookies }) => {
++      await networkDelay();
++
++      try {
++        const { user, error } = requireAuth(cookies);
++        if (error) {
++          return HttpResponse.json({ message: error }, { status: 401 });
++        }
++        const commentId = params.commentId as string;
++        const data = (await request.json()) as UpdateCommentBody;
++
++        const result = db.comment.update({
++          where: {
++            id: {
++              equals: commentId,
++            },
++            ...(user?.role === 'USER' && {
++              authorId: {
++                equals: user.id,
++              },
++            }),
++          },
++          data,
++        });
++        await persistDb('comment');
++        return HttpResponse.json(result);
++      } catch (error: any) {
++        return HttpResponse.json(
++          { message: error?.message || 'Server Error' },
++          { status: 500 },
++        );
++      }
++    },
++  ),
++
+   http.delete(
+     `${env.API_URL}/comments/:commentId`,
+     async ({ params, cookies }) => {

@@ -1,0 +1,119 @@
+diff --git a/apps/react-vite/src/features/users/api/update-user-role.ts b/apps/react-vite/src/features/users/api/update-user-role.ts
+new file mode 100644
+index 0000000..01e379f
+--- /dev/null
++++ b/apps/react-vite/src/features/users/api/update-user-role.ts
+@@ -0,0 +1,50 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { useNotifications } from '@/components/ui/notifications';
++import { MutationConfig } from '@/lib/react-query';
++
++import { getUsersQueryOptions } from './get-users';
++
++export const updateUserRoleInputSchema = z.object({
++  role: z.enum(['ADMIN', 'USER']),
++});
++
++export type UpdateUserRoleInput = z.infer<typeof updateUserRoleInputSchema>;
++
++export type UpdateUserRoleDTO = {
++  userId: string;
++  data: UpdateUserRoleInput;
++};
++
++export const updateUserRole = ({ userId, data }: UpdateUserRoleDTO) => {
++  return api.patch(`/users/${userId}/role`, data);
++};
++
++type UseUpdateUserRoleOptions = {
++  mutationConfig?: MutationConfig<typeof updateUserRole>;
++};
++
++export const useUpdateUserRole = ({
++  mutationConfig,
++}: UseUpdateUserRoleOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      queryClient.invalidateQueries({
++        queryKey: getUsersQueryOptions().queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'User role updated',
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateUserRole,
++  });
++};
+diff --git a/apps/react-vite/src/features/users/components/update-user-role.tsx b/apps/react-vite/src/features/users/components/update-user-role.tsx
+new file mode 100644
+index 0000000..24a592e
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/update-user-role.tsx
+@@ -0,0 +1,35 @@
++import { useUser } from '@/lib/auth';
++
++import { useUpdateUserRole } from '../api/update-user-role';
++
++type UpdateUserRoleProps = {
++  userId: string;
++  currentRole: 'ADMIN' | 'USER';
++};
++
++export const UpdateUserRole = ({ userId, currentRole }: UpdateUserRoleProps) => {
++  const user = useUser();
++
++  if (user.data?.role !== 'ADMIN') {
++    return <span className="text-gray-500">-</span>;
++  }
++
++  const updateUserRoleMutation = useUpdateUserRole();
++
++  return (
++    <select
++      value={currentRole}
++      onChange={(e) =>
++        updateUserRoleMutation.mutate({
++          userId,
++          data: { role: e.target.value as 'ADMIN' | 'USER' },
++        })
++      }
++      disabled={updateUserRoleMutation.isPending}
++      className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm disabled:opacity-50"
++    >
++      <option value="ADMIN">ADMIN</option>
++      <option value="USER">USER</option>
++    </select>
++  );
++};
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..5091669 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -5,6 +5,7 @@ import { formatDate } from '@/utils/format';
+ import { useUsers } from '../api/get-users';
+ 
+ import { DeleteUser } from './delete-user';
++import { UpdateUserRole } from './update-user-role';
+ 
+ export const UsersList = () => {
+   const usersQuery = useUsers();
+@@ -40,6 +41,9 @@ export const UsersList = () => {
+         {
+           title: 'Role',
+           field: 'role',
++          Cell({ entry: { role, id } }) {
++            return <UpdateUserRole userId={id} currentRole={role} />;
++          },
+         },
+         {
+           title: 'Created At',

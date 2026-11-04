@@ -76,10 +76,12 @@ export function markdown(study, rows) {
   for (const model of new Set(rows.map((r) => r.model))) {
     const base = rows.find((r) => r.arm === study.baselineArm && r.model === model);
     if (!base) continue;
+    // a local model reports no cost, so there is nothing to compare
+    if (!base.totalCost) { diffs.push(`- ${model}: no cost reported`); continue; }
     for (const r of rows.filter((x) => x.model === model && x.arm !== study.baselineArm)) {
       const d = r.totalCost - base.totalCost;
       const within = Math.abs(d) <= Math.max(r.totalCostSd, base.totalCostSd);
-      diffs.push(`- ${model}: ${r.arm} vs ${base.arm}: total cost ${d >= 0 ? '+' : '-'}${money(Math.abs(d))} (${base.totalCost ? ((100 * d) / base.totalCost).toFixed(0) : '-'}%)${within ? ', inside the spread' : ''}`);
+      diffs.push(`- ${model}: ${r.arm} vs ${base.arm}: total cost ${d >= 0 ? '+' : '-'}${money(Math.abs(d))} (${((100 * d) / base.totalCost).toFixed(0)}%)${within ? ', inside the spread' : ''}`);
     }
   }
   if (diffs.length) lines.push('', '## Against the baseline arm', '', ...diffs);

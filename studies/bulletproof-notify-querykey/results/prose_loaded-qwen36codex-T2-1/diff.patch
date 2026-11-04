@@ -1,0 +1,152 @@
+diff --git a/apps/react-vite/src/features/users/api/update-user-role.ts b/apps/react-vite/src/features/users/api/update-user-role.ts
+new file mode 100644
+index 0000000..2dcf9bb
+--- /dev/null
++++ b/apps/react-vite/src/features/users/api/update-user-role.ts
+@@ -0,0 +1,49 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++
++import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
++import { MutationConfig } from '@/lib/react-query';
++
++import { getUsersQueryOptions } from './get-users';
++
++export type UserRoleInput = 'ADMIN' | 'USER';
++
++export type UpdateUserRoleDTO = {
++  userId: string;
++  role: UserRoleInput;
++};
++
++export const updateUserRole = ({
++  userId,
++  role,
++}: UpdateUserRoleDTO) => {
++  return api.patch(`/users/${userId}/role`, { role });
++};
++
++type UseUpdateUserRoleOptions = {
++  mutationConfig?: MutationConfig<typeof updateUserRole>;
++};
++
++export const useUpdateUserRole = ({
++  mutationConfig,
++}: UseUpdateUserRoleOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      queryClient.invalidateQueries({
++        queryKey: getUsersQueryOptions().queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'Role Updated',
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateUserRole,
++  });
++};
+diff --git a/apps/react-vite/src/features/users/components/update-user-role-select.tsx b/apps/react-vite/src/features/users/components/update-user-role-select.tsx
+new file mode 100644
+index 0000000..b0944e7
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/update-user-role-select.tsx
+@@ -0,0 +1,69 @@
++import { Check, ChevronDown } from 'lucide-react';
++import * as React from 'react';
++
++import { cn } from '@/utils/cn';
++
++import {
++  DropdownMenu,
++  DropdownMenuContent,
++  DropdownMenuItem,
++  DropdownMenuTrigger,
++} from '@/components/ui/dropdown';
++
++import { UserRoleInput, useUpdateUserRole } from '../api/update-user-role';
++
++type UpdateUserRoleSelectProps = {
++  userId: string;
++  currentRole: UserRoleInput;
++};
++
++const roles: { label: string; value: UserRoleInput }[] = [
++  { label: 'Admin', value: 'ADMIN' },
++  { label: 'User', value: 'USER' },
++];
++
++export const UpdateUserRoleSelect = ({
++  userId,
++  currentRole,
++}: UpdateUserRoleSelectProps) => {
++  const [open, setOpen] = React.useState(false);
++  const [selectedRole, setSelectedRole] =
++    React.useState<UserRoleInput>(currentRole);
++
++  const updateUserRoleMutation = useUpdateUserRole();
++
++  const handleRoleChange = async (newRole: UserRoleInput) => {
++    await updateUserRoleMutation.mutateAsync({ userId, role: newRole });
++    setSelectedRole(newRole);
++    setOpen(false);
++  };
++
++  const displayRole = roles.find((r) => r.value === selectedRole)?.label ?? currentRole;
++
++  return (
++    <DropdownMenu open={open} onOpenChange={setOpen}>
++      <DropdownMenuTrigger asChild>
++        <button className="flex items-center gap-1 rounded border px-2 py-1 text-xs hover:bg-gray-50">
++          {displayRole}
++          <ChevronDown className="size-3" />
++        </button>
++      </DropdownMenuTrigger>
++      <DropdownMenuContent align="start">
++        {roles.map((role) => (
++          <DropdownMenuItem
++            key={role.value}
++            className={cn(
++              'cursor-pointer items-center gap-2',
++              selectedRole === role.value && 'bg-gray-100',
++            )}
++            onClick={() => handleRoleChange(role.value)}
++            disabled={updateUserRoleMutation.isPending}
++          >
++            {selectedRole === role.value && <Check className="size-3" />}
++            {role.label}
++          </DropdownMenuItem>
++        ))}
++      </DropdownMenuContent>
++    </DropdownMenu>
++  );
++};
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..d749368 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -5,6 +5,7 @@ import { formatDate } from '@/utils/format';
+ import { useUsers } from '../api/get-users';
+ 
+ import { DeleteUser } from './delete-user';
++import { UpdateUserRoleSelect } from './update-user-role-select';
+ 
+ export const UsersList = () => {
+   const usersQuery = useUsers();
+@@ -40,6 +41,9 @@ export const UsersList = () => {
+         {
+           title: 'Role',
+           field: 'role',
++          Cell({ entry: { id, role } }) {
++            return <UpdateUserRoleSelect userId={id} currentRole={role} />;
++          },
+         },
+         {
+           title: 'Created At',

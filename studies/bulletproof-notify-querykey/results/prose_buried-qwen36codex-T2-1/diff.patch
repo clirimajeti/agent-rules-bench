@@ -1,0 +1,236 @@
+diff --git a/apps/react-vite/src/features/users/api/update-user-role.ts b/apps/react-vite/src/features/users/api/update-user-role.ts
+new file mode 100644
+index 0000000..cf9ddeb
+--- /dev/null
++++ b/apps/react-vite/src/features/users/api/update-user-role.ts
+@@ -0,0 +1,46 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { api } from '@/lib/api-client';
++import { MutationConfig } from '@/lib/react-query';
++
++import { getUsersQueryOptions } from './get-users';
++
++export const updateUserRoleInputSchema = z.object({
++  role: z.enum(['ADMIN', 'USER']),
++});
++
++export type UpdateUserRoleInput = z.infer<typeof updateUserRoleInputSchema>;
++
++export const updateUserRole = ({
++  userId,
++  data,
++}: {
++  userId: string;
++  data: UpdateUserRoleInput;
++}): Promise<{ data: any }> => {
++  return api.patch(`/users/${userId}/role`, data);
++};
++
++type UseUpdateUserRoleOptions = {
++  mutationConfig?: MutationConfig<typeof updateUserRole>;
++};
++
++export const useUpdateUserRole = ({
++  mutationConfig,
++}: UseUpdateUserRoleOptions = {}) => {
++  const queryClient = useQueryClient();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      queryClient.invalidateQueries({
++        queryKey: getUsersQueryOptions().queryKey,
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateUserRole,
++  });
++};
+diff --git a/apps/react-vite/src/features/users/components/user-role-select.tsx b/apps/react-vite/src/features/users/components/user-role-select.tsx
+new file mode 100644
+index 0000000..8773722
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/user-role-select.tsx
+@@ -0,0 +1,87 @@
++import { ChevronDown, ChevronUp } from 'lucide-react';
++import * as React from 'react';
++
++import { User } from '@/types/api';
++
++import { useUpdateUserRole } from '../api/update-user-role';
++
++export const UserRoleSelect = ({
++  user,
++  onSuccess,
++}: {
++  user: User;
++  onSuccess?: () => void;
++}) => {
++  const updateUserRoleMutation = useUpdateUserRole({
++    mutationConfig: {
++      onSuccess: (...args) => {
++        onSuccess?.();
++      },
++    },
++  });
++
++  const [isOpen, setIsOpen] = React.useState(false);
++  const containerRef = React.useRef<HTMLDivElement>(null);
++
++  const handleRoleChange = (newRole: 'ADMIN' | 'USER') => {
++    updateUserRoleMutation.mutate({
++      userId: user.id,
++      data: { role: newRole },
++    });
++    setIsOpen(false);
++  };
++
++  React.useEffect(() => {
++    const handleClickOutside = (event: MouseEvent) => {
++      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
++        setIsOpen(false);
++      }
++    };
++    document.addEventListener('mousedown', handleClickOutside);
++    return () => {
++      document.removeEventListener('mousedown', handleClickOutside);
++    };
++  }, []);
++
++  const options: Array<{ label: string; value: 'ADMIN' | 'USER' }> = [
++    { label: 'Admin', value: 'ADMIN' },
++    { label: 'User', value: 'USER' },
++  ];
++
++  return (
++    <div ref={containerRef} className="relative inline-block">
++      <button
++        type="button"
++        className="flex w-24 items-center justify-between rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 hover:border-gray-400 focus:border-blue-500 focus:outline-none"
++        onClick={() => setIsOpen(!isOpen)}
++        disabled={updateUserRoleMutation.isPending}
++      >
++        <span>{user.role}</span>
++        {isOpen ? (
++          <ChevronUp className="ml-1 size-3 text-gray-400" />
++        ) : (
++          <ChevronDown className="ml-1 size-3 text-gray-400" />
++        )}
++      </button>
++      {isOpen && (
++        <div className="absolute right-0 z-10 mt-1 w-24 rounded border border-gray-300 bg-white shadow-sm">
++          {options.map((option) => (
++            <button
++              key={option.value}
++              type="button"
++              className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 ${
++                user.role === option.value
++                  ? 'bg-gray-100 font-medium text-gray-900'
++                  : 'text-gray-700'
++              } ${updateUserRoleMutation.isPending ? 'cursor-not-allowed opacity-60' : ''}`}
++              onClick={() => handleRoleChange(option.value)}
++              disabled={updateUserRoleMutation.isPending}
++            >
++              {option.label}
++            </button>
++          ))}
++        </div>
++      )}
++    </div>
++  );
++};
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..1b77a26 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,13 +1,16 @@
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
++import { useNotifications } from '@/components/ui/notifications';
+ import { formatDate } from '@/utils/format';
+ 
+ import { useUsers } from '../api/get-users';
+ 
+ import { DeleteUser } from './delete-user';
++import { UserRoleSelect } from './user-role-select';
+ 
+ export const UsersList = () => {
+   const usersQuery = useUsers();
++  const { addNotification } = useNotifications();
+ 
+   if (usersQuery.isLoading) {
+     return (
+@@ -40,6 +43,19 @@ export const UsersList = () => {
+         {
+           title: 'Role',
+           field: 'role',
++          Cell({ entry }) {
++            return (
++              <UserRoleSelect
++                user={entry}
++                onSuccess={() => {
++                  addNotification({
++                    type: 'success',
++                    title: 'Role Updated',
++                  });
++                }}
++              />
++            );
++          },
+         },
+         {
+           title: 'Created At',
+diff --git a/apps/react-vite/src/testing/mocks/handlers/users.ts b/apps/react-vite/src/testing/mocks/handlers/users.ts
+index 444b918..b2e0778 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/users.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/users.ts
+@@ -72,6 +72,45 @@ export const usersHandlers = [
+     }
+   }),
+ 
++  http.patch(
++    `${env.API_URL}/users/:userId/role`,
++    async ({ cookies, params, request }) => {
++      await networkDelay();
++
++      try {
++        const { user, error } = requireAuth(cookies);
++        if (error) {
++          return HttpResponse.json({ message: error }, { status: 401 });
++        }
++        requireAdmin(user);
++
++        const userId = params.userId as string;
++        const data = (await request.json()) as { role: string };
++
++        const result = db.user.update({
++          where: {
++            id: {
++              equals: userId,
++            },
++            teamId: {
++              equals: user?.teamId,
++            },
++          },
++          data: {
++            role: data.role,
++          },
++        });
++        await persistDb('user');
++        return HttpResponse.json(sanitizeUser(result));
++      } catch (error: any) {
++        return HttpResponse.json(
++          { message: error?.message || 'Server Error' },
++          { status: 500 },
++        );
++      }
++    },
++  ),
++
+   http.delete(`${env.API_URL}/users/:userId`, async ({ cookies, params }) => {
+     await networkDelay();
+ 

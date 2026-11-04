@@ -65,6 +65,17 @@ test('compare stratifies by study and model and reads catches and verify from th
   assert.throws(() => compare([study], 'rule_only', 'rules_control'), /no study has runs of both/);
   assert.throws(() => compare([study], 'pointer_only', 'rules_control', { tasks: ['T2'] }), /no study has runs of both/); // only T1 runs exist
   assert.equal(compare([study], 'pointer_only', 'rules_control', { iterations: 500, tasks: ['T1'] }).breaks.x1, 2);
+  // a local model reports no cost: its stratum counts for breaks only, and --models picks strata
+  write('pointer_only-qwen-T1-1', { arm: 'pointer_only', model: 'qwen', taskCost: 0, breaksAfterTask: 1, breaksAfterTaskAt: [{ file: 'src/main/A.java' }] });
+  write('rules_control-qwen-T1-1', { arm: 'rules_control', model: 'qwen', taskCost: 0 });
+  study.models.push('qwen');
+  const all = compare([study], 'pointer_only', 'rules_control', { iterations: 500 });
+  assert.deepEqual([all.strata.length, all.breaks.x1, all.cost.strata], [2, 3, 1]);
+  close(all.cost.ratio, 2);
+  assert.match(compareMarkdown(all), /\| s \| qwen \| 1\/1 \| 0\/1 \| 0\.500 \| no cost \| - \|/);
+  const qwen = compare([study], 'pointer_only', 'rules_control', { iterations: 500, models: ['qwen'] });
+  assert.deepEqual([qwen.strata.length, qwen.cost], [1, null]);
+  assert.match(compareMarkdown(qwen), /Cost: no stratum reports a cost/);
 });
 
 test('context cost: the price fit recovers known prices, and N tokens cost one write plus a read per later turn', async () => {

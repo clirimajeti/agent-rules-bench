@@ -64,6 +64,9 @@ node bench/bench.mjs compare "${S[@]}" --arm rule_only --against rules_control -
 - 2026-11-04, timing: the analysis code was written and committed while the runs were in progress (101 of 144 had results). It was checked only on the exploratory arms (`prose_buried` against `rules`); no output for the three ablation arms was looked at before this commit.
 - 2026-11-04, after the runs: the reproduce snippet used an unquoted string, which zsh does not split into words; it now uses an array. No change to the analysis.
 - 2026-11-04, runs: 17 bulletproof Haiku sessions ended with `is_error` after a usage limit (most after one turn) and were rerun, as the Design section provides.
+- 2026-11-04, later: bulletproof-notify-querykey now also holds exploratory qwen3.6 runs in pi and Codex ([local-agents.md](local-agents.md)), outside this plan.
+  They have none of the ablation arms, so H1 to H3 are unchanged.
+  `compare` gained `--models` so the Claude comparisons on bulletproof name their models, and `pool` skips cells with no reported cost.
 
 # Plan 2: missed rules across sessions (F6) and a stronger model (F3)
 
@@ -89,5 +92,5 @@ Written before any of these runs, under the same rules as the plan above.
 
 ```bash
 node bench/bench.mjs compare studies/bulletproof-sequence/study.json --arm prose_buried --against rules --tasks T2,T3   # H4
-node bench/bench.mjs compare studies/bulletproof-notify-querykey/study.json --arm prose_buried --against rules   # F3, opus stratum
+node bench/bench.mjs compare studies/bulletproof-notify-querykey/study.json --arm prose_buried --against rules --models opus   # F3, opus stratum
 ```

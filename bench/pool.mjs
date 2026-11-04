@@ -38,6 +38,7 @@ export function comparisons(results, { seed = 1, iterations = 10000, rulesArm = 
     for (const prose of proseArms) {
       const p = rs.filter((r) => r.arm === prose);
       const proseCosts = p.map(total), rulesCosts = rules.map(total);
+      if (!mean(proseCosts)) continue; // a local model reports no cost; compare covers its breaks
       const boot = Array.from({ length: iterations }, () => resampleMean(rulesCosts, rand) / resampleMean(proseCosts, rand));
       out.push({
         study, model, prose, kind: prose.includes('loaded') ? 'loaded' : 'missable',

@@ -1,0 +1,627 @@
+diff --git a/apps/react-vite/src/features/comments/api/create-comment.ts b/apps/react-vite/src/features/comments/api/create-comment.ts
+index 506a689..f74bdcd 100644
+--- a/apps/react-vite/src/features/comments/api/create-comment.ts
++++ b/apps/react-vite/src/features/comments/api/create-comment.ts
+@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
+ import { z } from 'zod';
+ 
+ import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
+ import { MutationConfig } from '@/lib/react-query';
+ import { Comment } from '@/types/api';
+ 
+@@ -32,11 +33,16 @@ export const useCreateComment = ({
+   discussionId,
+ }: UseCreateCommentOptions) => {
+   const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
+ 
+   const { onSuccess, ...restConfig } = mutationConfig || {};
+ 
+   return useMutation({
+     onSuccess: (...args) => {
++      addNotification({
++        type: 'success',
++        title: 'Comment Created',
++      });
+       queryClient.invalidateQueries({
+         queryKey: getInfiniteCommentsQueryOptions(discussionId).queryKey,
+       });
+diff --git a/apps/react-vite/src/features/comments/api/delete-comment.ts b/apps/react-vite/src/features/comments/api/delete-comment.ts
+index 7e2dcd3..63b7856 100644
+--- a/apps/react-vite/src/features/comments/api/delete-comment.ts
++++ b/apps/react-vite/src/features/comments/api/delete-comment.ts
+@@ -1,6 +1,7 @@
+ import { useMutation, useQueryClient } from '@tanstack/react-query';
+ 
+ import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
+ import { MutationConfig } from '@/lib/react-query';
+ 
+ import { getInfiniteCommentsQueryOptions } from './get-comments';
+@@ -19,11 +20,16 @@ export const useDeleteComment = ({
+   discussionId,
+ }: UseDeleteCommentOptions) => {
+   const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
+ 
+   const { onSuccess, ...restConfig } = mutationConfig || {};
+ 
+   return useMutation({
+     onSuccess: (...args) => {
++      addNotification({
++        type: 'success',
++        title: 'Comment Deleted',
++      });
+       queryClient.invalidateQueries({
+         queryKey: getInfiniteCommentsQueryOptions(discussionId).queryKey,
+       });
+diff --git a/apps/react-vite/src/features/comments/api/update-comment.ts b/apps/react-vite/src/features/comments/api/update-comment.ts
+new file mode 100644
+index 0000000..af00a54
+--- /dev/null
++++ b/apps/react-vite/src/features/comments/api/update-comment.ts
+@@ -0,0 +1,55 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
++import { MutationConfig } from '@/lib/react-query';
++import type { Comment } from '@/types/api';
++
++import { getInfiniteCommentsQueryOptions } from './get-comments';
++
++export const updateCommentInputSchema = z.object({
++  body: z.string().min(1, 'Required'),
++});
++
++export type UpdateCommentInput = z.infer<typeof updateCommentInputSchema>;
++
++export const updateComment = ({
++  commentId,
++  data,
++}: {
++  commentId: string;
++  data: UpdateCommentInput;
++}): Promise<Comment> => {
++  return api.patch(`/comments/${commentId}`, data);
++};
++
++type UseUpdateCommentOptions = {
++  discussionId: string;
++  mutationConfig?: MutationConfig<typeof updateComment>;
++};
++
++export const useUpdateComment = ({
++  mutationConfig,
++  discussionId,
++}: UseUpdateCommentOptions) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      addNotification({
++        type: 'success',
++        title: 'Comment Updated',
++      });
++      queryClient.invalidateQueries({
++        queryKey: getInfiniteCommentsQueryOptions(discussionId).queryKey,
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateComment,
++  });
++};
+diff --git a/apps/react-vite/src/features/comments/components/comments-list.tsx b/apps/react-vite/src/features/comments/components/comments-list.tsx
+index ee30725..715202a 100644
+--- a/apps/react-vite/src/features/comments/components/comments-list.tsx
++++ b/apps/react-vite/src/features/comments/components/comments-list.tsx
+@@ -5,12 +5,13 @@ import { MDPreview } from '@/components/ui/md-preview';
+ import { Spinner } from '@/components/ui/spinner';
+ import { useUser } from '@/lib/auth';
+ import { POLICIES, Authorization } from '@/lib/authorization';
+-import { User } from '@/types/api';
++import { Comment, User } from '@/types/api';
+ import { formatDate } from '@/utils/format';
+ 
+ import { useInfiniteComments } from '../api/get-comments';
+ 
+ import { DeleteComment } from './delete-comment';
++import { EditComment } from './edit-comment';
+ 
+ type CommentsListProps = {
+   discussionId: string;
+@@ -20,6 +21,10 @@ export const CommentsList = ({ discussionId }: CommentsListProps) => {
+   const user = useUser();
+   const commentsQuery = useInfiniteComments({ discussionId });
+ 
++  const canUpdateComment = (comment: Comment) => {
++    return POLICIES['comment:update'](user.data as User, comment);
++  };
++
+   if (commentsQuery.isLoading) {
+     return (
+       <div className="flex h-48 w-full items-center justify-center">
+@@ -69,7 +74,18 @@ export const CommentsList = ({ discussionId }: CommentsListProps) => {
+                     </span>
+                   )}
+                 </div>
+-                <DeleteComment discussionId={discussionId} id={comment.id} />
++                <div className="flex space-x-2">
++                  <DeleteComment discussionId={discussionId} id={comment.id} />
++                  <Authorization
++                    policyCheck={canUpdateComment(comment)}
++                  >
++                    <EditComment
++                      id={comment.id}
++                      discussionId={discussionId}
++                      initialBody={comment.body}
++                    />
++                  </Authorization>
++                </div>
+               </div>
+             </Authorization>
+ 
+diff --git a/apps/react-vite/src/features/comments/components/create-comment.tsx b/apps/react-vite/src/features/comments/components/create-comment.tsx
+index cb8d797..dae5196 100644
+--- a/apps/react-vite/src/features/comments/components/create-comment.tsx
++++ b/apps/react-vite/src/features/comments/components/create-comment.tsx
+@@ -2,7 +2,6 @@ import { Plus } from 'lucide-react';
+ 
+ import { Button } from '@/components/ui/button';
+ import { Form, FormDrawer, Textarea } from '@/components/ui/form';
+-import { useNotifications } from '@/components/ui/notifications';
+ 
+ import {
+   useCreateComment,
+@@ -14,18 +13,7 @@ type CreateCommentProps = {
+ };
+ 
+ export const CreateComment = ({ discussionId }: CreateCommentProps) => {
+-  const { addNotification } = useNotifications();
+-  const createCommentMutation = useCreateComment({
+-    discussionId,
+-    mutationConfig: {
+-      onSuccess: () => {
+-        addNotification({
+-          type: 'success',
+-          title: 'Comment Created',
+-        });
+-      },
+-    },
+-  });
++  const createCommentMutation = useCreateComment({ discussionId });
+ 
+   return (
+     <FormDrawer
+diff --git a/apps/react-vite/src/features/comments/components/delete-comment.tsx b/apps/react-vite/src/features/comments/components/delete-comment.tsx
+index ac9b396..52a5693 100644
+--- a/apps/react-vite/src/features/comments/components/delete-comment.tsx
++++ b/apps/react-vite/src/features/comments/components/delete-comment.tsx
+@@ -2,7 +2,6 @@ import { Trash } from 'lucide-react';
+ 
+ import { Button } from '@/components/ui/button';
+ import { ConfirmationDialog } from '@/components/ui/dialog';
+-import { useNotifications } from '@/components/ui/notifications';
+ 
+ import { useDeleteComment } from '../api/delete-comment';
+ 
+@@ -12,18 +11,7 @@ type DeleteCommentProps = {
+ };
+ 
+ export const DeleteComment = ({ id, discussionId }: DeleteCommentProps) => {
+-  const { addNotification } = useNotifications();
+-  const deleteCommentMutation = useDeleteComment({
+-    discussionId,
+-    mutationConfig: {
+-      onSuccess: () => {
+-        addNotification({
+-          type: 'success',
+-          title: 'Comment Deleted',
+-        });
+-      },
+-    },
+-  });
++  const deleteCommentMutation = useDeleteComment({ discussionId });
+ 
+   return (
+     <ConfirmationDialog
+diff --git a/apps/react-vite/src/features/comments/components/edit-comment.tsx b/apps/react-vite/src/features/comments/components/edit-comment.tsx
+new file mode 100644
+index 0000000..d51e978
+--- /dev/null
++++ b/apps/react-vite/src/features/comments/components/edit-comment.tsx
+@@ -0,0 +1,66 @@
++import { Pencil } from 'lucide-react';
++
++import { Button } from '@/components/ui/button';
++import { Form, FormDrawer, Textarea } from '@/components/ui/form';
++
++import {
++  useUpdateComment,
++  updateCommentInputSchema,
++} from '../api/update-comment';
++
++type EditCommentProps = {
++  id: string;
++  discussionId: string;
++  initialBody: string;
++};
++
++export const EditComment = ({ id, discussionId, initialBody }: EditCommentProps) => {
++  const updateCommentMutation = useUpdateComment({ discussionId });
++
++  return (
++    <FormDrawer
++      isDone={updateCommentMutation.isSuccess}
++      triggerButton={
++        <Button variant="ghost" size="sm" icon={<Pencil className="size-4" />}>
++          Edit
++        </Button>
++      }
++      title="Edit Comment"
++      submitButton={
++        <Button
++          isLoading={updateCommentMutation.isPending}
++          form="edit-comment"
++          type="submit"
++          size="sm"
++          disabled={updateCommentMutation.isPending}
++        >
++          Save
++        </Button>
++      }
++    >
++      <Form
++        id="edit-comment"
++        onSubmit={(values) => {
++          updateCommentMutation.mutate({
++            commentId: id,
++            data: values,
++          });
++        }}
++        schema={updateCommentInputSchema}
++        options={{
++          defaultValues: {
++            body: initialBody,
++          },
++        }}
++      >
++        {({ register, formState }) => (
++          <Textarea
++            label="Body"
++            error={formState.errors['body']}
++            registration={register('body')}
++          />
++        )}
++      </Form>
++    </FormDrawer>
++  );
++};
+diff --git a/apps/react-vite/src/features/discussions/api/create-discussion.ts b/apps/react-vite/src/features/discussions/api/create-discussion.ts
+index d052884..f925291 100644
+--- a/apps/react-vite/src/features/discussions/api/create-discussion.ts
++++ b/apps/react-vite/src/features/discussions/api/create-discussion.ts
+@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
+ import { z } from 'zod';
+ 
+ import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
+ import { MutationConfig } from '@/lib/react-query';
+ import { Discussion } from '@/types/api';
+ 
+@@ -30,11 +31,16 @@ export const useCreateDiscussion = ({
+   mutationConfig,
+ }: UseCreateDiscussionOptions = {}) => {
+   const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
+ 
+   const { onSuccess, ...restConfig } = mutationConfig || {};
+ 
+   return useMutation({
+     onSuccess: (...args) => {
++      addNotification({
++        type: 'success',
++        title: 'Discussion Created',
++      });
+       queryClient.invalidateQueries({
+         queryKey: getDiscussionsQueryOptions().queryKey,
+       });
+diff --git a/apps/react-vite/src/features/discussions/api/delete-discussion.ts b/apps/react-vite/src/features/discussions/api/delete-discussion.ts
+index 07c95ec..ea2055e 100644
+--- a/apps/react-vite/src/features/discussions/api/delete-discussion.ts
++++ b/apps/react-vite/src/features/discussions/api/delete-discussion.ts
+@@ -1,6 +1,7 @@
+ import { useMutation, useQueryClient } from '@tanstack/react-query';
+ 
+ import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
+ import { MutationConfig } from '@/lib/react-query';
+ 
+ import { getDiscussionsQueryOptions } from './get-discussions';
+@@ -21,11 +22,16 @@ export const useDeleteDiscussion = ({
+   mutationConfig,
+ }: UseDeleteDiscussionOptions = {}) => {
+   const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
+ 
+   const { onSuccess, ...restConfig } = mutationConfig || {};
+ 
+   return useMutation({
+     onSuccess: (...args) => {
++      addNotification({
++        type: 'success',
++        title: 'Discussion Deleted',
++      });
+       queryClient.invalidateQueries({
+         queryKey: getDiscussionsQueryOptions().queryKey,
+       });
+diff --git a/apps/react-vite/src/features/discussions/api/update-discussion.ts b/apps/react-vite/src/features/discussions/api/update-discussion.ts
+index c5705a6..ff8fa49 100644
+--- a/apps/react-vite/src/features/discussions/api/update-discussion.ts
++++ b/apps/react-vite/src/features/discussions/api/update-discussion.ts
+@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
+ import { z } from 'zod';
+ 
+ import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
+ import { MutationConfig } from '@/lib/react-query';
+ import { Discussion } from '@/types/api';
+ 
+@@ -32,11 +33,16 @@ export const useUpdateDiscussion = ({
+   mutationConfig,
+ }: UseUpdateDiscussionOptions = {}) => {
+   const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
+ 
+   const { onSuccess, ...restConfig } = mutationConfig || {};
+ 
+   return useMutation({
+     onSuccess: (data, ...args) => {
++      addNotification({
++        type: 'success',
++        title: 'Discussion Updated',
++      });
+       queryClient.refetchQueries({
+         queryKey: getDiscussionQueryOptions(data.id).queryKey,
+       });
+diff --git a/apps/react-vite/src/features/discussions/components/create-discussion.tsx b/apps/react-vite/src/features/discussions/components/create-discussion.tsx
+index 17e5361..e05efbf 100644
+--- a/apps/react-vite/src/features/discussions/components/create-discussion.tsx
++++ b/apps/react-vite/src/features/discussions/components/create-discussion.tsx
+@@ -2,7 +2,6 @@ import { Plus } from 'lucide-react';
+ 
+ import { Button } from '@/components/ui/button';
+ import { Form, FormDrawer, Input, Textarea } from '@/components/ui/form';
+-import { useNotifications } from '@/components/ui/notifications';
+ import { Authorization, ROLES } from '@/lib/authorization';
+ 
+ import {
+@@ -11,17 +10,7 @@ import {
+ } from '../api/create-discussion';
+ 
+ export const CreateDiscussion = () => {
+-  const { addNotification } = useNotifications();
+-  const createDiscussionMutation = useCreateDiscussion({
+-    mutationConfig: {
+-      onSuccess: () => {
+-        addNotification({
+-          type: 'success',
+-          title: 'Discussion Created',
+-        });
+-      },
+-    },
+-  });
++  const createDiscussionMutation = useCreateDiscussion();
+ 
+   return (
+     <Authorization allowedRoles={[ROLES.ADMIN]}>
+diff --git a/apps/react-vite/src/features/discussions/components/delete-discussion.tsx b/apps/react-vite/src/features/discussions/components/delete-discussion.tsx
+index e4d625f..7a9365d 100644
+--- a/apps/react-vite/src/features/discussions/components/delete-discussion.tsx
++++ b/apps/react-vite/src/features/discussions/components/delete-discussion.tsx
+@@ -2,7 +2,6 @@ import { Trash } from 'lucide-react';
+ 
+ import { Button } from '@/components/ui/button';
+ import { ConfirmationDialog } from '@/components/ui/dialog';
+-import { useNotifications } from '@/components/ui/notifications';
+ import { Authorization, ROLES } from '@/lib/authorization';
+ 
+ import { useDeleteDiscussion } from '../api/delete-discussion';
+@@ -12,17 +11,7 @@ type DeleteDiscussionProps = {
+ };
+ 
+ export const DeleteDiscussion = ({ id }: DeleteDiscussionProps) => {
+-  const { addNotification } = useNotifications();
+-  const deleteDiscussionMutation = useDeleteDiscussion({
+-    mutationConfig: {
+-      onSuccess: () => {
+-        addNotification({
+-          type: 'success',
+-          title: 'Discussion Deleted',
+-        });
+-      },
+-    },
+-  });
++  const deleteDiscussionMutation = useDeleteDiscussion();
+ 
+   return (
+     <Authorization allowedRoles={[ROLES.ADMIN]}>
+diff --git a/apps/react-vite/src/features/discussions/components/update-discussion.tsx b/apps/react-vite/src/features/discussions/components/update-discussion.tsx
+index 3c81ce9..151c3de 100644
+--- a/apps/react-vite/src/features/discussions/components/update-discussion.tsx
++++ b/apps/react-vite/src/features/discussions/components/update-discussion.tsx
+@@ -2,7 +2,6 @@ import { Pen } from 'lucide-react';
+ 
+ import { Button } from '@/components/ui/button';
+ import { Form, FormDrawer, Input, Textarea } from '@/components/ui/form';
+-import { useNotifications } from '@/components/ui/notifications';
+ import { Authorization, ROLES } from '@/lib/authorization';
+ 
+ import { useDiscussion } from '../api/get-discussion';
+@@ -16,18 +15,8 @@ type UpdateDiscussionProps = {
+ };
+ 
+ export const UpdateDiscussion = ({ discussionId }: UpdateDiscussionProps) => {
+-  const { addNotification } = useNotifications();
+   const discussionQuery = useDiscussion({ discussionId });
+-  const updateDiscussionMutation = useUpdateDiscussion({
+-    mutationConfig: {
+-      onSuccess: () => {
+-        addNotification({
+-          type: 'success',
+-          title: 'Discussion Updated',
+-        });
+-      },
+-    },
+-  });
++  const updateDiscussionMutation = useUpdateDiscussion({ discussionId });
+ 
+   const discussion = discussionQuery.data?.data;
+ 
+diff --git a/apps/react-vite/src/features/users/api/delete-user.ts b/apps/react-vite/src/features/users/api/delete-user.ts
+index 5f2cb2e..01991e5 100644
+--- a/apps/react-vite/src/features/users/api/delete-user.ts
++++ b/apps/react-vite/src/features/users/api/delete-user.ts
+@@ -1,6 +1,7 @@
+ import { useMutation, useQueryClient } from '@tanstack/react-query';
+ 
+ import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
+ import { MutationConfig } from '@/lib/react-query';
+ 
+ import { getUsersQueryOptions } from './get-users';
+@@ -21,11 +22,16 @@ export const useDeleteUser = ({
+   mutationConfig,
+ }: UseDeleteUserOptions = {}) => {
+   const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
+ 
+   const { onSuccess, ...restConfig } = mutationConfig || {};
+ 
+   return useMutation({
+     onSuccess: (...args) => {
++      addNotification({
++        type: 'success',
++        title: 'User Deleted',
++      });
+       queryClient.invalidateQueries({
+         queryKey: getUsersQueryOptions().queryKey,
+       });
+diff --git a/apps/react-vite/src/features/users/api/update-profile.ts b/apps/react-vite/src/features/users/api/update-profile.ts
+index cf36049..b0948ef 100644
+--- a/apps/react-vite/src/features/users/api/update-profile.ts
++++ b/apps/react-vite/src/features/users/api/update-profile.ts
+@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
+ import { z } from 'zod';
+ 
+ import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
+ import { useUser } from '@/lib/auth';
+ import { MutationConfig } from '@/lib/react-query';
+ 
+@@ -26,11 +27,16 @@ export const useUpdateProfile = ({
+   mutationConfig,
+ }: UseUpdateProfileOptions = {}) => {
+   const { refetch: refetchUser } = useUser();
++  const { addNotification } = useNotifications();
+ 
+   const { onSuccess, ...restConfig } = mutationConfig || {};
+ 
+   return useMutation({
+     onSuccess: (...args) => {
++      addNotification({
++        type: 'success',
++        title: 'Profile Updated',
++      });
+       refetchUser();
+       onSuccess?.(...args);
+     },
+diff --git a/apps/react-vite/src/features/users/components/delete-user.tsx b/apps/react-vite/src/features/users/components/delete-user.tsx
+index 3078e16..e47bed1 100644
+--- a/apps/react-vite/src/features/users/components/delete-user.tsx
++++ b/apps/react-vite/src/features/users/components/delete-user.tsx
+@@ -1,6 +1,5 @@
+ import { Button } from '@/components/ui/button';
+ import { ConfirmationDialog } from '@/components/ui/dialog';
+-import { useNotifications } from '@/components/ui/notifications';
+ import { useUser } from '@/lib/auth';
+ 
+ import { useDeleteUser } from '../api/delete-user';
+@@ -11,17 +10,7 @@ type DeleteUserProps = {
+ 
+ export const DeleteUser = ({ id }: DeleteUserProps) => {
+   const user = useUser();
+-  const { addNotification } = useNotifications();
+-  const deleteUserMutation = useDeleteUser({
+-    mutationConfig: {
+-      onSuccess: () => {
+-        addNotification({
+-          type: 'success',
+-          title: 'User Deleted',
+-        });
+-      },
+-    },
+-  });
++  const deleteUserMutation = useDeleteUser();
+ 
+   if (user.data?.id === id) return null;
+ 
+diff --git a/apps/react-vite/src/features/users/components/update-profile.tsx b/apps/react-vite/src/features/users/components/update-profile.tsx
+index 4af708f..118b2a7 100644
+--- a/apps/react-vite/src/features/users/components/update-profile.tsx
++++ b/apps/react-vite/src/features/users/components/update-profile.tsx
+@@ -2,7 +2,6 @@ import { Pen } from 'lucide-react';
+ 
+ import { Button } from '@/components/ui/button';
+ import { Form, FormDrawer, Input, Textarea } from '@/components/ui/form';
+-import { useNotifications } from '@/components/ui/notifications';
+ import { useUser } from '@/lib/auth';
+ 
+ import {
+@@ -12,17 +11,7 @@ import {
+ 
+ export const UpdateProfile = () => {
+   const user = useUser();
+-  const { addNotification } = useNotifications();
+-  const updateProfileMutation = useUpdateProfile({
+-    mutationConfig: {
+-      onSuccess: () => {
+-        addNotification({
+-          type: 'success',
+-          title: 'Profile Updated',
+-        });
+-      },
+-    },
+-  });
++  const updateProfileMutation = useUpdateProfile();
+ 
+   return (
+     <FormDrawer
+diff --git a/apps/react-vite/src/lib/authorization.tsx b/apps/react-vite/src/lib/authorization.tsx
+index 563fca3..4b980d1 100644
+--- a/apps/react-vite/src/lib/authorization.tsx
++++ b/apps/react-vite/src/lib/authorization.tsx
+@@ -21,6 +21,17 @@ export const POLICIES = {
+       return true;
+     }
+ 
++    return false;
++  },
++  'comment:update': (user: User, comment: Comment) => {
++    if (user.role === 'ADMIN') {
++      return true;
++    }
++
++    if (user.role === 'USER' && comment.author?.id === user.id) {
++      return true;
++    }
++
+     return false;
+   },
+ };

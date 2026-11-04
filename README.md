@@ -41,6 +41,10 @@ Confirmatory ablation, 144 runs ([studies/ablation.md](studies/ablation.md)):
 Functional correctness, all 344 runs (`bench.mjs verify`: each final diff built and tested on the plain upstream commit):
 - Production code passes the project's original test suite in 340 of 344 runs; the setups do not differ, and the 4 failures are Haiku type and compile errors unrelated to the rules.
 
+Local model in other harnesses, exploratory, 48 runs: qwen3.6 in pi and Codex on the bulletproof study ([studies/local-agents.md](studies/local-agents.md)):
+- With the rule only in the docs, every run broke it in both harnesses (16/16); with lint rules and the loop, 1 of 16 did.
+- The same text always loaded in `AGENTS.md` did not help in pi (8/8 broken) and helped partly in Codex (3/8).
+
 ## How it works
 
 ```bash

@@ -62,22 +62,25 @@ const designCatches = (study, r) => {
 };
 const verifyOk = (r) => (r.verify ? Boolean(r.verify.ok || r.verify.withoutOwnTests?.ok) : null);
 
-export function compare(studies, arm, against, { seed = 1, iterations = 10000, tasks } = {}) {
+export function compare(studies, arm, against, { seed = 1, iterations = 10000, tasks, models } = {}) {
   const strata = [];
   for (const study of studies) {
     const results = loadResults(study.resultsDir).filter((r) => r.ok && (!tasks || tasks.includes(r.task)));
-    for (const model of study.models.map((m) => (typeof m === 'string' ? m : m.id))) {
+    for (const model of study.models.map((m) => (typeof m === 'string' ? m : m.id)).filter((m) => !models || models.includes(m))) {
       const side = (a) => results.filter((r) => r.arm === a && r.model === model).map((r) => ({ ...r, ...productionBreaks(r, study.verify?.testFiles ?? []), catches: designCatches(study, r) }));
       const x = side(arm), y = side(against);
       if (!x.length || !y.length) continue;
-      strata.push({ study: study.name, model, x, y, n1: x.length, n2: y.length, x1: x.filter((r) => r.breaks > 0).length, x2: y.filter((r) => r.breaks > 0).length, ratio: mean(x.map(total)) / mean(y.map(total)) });
+      strata.push({ study: study.name, model, x, y, n1: x.length, n2: y.length, x1: x.filter((r) => r.breaks > 0).length, x2: y.filter((r) => r.breaks > 0).length, ratio: mean(y.map(total)) ? mean(x.map(total)) / mean(y.map(total)) : null });
     }
   }
   if (!strata.length) throw new Error(`no study has runs of both "${arm}" and "${against}"`);
   const rand = rng(seed);
-  const boot = Array.from({ length: iterations }, () => geo(strata.map((s) => resampleMean(s.x.map(total), rand) / resampleMean(s.y.map(total), rand))));
+  // a local model reports no cost: its stratum counts for breaks, not for cost
+  const priced = strata.filter((s) => s.ratio !== null);
+  const boot = Array.from({ length: priced.length ? iterations : 0 }, () => geo(priced.map((s) => resampleMean(s.x.map(total), rand) / resampleMean(s.y.map(total), rand))));
   for (const s of strata) {
     s.fisherP = exactUpper([s]);
+    if (s.ratio === null) continue;
     const b = Array.from({ length: Math.min(iterations, 2000) }, () => resampleMean(s.x.map(total), rand) / resampleMean(s.y.map(total), rand));
     s.ci = percentiles(b);
   }
@@ -94,7 +97,7 @@ export function compare(studies, arm, against, { seed = 1, iterations = 10000, t
   return {
     arm, against, strata,
     breaks: { x1: strata.reduce((n, s) => n + s.x1, 0), n1: strata.reduce((n, s) => n + s.n1, 0), x2: strata.reduce((n, s) => n + s.x2, 0), n2: strata.reduce((n, s) => n + s.n2, 0), cmhP: exactUpper(strata) },
-    cost: { ratio: geo(strata.map((s) => s.ratio)), ci: percentiles(boot) },
+    cost: priced.length ? { ratio: geo(priced.map((s) => s.ratio)), ci: percentiles(boot), strata: priced.length } : null,
     secondary: { [arm]: describe(all('x')), [against]: describe(all('y')) },
   };
 }
@@ -109,9 +112,9 @@ export function compareMarkdown(c, tasks) {
   const lines = [`# ${arm} against ${against}${tasks ? ` (tasks ${tasks.join(', ')})` : ''}`, '', `Stratified by study x model. Breaks are runs with a production-code break after the task, before any review fix; cost is total cost per run including the fix (${arm} / ${against}).`, ''];
   lines.push('## Pooled', '');
   lines.push(`- Runs broken: ${arm} ${c.breaks.x1}/${c.breaks.n1}, ${against} ${c.breaks.x2}/${c.breaks.n2}; exact CMH, one-sided (${arm} breaks more): p = ${p3(c.breaks.cmhP)}.`);
-  lines.push(`- Cost: ${pct(c.cost.ratio)} (95% stratified bootstrap interval ${pct(c.cost.ci[0])} to ${pct(c.cost.ci[1])}).`);
+  lines.push(c.cost ? `- Cost: ${pct(c.cost.ratio)} (95% stratified bootstrap interval ${pct(c.cost.ci[0])} to ${pct(c.cost.ci[1])})${c.cost.strata < c.strata.length ? `, over the ${c.cost.strata} strata that report a cost` : ''}.` : '- Cost: no stratum reports a cost.');
   lines.push('', '## Per stratum', '', `| study | model | ${arm} broken | ${against} broken | Fisher p (one-sided) | cost change | 95% interval |`, '|---|---|---|---|---|---|---|');
-  for (const s of c.strata) lines.push(`| ${s.study} | ${s.model} | ${s.x1}/${s.n1} | ${s.x2}/${s.n2} | ${p3(s.fisherP)} | ${pct(s.ratio)} | ${pct(s.ci[0])} to ${pct(s.ci[1])} |`);
+  for (const s of c.strata) lines.push(`| ${s.study} | ${s.model} | ${s.x1}/${s.n1} | ${s.x2}/${s.n2} | ${p3(s.fisherP)} | ${s.ratio === null ? 'no cost' : pct(s.ratio)} | ${s.ci ? `${pct(s.ci[0])} to ${pct(s.ci[1])}` : '-'} |`);
   lines.push('', '## Secondary (descriptive)', '', '| arm | runs | design-rule loop catches | mean turns | runs broken at the end | verify: production code passes | exact 95% interval |', '|---|---|---|---|---|---|---|');
   for (const [a, d] of Object.entries(c.secondary)) lines.push(`| ${a} | ${d.runs} | ${d.catches} | ${d.turns.toFixed(1)} | ${d.leftAtEnd} | ${d.verified ? `${d.verifyOk}/${d.verified}` : 'not verified'} | ${d.verifyCi ? share(...d.verifyCi) : '-'} |`);
   const unlocated = Object.values(c.secondary).reduce((n, d) => n + d.unlocated, 0);
@@ -119,9 +122,9 @@ export function compareMarkdown(c, tasks) {
   return lines.join('\n') + '\n';
 }
 
-export function compareStudies(files, { arm, against, tasks, out, log = console.log } = {}) {
+export function compareStudies(files, { arm, against, tasks, models, out, log = console.log } = {}) {
   if (!arm || !against) throw new Error('compare needs --arm and --against');
-  const md = compareMarkdown(compare(files.map((f) => loadStudy(f)), arm, against, { tasks }), tasks);
+  const md = compareMarkdown(compare(files.map((f) => loadStudy(f)), arm, against, { tasks, models }), tasks);
   if (out) fs.writeFileSync(path.resolve(out), md);
   log(md);
   return md;

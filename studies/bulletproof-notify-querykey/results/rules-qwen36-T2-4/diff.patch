@@ -1,0 +1,164 @@
+diff --git a/apps/react-vite/src/features/users/api/update-user-role.ts b/apps/react-vite/src/features/users/api/update-user-role.ts
+new file mode 100644
+index 0000000..9f9701a
+--- /dev/null
++++ b/apps/react-vite/src/features/users/api/update-user-role.ts
+@@ -0,0 +1,46 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
++import { MutationConfig } from '@/lib/react-query';
++import { User } from '@/types/api';
++
++import { getUsersQueryOptions } from './get-users';
++
++export const updateUserRoleSchema = z.object({
++  userId: z.string(),
++  newRole: z.enum(['ADMIN', 'USER']),
++});
++
++export type UpdateUserRoleInput = z.infer<typeof updateUserRoleSchema>;
++
++export const updateUserRole = async ({ userId, newRole }: UpdateUserRoleInput) => {
++  return api.patch<User>(`/users/${userId}/role`, { role: newRole });
++};
++
++type UseUpdateUserRoleOptions = {
++  mutationConfig?: MutationConfig<typeof updateUserRole>;
++};
++
++export const useUpdateUserRole = ({
++  mutationConfig,
++}: UseUpdateUserRoleOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      addNotification({
++        type: 'success',
++        title: 'Role Updated',
++      });
++      queryClient.invalidateQueries({ queryKey: getUsersQueryOptions().queryKey });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateUserRole,
++  });
++};
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..fd75cb4 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,13 +1,21 @@
++import type { User } from '@/types/api';
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
++import { useQueryClient } from '@tanstack/react-query';
+ import { formatDate } from '@/utils/format';
+ 
+-import { useUsers } from '../api/get-users';
++import { useUsers, getUsersQueryOptions } from '../api/get-users';
++import { useUpdateUserRole } from '../api/update-user-role';
+ 
+ import { DeleteUser } from './delete-user';
+ 
++const ROLES = ['ADMIN', 'USER'] as const;
++
+ export const UsersList = () => {
+   const usersQuery = useUsers();
++  const queryClient = useQueryClient();
++
++  const updateUserRoleMutation = useUpdateUserRole();
+ 
+   if (usersQuery.isLoading) {
+     return (
+@@ -21,6 +29,20 @@ export const UsersList = () => {
+ 
+   if (!users) return null;
+ 
++  const handleRoleChange = (userId: string, newRole: 'ADMIN' | 'USER') => {
++    // Optimistic update of the table data to show the new role immediately
++    queryClient.setQueryData<any>(getUsersQueryOptions().queryKey, (old) => {
++      if (!old) return old;
++      return {
++        ...old,
++        data: old.data.map((u: any) =>
++          u.id === userId ? { ...u, role: newRole } : u
++        ),
++      };
++    });
++    updateUserRoleMutation.mutate({ userId, newRole });
++  };
++
+   return (
+     <Table
+       data={users}
+@@ -40,6 +62,24 @@ export const UsersList = () => {
+         {
+           title: 'Role',
+           field: 'role',
++          Cell({ entry }) {
++            return (
++              <select
++                value={entry.role}
++                onChange={(e) =>
++                  handleRoleChange(entry.id, e.target.value as 'ADMIN' | 'USER')
++                }
++                disabled={updateUserRoleMutation.isPending}
++                className="block w-full rounded-md border-gray-600 py-1 pl-2 pr-8 text-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none"
++              >
++                {ROLES.map((role) => (
++                  <option key={role} value={role}>
++                    {role}
++                  </option>
++                ))}
++              </select>
++            );
++          },
+         },
+         {
+           title: 'Created At',
+diff --git a/apps/react-vite/src/testing/mocks/handlers/users.ts b/apps/react-vite/src/testing/mocks/handlers/users.ts
+index 444b918..3c70d3b 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/users.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/users.ts
+@@ -72,6 +72,34 @@ export const usersHandlers = [
+     }
+   }),
+ 
++  http.patch(`${env.API_URL}/users/:userId/role`, async ({ request, params, cookies }) => {
++    await networkDelay();
++
++    try {
++      const { user: authUser, error } = requireAuth(cookies);
++      if (error) {
++        return HttpResponse.json({ message: error }, { status: 401 });
++      }
++      requireAdmin(authUser);
++
++      const userId = params.userId as string;
++      const body = (await request.json()) as { role: string };
++
++      const result = db.user.update({
++        where: { id: { equals: userId } },
++        data: { role: body.role },
++      });
++
++      await persistDb('user');
++      return HttpResponse.json(result);
++    } catch (error: any) {
++      return HttpResponse.json(
++        { message: error?.message || 'Server Error' },
++        { status: 500 },
++      );
++    }
++  }),
++
+   http.delete(`${env.API_URL}/users/:userId`, async ({ cookies, params }) => {
+     await networkDelay();
+ 

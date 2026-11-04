@@ -1,0 +1,228 @@
+diff --git a/apps/react-vite/src/features/users/api/delete-user.ts b/apps/react-vite/src/features/users/api/delete-user.ts
+index 5f2cb2e..01991e5 100644
+--- a/apps/react-vite/src/features/users/api/delete-user.ts
++++ b/apps/react-vite/src/features/users/api/delete-user.ts
+@@ -1,6 +1,7 @@
+ import { useMutation, useQueryClient } from '@tanstack/react-query';
+ 
+ import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
+ import { MutationConfig } from '@/lib/react-query';
+ 
+ import { getUsersQueryOptions } from './get-users';
+@@ -21,11 +22,16 @@ export const useDeleteUser = ({
+   mutationConfig,
+ }: UseDeleteUserOptions = {}) => {
+   const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
+ 
+   const { onSuccess, ...restConfig } = mutationConfig || {};
+ 
+   return useMutation({
+     onSuccess: (...args) => {
++      addNotification({
++        type: 'success',
++        title: 'User Deleted',
++      });
+       queryClient.invalidateQueries({
+         queryKey: getUsersQueryOptions().queryKey,
+       });
+diff --git a/apps/react-vite/src/features/users/api/update-profile.ts b/apps/react-vite/src/features/users/api/update-profile.ts
+index cf36049..b0948ef 100644
+--- a/apps/react-vite/src/features/users/api/update-profile.ts
++++ b/apps/react-vite/src/features/users/api/update-profile.ts
+@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
+ import { z } from 'zod';
+ 
+ import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
+ import { useUser } from '@/lib/auth';
+ import { MutationConfig } from '@/lib/react-query';
+ 
+@@ -26,11 +27,16 @@ export const useUpdateProfile = ({
+   mutationConfig,
+ }: UseUpdateProfileOptions = {}) => {
+   const { refetch: refetchUser } = useUser();
++  const { addNotification } = useNotifications();
+ 
+   const { onSuccess, ...restConfig } = mutationConfig || {};
+ 
+   return useMutation({
+     onSuccess: (...args) => {
++      addNotification({
++        type: 'success',
++        title: 'Profile Updated',
++      });
+       refetchUser();
+       onSuccess?.(...args);
+     },
+diff --git a/apps/react-vite/src/features/users/api/update-user-role.ts b/apps/react-vite/src/features/users/api/update-user-role.ts
+new file mode 100644
+index 0000000..fbd3b09
+--- /dev/null
++++ b/apps/react-vite/src/features/users/api/update-user-role.ts
+@@ -0,0 +1,44 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++
++import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
++import { MutationConfig } from '@/lib/react-query';
++
++import { getUsersQueryOptions } from './get-users';
++
++export type UpdateUserRoleDTO = {
++  userId: string;
++  role: 'ADMIN' | 'USER';
++};
++
++export const updateUserRole = ({ userId, role }: UpdateUserRoleDTO) => {
++  return api.patch(`/users/${userId}/role`, { role });
++};
++
++type UseUpdateUserRoleOptions = {
++  mutationConfig?: MutationConfig<typeof updateUserRole>;
++};
++
++export const useUpdateUserRole = ({
++  mutationConfig,
++}: UseUpdateUserRoleOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      addNotification({
++        type: 'success',
++        title: 'Role Updated',
++      });
++      queryClient.invalidateQueries({
++        queryKey: getUsersQueryOptions().queryKey,
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateUserRole,
++  });
++};
+diff --git a/apps/react-vite/src/features/users/components/delete-user.tsx b/apps/react-vite/src/features/users/components/delete-user.tsx
+index 3078e16..e47bed1 100644
+--- a/apps/react-vite/src/features/users/components/delete-user.tsx
++++ b/apps/react-vite/src/features/users/components/delete-user.tsx
+@@ -1,6 +1,5 @@
+ import { Button } from '@/components/ui/button';
+ import { ConfirmationDialog } from '@/components/ui/dialog';
+-import { useNotifications } from '@/components/ui/notifications';
+ import { useUser } from '@/lib/auth';
+ 
+ import { useDeleteUser } from '../api/delete-user';
+@@ -11,17 +10,7 @@ type DeleteUserProps = {
+ 
+ export const DeleteUser = ({ id }: DeleteUserProps) => {
+   const user = useUser();
+-  const { addNotification } = useNotifications();
+-  const deleteUserMutation = useDeleteUser({
+-    mutationConfig: {
+-      onSuccess: () => {
+-        addNotification({
+-          type: 'success',
+-          title: 'User Deleted',
+-        });
+-      },
+-    },
+-  });
++  const deleteUserMutation = useDeleteUser();
+ 
+   if (user.data?.id === id) return null;
+ 
+diff --git a/apps/react-vite/src/features/users/components/update-profile.tsx b/apps/react-vite/src/features/users/components/update-profile.tsx
+index 4af708f..118b2a7 100644
+--- a/apps/react-vite/src/features/users/components/update-profile.tsx
++++ b/apps/react-vite/src/features/users/components/update-profile.tsx
+@@ -2,7 +2,6 @@ import { Pen } from 'lucide-react';
+ 
+ import { Button } from '@/components/ui/button';
+ import { Form, FormDrawer, Input, Textarea } from '@/components/ui/form';
+-import { useNotifications } from '@/components/ui/notifications';
+ import { useUser } from '@/lib/auth';
+ 
+ import {
+@@ -12,17 +11,7 @@ import {
+ 
+ export const UpdateProfile = () => {
+   const user = useUser();
+-  const { addNotification } = useNotifications();
+-  const updateProfileMutation = useUpdateProfile({
+-    mutationConfig: {
+-      onSuccess: () => {
+-        addNotification({
+-          type: 'success',
+-          title: 'Profile Updated',
+-        });
+-      },
+-    },
+-  });
++  const updateProfileMutation = useUpdateProfile();
+ 
+   return (
+     <FormDrawer
+diff --git a/apps/react-vite/src/features/users/components/update-user-role.tsx b/apps/react-vite/src/features/users/components/update-user-role.tsx
+new file mode 100644
+index 0000000..6b3e84d
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/update-user-role.tsx
+@@ -0,0 +1,31 @@
++import { cn } from '@/utils/cn';
++
++import { useUpdateUserRole } from '../api/update-user-role';
++
++type UpdateUserRoleProps = {
++  userId: string;
++  initialRole: 'ADMIN' | 'USER';
++};
++
++export const UpdateUserRole = ({ userId, initialRole }: UpdateUserRoleProps) => {
++  const updateUserRoleMutation = useUpdateUserRole();
++
++  const handleRoleChange = (newRole: 'ADMIN' | 'USER') => {
++    updateUserRoleMutation.mutate({ userId, role: newRole });
++  };
++
++  return (
++    <select
++      value={initialRole}
++      onChange={(e) => handleRoleChange(e.target.value as 'ADMIN' | 'USER')}
++      disabled={updateUserRoleMutation.isPending}
++      className={cn(
++        'rounded-md border border-gray-300 bg-white py-1 pl-2 pr-8 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500',
++        updateUserRoleMutation.isPending && 'opacity-50',
++      )}
++    >
++      <option value="ADMIN">ADMIN</option>
++      <option value="USER">USER</option>
++    </select>
++  );
++};
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..098d520 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -5,6 +5,7 @@ import { formatDate } from '@/utils/format';
+ import { useUsers } from '../api/get-users';
+ 
+ import { DeleteUser } from './delete-user';
++import { UpdateUserRole } from './update-user-role';
+ 
+ export const UsersList = () => {
+   const usersQuery = useUsers();
+@@ -40,6 +41,9 @@ export const UsersList = () => {
+         {
+           title: 'Role',
+           field: 'role',
++          Cell({ entry: { id, role } }) {
++            return <UpdateUserRole userId={id} initialRole={role} />;
++          },
+         },
+         {
+           title: 'Created At',
