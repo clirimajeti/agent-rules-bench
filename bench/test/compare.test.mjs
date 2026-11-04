@@ -39,7 +39,7 @@ test('compare stratifies by study and model and reads catches and verify from th
   const write = (id, r, extra = {}) => {
     const dir = path.join(root, 'results', id);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'result.json'), JSON.stringify({ id, ok: true, fixCost: 0, turns: 10, breaksFinal: 0, breaksAfterTask: 0, breaksAfterTaskAt: [], ...r }));
+    fs.writeFileSync(path.join(dir, 'result.json'), JSON.stringify({ id, ok: true, task: 'T1', fixCost: 0, turns: 10, breaksFinal: 0, breaksAfterTask: 0, breaksAfterTaskAt: [], ...r }));
     if (extra.catches) fs.writeFileSync(path.join(dir, 'failures.log'), extra.catches.map((ruleId) => JSON.stringify({ ruleId })).join('\n') + '\n');
     if (extra.verify) fs.writeFileSync(path.join(dir, 'verify.json'), JSON.stringify(extra.verify));
   };
@@ -63,6 +63,8 @@ test('compare stratifies by study and model and reads catches and verify from th
   assert.match(md, /Runs broken: pointer_only 2\/4, rules_control 0\/4; exact CMH, one-sided \(pointer_only breaks more\): p = 0\.214/);
   assert.match(md, /\| s \| sonnet \| 2\/4 \| 0\/4 \| 0\.214 \| \+100% \|/);
   assert.throws(() => compare([study], 'rule_only', 'rules_control'), /no study has runs of both/);
+  assert.throws(() => compare([study], 'pointer_only', 'rules_control', { tasks: ['T2'] }), /no study has runs of both/); // only T1 runs exist
+  assert.equal(compare([study], 'pointer_only', 'rules_control', { iterations: 500, tasks: ['T1'] }).breaks.x1, 2);
 });
 
 test('context cost: the price fit recovers known prices, and N tokens cost one write plus a read per later turn', async () => {

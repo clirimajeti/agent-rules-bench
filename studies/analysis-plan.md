@@ -64,3 +64,30 @@ node bench/bench.mjs compare "${S[@]}" --arm rule_only --against rules_control -
 - 2026-11-04, timing: the analysis code was written and committed while the runs were in progress (101 of 144 had results). It was checked only on the exploratory arms (`prose_buried` against `rules`); no output for the three ablation arms was looked at before this commit.
 - 2026-11-04, after the runs: the reproduce snippet used an unquoted string, which zsh does not split into words; it now uses an array. No change to the analysis.
 - 2026-11-04, runs: 17 bulletproof Haiku sessions ended with `is_error` after a usage limit (most after one turn) and were rerun, as the Design section provides.
+
+# Plan 2: missed rules across sessions (F6) and a stronger model (F3)
+
+Written before any of these runs, under the same rules as the plan above.
+
+## F6: does a missed rule compound across sessions?
+
+- Study `bulletproof-sequence`: tasks T1, T2, T3 in a row on the same copy (`"sequence": true`), each session building on the code of the earlier ones, no review fix in between.
+- Arms `prose_buried` and `rules`, set up exactly as in bulletproof-notify-querykey; Sonnet and Haiku; 4 chains per arm and model: 48 runs.
+- Outcome: a production-code break of a study rule in the lines a session added (the harness counts only those, since each session's result is committed).
+- H4: in sessions T2 and T3, `prose_buried` has more runs with a break than `rules`. Test: exact one-sided CMH over the model strata, alpha 0.05.
+- Descriptive: within `prose_buried`, the share of T2 and T3 runs with a break after a chain whose earlier session broke the rule, against after one that did not.
+  This is the compounding itself, but with 8 chains per model it is reported, not tested.
+
+## F3: does a stronger model follow buried prose?
+
+- Study bulletproof-notify-querykey, model `opus` added, arms `prose_buried` and `rules` only: 8 runs per arm, 16 in all.
+- No hypothesis test: the question is where Opus falls against Sonnet (1/8) and Haiku (5/8) on buried prose, reported with exact 95% intervals.
+- Cost is reported as in the other studies, `rules` against `prose_buried`.
+- Both Opus copies are prepared fresh with codemyrules 1e6fa0d; their trees are identical to those of the sequence study, so Opus is compared only within its own stratum.
+
+## How to reproduce
+
+```bash
+node bench/bench.mjs compare studies/bulletproof-sequence/study.json --arm prose_buried --against rules --tasks T2,T3   # H4
+node bench/bench.mjs compare studies/bulletproof-notify-querykey/study.json --arm prose_buried --against rules   # F3, opus stratum
+```

@@ -62,10 +62,10 @@ const designCatches = (study, r) => {
 };
 const verifyOk = (r) => (r.verify ? Boolean(r.verify.ok || r.verify.withoutOwnTests?.ok) : null);
 
-export function compare(studies, arm, against, { seed = 1, iterations = 10000 } = {}) {
+export function compare(studies, arm, against, { seed = 1, iterations = 10000, tasks } = {}) {
   const strata = [];
   for (const study of studies) {
-    const results = loadResults(study.resultsDir).filter((r) => r.ok);
+    const results = loadResults(study.resultsDir).filter((r) => r.ok && (!tasks || tasks.includes(r.task)));
     for (const model of study.models) {
       const side = (a) => results.filter((r) => r.arm === a && r.model === model).map((r) => ({ ...r, ...productionBreaks(r, study.verify?.testFiles ?? []), catches: designCatches(study, r) }));
       const x = side(arm), y = side(against);
@@ -104,9 +104,9 @@ const pct = (r) => { const v = Math.round((r - 1) * 100); return v === 0 ? '0%' 
 const p3 = (p) => (p < 0.001 ? '<0.001' : p.toFixed(3));
 const share = (lo, hi) => `${(lo * 100).toFixed(0)}-${(hi * 100).toFixed(0)}%`;
 
-export function compareMarkdown(c) {
+export function compareMarkdown(c, tasks) {
   const { arm, against } = c;
-  const lines = [`# ${arm} against ${against}`, '', `Stratified by study x model. Breaks are runs with a production-code break after the task, before any review fix; cost is total cost per run including the fix (${arm} / ${against}).`, ''];
+  const lines = [`# ${arm} against ${against}${tasks ? ` (tasks ${tasks.join(', ')})` : ''}`, '', `Stratified by study x model. Breaks are runs with a production-code break after the task, before any review fix; cost is total cost per run including the fix (${arm} / ${against}).`, ''];
   lines.push('## Pooled', '');
   lines.push(`- Runs broken: ${arm} ${c.breaks.x1}/${c.breaks.n1}, ${against} ${c.breaks.x2}/${c.breaks.n2}; exact CMH, one-sided (${arm} breaks more): p = ${p3(c.breaks.cmhP)}.`);
   lines.push(`- Cost: ${pct(c.cost.ratio)} (95% stratified bootstrap interval ${pct(c.cost.ci[0])} to ${pct(c.cost.ci[1])}).`);
@@ -119,9 +119,9 @@ export function compareMarkdown(c) {
   return lines.join('\n') + '\n';
 }
 
-export function compareStudies(files, { arm, against, out, log = console.log } = {}) {
+export function compareStudies(files, { arm, against, tasks, out, log = console.log } = {}) {
   if (!arm || !against) throw new Error('compare needs --arm and --against');
-  const md = compareMarkdown(compare(files.map((f) => loadStudy(f)), arm, against));
+  const md = compareMarkdown(compare(files.map((f) => loadStudy(f)), arm, against, { tasks }), tasks);
   if (out) fs.writeFileSync(path.resolve(out), md);
   log(md);
   return md;

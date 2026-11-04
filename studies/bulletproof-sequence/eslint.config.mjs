@@ -1,0 +1,1 @@
+../bulletproof-notify-querykey/eslint.config.mjs

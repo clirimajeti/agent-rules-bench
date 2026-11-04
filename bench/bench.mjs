@@ -16,7 +16,7 @@ const USAGE = `usage:
   node bench/bench.mjs verify    <study.json> [--arms a,b] [--rerun | --failed]
   node bench/bench.mjs summarize <study.json>
   node bench/bench.mjs pool      <study.json>... [--exclude study/model/arm,...] [--rules-arm id] [--out file.md]
-  node bench/bench.mjs compare   <study.json>... --arm id --against id [--out file.md]
+  node bench/bench.mjs compare   <study.json>... --arm id --against id [--tasks T1,T2] [--out file.md]
   node bench/bench.mjs context-cost <study.json>... [--tokens n] [--out file.md]`;
 
 export async function main(argv) {
@@ -29,9 +29,9 @@ export async function main(argv) {
     return 0;
   }
   if (cmd === 'compare') {
-    const files = argv.slice(1).filter((a, i, all) => !a.startsWith('--') && !['--arm', '--against', '--out'].includes(all[i - 1]));
+    const files = argv.slice(1).filter((a, i, all) => !a.startsWith('--') && !['--arm', '--against', '--out', '--tasks'].includes(all[i - 1]));
     if (!files.length) { console.error(USAGE); return 2; }
-    try { compareStudies(files, { arm: opt('--arm'), against: opt('--against'), out: opt('--out') }); } catch (e) { console.error(`agent-rules-bench: ${e.message}`); return 1; }
+    try { compareStudies(files, { arm: opt('--arm'), against: opt('--against'), tasks: opt('--tasks')?.split(','), out: opt('--out') }); } catch (e) { console.error(`agent-rules-bench: ${e.message}`); return 1; }
     return 0;
   }
   if (cmd === 'pool') {

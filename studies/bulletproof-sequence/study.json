@@ -1,0 +1,103 @@
+{
+  "name": "bulletproof-sequence",
+  "description": "F6 on public code: three tasks in a row on the same copy, each building on the code of the sessions before, with no review fix in between, so a missed rule can be copied from the agent's own earlier code. Buried prose against rules + pointer + loop, on bulletproof-react with the same docs, rules and checkers as bulletproof-notify-querykey (arms, plugin and ESLint config are symlinks to it).",
+  "repo": {
+    "source": "https://github.com/alan2207/bulletproof-react.git",
+    "commit": "9506629ed003a561c6627735480cce4994244bb4"
+  },
+  "sequence": true,
+  "tasks": [
+    {
+      "id": "T1",
+      "prompt": "In apps/react-vite, let the author of a comment edit it: add an update-comment API (PATCH /comments/{commentId} with the new body) and an Edit button with a form drawer in the comments list, shown only on the current user's own comments. Show a success message after saving. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T2",
+      "prompt": "In apps/react-vite, let admins change a user's role from the users list: add an update-user-role API (PATCH /users/{userId}/role with the new role) and a role select in each row of the users table. The list must show the new role after the change, and a success message should appear. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T3",
+      "prompt": "In apps/react-vite, let admins rename their team: add an update-team API (PATCH /teams/{teamId} with the new name) and, on the profile page, a Team section that shows the current user's team name with a Rename button (admins only) that opens a form drawer. Show a success message after saving. Do not run tests, lint or the app."
+    }
+  ],
+  "arms": [
+    {
+      "id": "prose_buried",
+      "setup": "arms/prose_buried.sh"
+    },
+    {
+      "id": "rules",
+      "setup": "arms/rules.sh"
+    }
+  ],
+  "baselineArm": "prose_buried",
+  "models": [
+    "sonnet",
+    "haiku"
+  ],
+  "repeats": 4,
+  "maxTurns": 30,
+  "designRules": [
+    "no-restricted-imports"
+  ],
+  "eval": [
+    {
+      "name": "eslint",
+      "format": "eslint",
+      "command": [
+        "node",
+        "{study}/node_modules/eslint/bin/eslint.js",
+        "-c",
+        "{study}/eslint.config.mjs",
+        "--no-inline-config",
+        "--format",
+        "json",
+        "{files}"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx"
+      ]
+    }
+  ],
+  "verify": {
+    "testFiles": [
+      "*.test.ts",
+      "*.test.tsx",
+      "*/__tests__/*",
+      "apps/react-vite/src/testing/*"
+    ],
+    "keep": [
+      "apps/react-vite/node_modules",
+      "apps/react-vite/.env"
+    ],
+    "steps": [
+      {
+        "name": "setup",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "setup"
+        ],
+        "setup": true
+      },
+      {
+        "name": "typecheck",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "typecheck"
+        ]
+      },
+      {
+        "name": "tests",
+        "retries": 2,
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "tests"
+        ]
+      }
+    ]
+  }
+}

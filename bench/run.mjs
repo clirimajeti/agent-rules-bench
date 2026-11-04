@@ -12,7 +12,12 @@ const LOOP_DIR = '.claude/codemyrules';
 export function planRuns(study, onlyArms) {
   const arms = study.arms.filter((a) => !onlyArms || onlyArms.includes(a.id));
   const runs = [];
-  for (const arm of arms) for (const model of study.models) for (const task of study.tasks) for (let rep = 1; rep <= study.repeats; rep++) {
+  const order = [];
+  for (const arm of arms) for (const model of study.models) {
+    if (study.sequence) { for (let rep = 1; rep <= study.repeats; rep++) for (const task of study.tasks) order.push([arm, model, task, rep]); }
+    else for (const task of study.tasks) for (let rep = 1; rep <= study.repeats; rep++) order.push([arm, model, task, rep]);
+  }
+  for (const [arm, model, task, rep] of order) {
     const id = `${arm.id}-${model}-${task.id}-${rep}`;
     runs.push({ id, arm, model, task, rep, dir: path.join(study.resultsDir, id) });
   }
@@ -66,10 +71,12 @@ const usageOf = (j) => {
   return { input: u.input_tokens ?? 0, cacheWrite: u.cache_creation_input_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0, output: u.output_tokens ?? 0 };
 };
 
-async function runOne(study, run, claudeCmd, log) {
+// In a sequence study, a chain's later sessions continue on the code of the earlier ones: no reset before them,
+// and each session's result is committed, so the checks and the loop count only the lines it added.
+async function runOne(study, run, claudeCmd, log, { first = true } = {}) {
   const copy = copyPath(study, run.arm.id);
   fs.mkdirSync(run.dir, { recursive: true });
-  reset(copy);
+  if (first) reset(copy);
   const task = await session(study, copy, run.model, run.task.prompt, path.join(run.dir, 'task'), claudeCmd);
   const afterTask = evaluate(study, copy);
   let fix = null;
@@ -80,6 +87,7 @@ async function runOne(study, run, claudeCmd, log) {
   const log_ = path.join(copy, LOOP_DIR, 'failures.log');
   const hookCatches = fs.existsSync(log_) ? fs.readFileSync(log_, 'utf8').split('\n').filter(Boolean).length : 0;
   if (hookCatches) fs.copyFileSync(log_, path.join(run.dir, 'failures.log'));
+  if (hookCatches) fs.rmSync(log_); // each run counts its own catches
   let build = null;
   if (study.build) {
     const start = Date.now();
@@ -107,6 +115,10 @@ async function runOne(study, run, claudeCmd, log) {
     build,
   };
   fs.writeFileSync(path.join(run.dir, 'result.json'), JSON.stringify(result, null, 2) + '\n');
+  if (study.sequence) {
+    git(copy, 'add', '-A');
+    git(copy, '-c', 'user.email=bench@local', '-c', 'user.name=bench', 'commit', '-q', '--allow-empty', '--no-verify', '-m', `bench: after ${run.id}`);
+  }
   log(`${run.id}: ${result.ok ? 'ok' : 'FAILED'}, $${(result.taskCost + result.fixCost).toFixed(3)}, breaks ${result.breaksAfterTask}->${result.breaksFinal}${result.fixed ? ' (fixed)' : ''}${build ? `, build ${build.ok ? 'ok' : 'failed'}` : ''}`);
   return result;
 }
@@ -116,7 +128,11 @@ export async function runStudy(study, { arms: onlyArms, dryRun = false, claudeCm
   const runs = planRuns(study, onlyArms);
   // A failed session (usage limit, crash) is not done: it is run again and its result replaced.
   const done = (r) => { try { return JSON.parse(fs.readFileSync(path.join(r.dir, 'result.json'), 'utf8')).ok === true; } catch { return false; } };
-  const todo = runs.filter((r) => !done(r));
+  // In a sequence study the unit is a chain (arm, model, repeat: every task in order); a chain with any run
+  // not done is run again from the start, since its later sessions build on the earlier ones.
+  const chainOf = (r) => `${r.arm.id}|${r.model}|${r.rep}`;
+  const brokenChains = new Set(runs.filter((r) => !done(r)).map(chainOf));
+  const todo = study.sequence ? runs.filter((r) => brokenChains.has(chainOf(r))) : runs.filter((r) => !done(r));
   log(`${runs.length} runs planned, ${runs.length - todo.length} already done, ${todo.length} to run`);
   if (dryRun) {
     for (const r of todo) log(`  would run ${r.id}`);
@@ -131,7 +147,7 @@ export async function runStudy(study, { arms: onlyArms, dryRun = false, claudeCm
   for (const r of todo) byArm.set(r.arm.id, [...(byArm.get(r.arm.id) ?? []), r]);
   const results = await Promise.all([...byArm.values()].map(async (list) => {
     const out = [];
-    for (const r of list) out.push(await runOne(study, r, claudeCmd, log));
+    for (const r of list) out.push(await runOne(study, r, claudeCmd, log, { first: !study.sequence || r.task.id === study.tasks[0].id }));
     reset(copyPath(study, list[0].arm.id));
     return out;
   }));

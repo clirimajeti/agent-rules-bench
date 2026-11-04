@@ -221,3 +221,27 @@ test('validateStudy checks the verify section', () => {
   for (const want of [/verify\.steps\[0\]\.name/, /verify\.steps\[0\]\.command/, /verify\.steps\[0\]\.cwd/, /verify\.steps\[0\]\.setup/, /verify\.keep/]) assert.match(errs, want);
   assert.match(validateStudy({ ...base, verify: { steps: [{ name: 's', command: ['x'], setup: true }] } }, os.tmpdir()).join('\n'), /only setup steps/);
 });
+
+test('sequence: a chain continues on its own code, counts each session\'s own lines, and reruns whole', async (t) => {
+  const { file } = setup(t, {
+    sequence: true, repeats: 2, build: undefined,
+    tasks: [{ id: 'T1', prompt: 'Add an export.' }, { id: 'T2', prompt: 'Add another export.' }],
+    arms: [{ id: 'prose', setup: 'arms/prose.sh' }],
+  });
+  const study = loadStudy(file);
+  prepareStudy(study, () => {});
+  const results = await runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: () => {} });
+  assert.deepEqual(results.map((r) => r.id), ['prose-sonnet-T1-1', 'prose-sonnet-T2-1', 'prose-sonnet-T1-2', 'prose-sonnet-T2-2']);
+  // T2 continues on T1's code: its diff holds both sessions' lines, but only its own line counts as its break
+  const t2 = results.find((r) => r.id === 'prose-sonnet-T2-1');
+  assert.equal(t2.breaksAfterTask, 1);
+  const added = fs.readFileSync(path.join(study.resultsDir, 'prose-sonnet-T2-1', 'diff.patch'), 'utf8').split('\n').filter((l) => l.startsWith('+export const added'));
+  assert.equal(added.length, 2);
+  // a failed run reruns its whole chain, and only that chain
+  const failed = path.join(study.resultsDir, 'prose-sonnet-T2-2', 'result.json');
+  fs.writeFileSync(failed, JSON.stringify({ ...JSON.parse(fs.readFileSync(failed, 'utf8')), ok: false }));
+  const logs = [];
+  await runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: (m) => logs.push(m) });
+  assert.match(logs[0], /4 runs planned, 2 already done, 2 to run/); // the chain's finished T1 runs again too
+  assert.deepEqual(logs.slice(1).map((m) => m.split(':')[0]), ['prose-sonnet-T1-2', 'prose-sonnet-T2-2']);
+});
