@@ -20,8 +20,8 @@ It was built to test the claims behind [codemyrules](https://github.com/clirimaj
 
 ## Results so far
 
-Public data: 344 runs (377 headless sessions, counting review fixes) on three open-source projects in Java, Python and TypeScript; every setup, prompt, session, diff and log is in `studies/`.
-200 runs are exploratory (four studies), 144 confirmatory (an ablation with an [analysis plan](studies/analysis-plan.md) committed before its runs).
+Public data: 504 runs (575 headless sessions, counting review fixes) on three open-source projects in Java, Python and TypeScript; every setup, prompt, session, diff and log is in `studies/`.
+200 runs are exploratory (four studies), 304 confirmatory (three studies, each with an [analysis plan](studies/analysis-plan.md) committed before its runs).
 An internal Kotlin/Spring pilot (124 sessions, aggregate numbers only, see [studies/internal-backend](studies/internal-backend/README.md)) shaped the design and is not part of any pooled number.
 
 Exploratory, pooled over the 152 runs that compare text with the lint rule + pointer + loop ([studies/pooled.md](studies/pooled.md)):
@@ -43,8 +43,14 @@ Confirmatory, all docs always loaded, 64 runs ([studies/bulletproof-large-contex
 - Rule breaks: 3/16 with the large file, all Haiku, against 0/16 with lint rules (p = 0.100, not significant at 16 runs per arm).
   The same rule sentence held in a short `CLAUDE.md` (0/16), which points to the file's size, though this difference too is not significant.
 
-Functional correctness, all 344 runs (`bench.mjs verify`: each final diff built and tested on the plain upstream commit):
-- Production code passes the project's original test suite in 340 of 344 runs; the setups do not differ, and the 4 failures are Haiku type and compile errors unrelated to the rules.
+Confirmatory, the same weight on both sides, 96 runs ([studies/bulletproof-40-rules](studies/bulletproof-40-rules/README.md)):
+- 40 conventions, each once as a prose line in a short always-loaded `CLAUDE.md` (757 words, 1.9k tokens in every session) and once as a lint rule with the loop and pointers.
+- Prose and lint rules came out even: 3/32 runs broken against 0/32 (p = 0.121), cost +1% (-9% to +13%); neither hypothesis is supported.
+- Without the conventions every run broke one and cost 35% more (+21% to +50%), so stating them matters, as prose or as rules.
+  Only 4 of the 40 were ever broken; the agent followed the other 36 by copying the code.
+
+Functional correctness, all 504 runs (`bench.mjs verify`: each final diff built and tested on the plain upstream commit):
+- Production code passes the project's original test suite in 493 of 504 runs; the setups do not differ, and the 11 failures are type and compile errors (10 of them Haiku) unrelated to the rules.
 
 Local model in other harnesses, exploratory, 48 runs: qwen3.6 in pi and Codex on the bulletproof study ([studies/local-agents.md](studies/local-agents.md)):
 - With the rule only in the docs, every run broke it in both harnesses (16/16); with lint rules and the loop, 1 of 16 did.

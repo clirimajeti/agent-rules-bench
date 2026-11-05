@@ -214,3 +214,7 @@ node bench/bench.mjs verify $S
 node bench/bench.mjs compare $S --arm prose --against rules --models sonnet,haiku   # H7, H8
 node bench/bench.mjs compare $S --arm none --against prose --models sonnet,haiku    # descriptive
 ```
+
+## Deviations
+
+- 2026-11-05: added `none` against `rules` as a descriptive comparison, after the runs; it tests nothing.
