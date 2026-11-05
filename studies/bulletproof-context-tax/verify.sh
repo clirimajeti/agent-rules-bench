@@ -1,1 +1,0 @@
-../bulletproof-40-rules/verify.sh
