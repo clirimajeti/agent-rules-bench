@@ -28,7 +28,8 @@ export function validateStudy(s, studyDir) {
     });
   };
   ids(s.tasks, 'tasks');
-  (Array.isArray(s.tasks) ? s.tasks : []).forEach((t, i) => { if (typeof t?.prompt !== 'string' || !t.prompt.trim()) errs.push(`tasks[${i}].prompt must be a non-empty string`); });
+  (Array.isArray(s.tasks) ? s.tasks : []).forEach((t, i) => { if (typeof t?.prompt !== 'string' || !t.prompt.trim()) errs.push(`tasks[${i}].prompt must be a non-empty string`);
+    if (t?.repeats !== undefined && (!(Number.isInteger(t.repeats) && t.repeats > 0) || s.sequence)) errs.push(`tasks[${i}].repeats must be a positive integer, and is not allowed in a sequence study`); });
   ids(s.arms, 'arms');
   (Array.isArray(s.arms) ? s.arms : []).forEach((a, i) => {
     if (a?.setup !== undefined) {

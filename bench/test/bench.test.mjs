@@ -372,3 +372,12 @@ test('fix prompt: {broken} lists each broken rule once, in the words of the stud
   assert.equal(await fixPrompt({ fix: { prompt: 'Plain.' } }, findings), 'Plain.');
   assert.match(validateStudy({ fix: { prompt: 'no placeholder', ruleText: 'missing.mjs' } }, dir).join('\n'), /fix\.ruleText "missing\.mjs" must be a module[\s\S]*needs a fix\.prompt with \{broken\}/);
 });
+
+test('a task can set its own number of repeats', async (t) => {
+  const { file } = setup(t, { tasks: [{ id: 'T1', prompt: 'Add an export.' }, { id: 'C1', prompt: 'Answer a question.', repeats: 3 }] });
+  const logs = [];
+  await runStudy(loadStudy(file), { dryRun: true, log: (m) => logs.push(m) });
+  assert.match(logs[0], /10 runs planned/); // 2 arms x (2 + 3)
+  assert.ok(logs.some((m) => m.includes('rules-sonnet-C1-3')) && !logs.some((m) => m.includes('T1-3')));
+  assert.match(validateStudy({ ...JSON.parse(fs.readFileSync(file)), tasks: [{ id: 'T1', prompt: 'x', repeats: 0 }] }, path.dirname(file)).join('\n'), /tasks\[0\]\.repeats/);
+});

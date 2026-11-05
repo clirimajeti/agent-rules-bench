@@ -10,10 +10,12 @@ CODEMYRULES="${CODEMYRULES:-$HOME/dev_private/tools/skills/codemyrules}"
 LIST="$BENCH_STUDY_DIR/plugin/conventions.mjs"
 lines() { node --input-type=module -e "const { conventions } = await import(process.argv[1]); for (const c of conventions) if (process.argv[2] === 'prose' || c.pointer) console.log('- ' + (process.argv[2] === 'prose' ? c.prose : c.pointer));" "$LIST" "$1"; }
 bash "$BENCH_STUDY_DIR/../bulletproof-notify-querykey/arms/docs.sh" none
+# a study with a context.md (business context, no conventions) puts it in the always-loaded file of every arm
+LOADED_FILE=CLAUDE.md; [ "${BENCH_AGENT:-claude}" = claude ] || LOADED_FILE=AGENTS.md
+if [ -f "$BENCH_STUDY_DIR/context.md" ]; then cat "$BENCH_STUDY_DIR/context.md" >> "$LOADED_FILE"; fi
 if [ "$MODE" = prose ]; then
-  LOADED_FILE=CLAUDE.md; [ "${BENCH_AGENT:-claude}" = claude ] || LOADED_FILE=AGENTS.md
   { printf '\n## Conventions\n\n'; lines prose; } >> "$LOADED_FILE"
-  [ "$(grep -c '^- ' "$LOADED_FILE")" -ge 40 ] || { echo "prose lines missing" >&2; exit 1; }
+  [ "$(grep -c '^## Conventions' "$LOADED_FILE")" = 1 ] || { echo "prose lines missing" >&2; exit 1; }
 fi
 if [ "$MODE" = rules ]; then
   lines pointer > apps/react-vite/src/features/CLAUDE.md

@@ -19,7 +19,7 @@ export function planRuns(study, onlyArms, onlyModels) {
   const order = [];
   for (const arm of arms) for (const model of models) {
     if (study.sequence) { for (let rep = 1; rep <= study.repeats; rep++) for (const task of study.tasks) order.push([arm, model, task, rep]); }
-    else for (const task of study.tasks) for (let rep = 1; rep <= study.repeats; rep++) order.push([arm, model, task, rep]);
+    else for (const task of study.tasks) for (let rep = 1; rep <= (task.repeats ?? study.repeats); rep++) order.push([arm, model, task, rep]);
   }
   for (const [arm, model, task, rep] of order) {
     const id = `${arm.id}-${model.id}-${task.id}-${rep}`;

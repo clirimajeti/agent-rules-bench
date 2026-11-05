@@ -219,55 +219,65 @@ node bench/bench.mjs compare $S --arm none --against prose --models sonnet,haiku
 
 - 2026-11-05: added `none` against `rules` as a descriptive comparison, after the runs; it tests nothing.
 
-# Plan 5: the context tax of always-loaded prose
+# Plan 5: conventions in a realistic CLAUDE.md, and the context tax
 
 Written on 2026-11-05, before any of these runs, under the same rules as the plans above.
+It replaces a first Plan 5 (commit 41a58b0, the context-tax tasks with the plain Plan 4 arms), changed before any run because a real `CLAUDE.md` holds more than coding rules.
 
 ## Question
 
-On tasks that none of the conventions apply to, does a project with its conventions as always-loaded prose cost more per session than one with the same conventions as lint rules?
-Plan 4 found prose and lint rules even on tasks that needed the conventions; there the prose earned its tokens.
-Most sessions in a real project touch few or none of the conventions, and the prose is loaded into all of them, while lint rules cost nothing until they fire.
+- When the conventions sit in a `CLAUDE.md` that also holds the business context of the project, do lint rules with the feedback loop get the agent to follow them better or more cheaply than the same conventions as prose?
+- On tasks that none of the conventions apply to, does the prose cost more than lint rules, which cost nothing until they fire?
 
 ## Design
 
-- Study `bulletproof-context-tax`: the three arms of `bulletproof-40-rules`, unchanged (its `arms`, `plugin` and ESLint config, linked): `none`, `prose` (the 40 lines, 757 words, 1.9k more tokens in every session), `rules` (40 lint rules with the loop, 8 pointers in `src/features/CLAUDE.md`).
-- Four tasks outside the scope of all 40 conventions, which cover only `src/`:
-  - C1: a question about how sign-in state and 401 responses are handled, with no file changes.
-  - C2: a Playwright end-to-end test in `e2e/tests`.
-  - C3: chunk splitting and source maps in `vite.config.ts`.
-  - C4: more browsers, reporters and a base URL in `playwright.config.ts`.
-- Sonnet and Haiku, 8 repeats: 192 runs.
+- Study `bulletproof-business-context`: the three arms of `bulletproof-40-rules`, built by the same script from the same list, with one change: every arm's always-loaded `CLAUDE.md` also holds `context.md`.
+  - `context.md`: 1,328 words of business context in the shape of a product `CLAUDE.md`, written for this study from the app's code: product, users and roles, domain, screens, sessions, API and mock data, commands, environments, workflow, known issues, roadmap.
+    It states no convention; three sentences close to one were removed before any run.
+  - `none` and `rules`: 1,379 words in `CLAUDE.md`, identical; `rules` adds the lint rules, the loop and the 8 pointers.
+  - `prose`: the same plus the 40 prose lines, 2,085 words.
+- Tasks, each in a fresh copy:
+  - T1 to T4 of Plan 4, which need the conventions; 4 repeats.
+  - C1 to C4, outside the scope of all 40 conventions, which cover only `src/`; 8 repeats.
+    C1 asks how sign-in state and 401 responses are handled, with no file changes; C2 adds a Playwright end-to-end test; C3 splits chunks and turns on source maps in `vite.config.ts`; C4 adds browsers, reporters and a base URL to `playwright.config.ts`.
+- Sonnet and Haiku: (4 x 4 + 4 x 8) x 3 arms x 2 models = 288 runs.
 - Review fix, run handling, failures and reruns as in Plan 4.
 
 ## Outcomes
 
-- Primary: total cost per run.
-- Manipulation check: breaks of any of the 40 conventions and loop catches; both are expected to be 0 in every arm.
-  A run that changes `src/` is reported, and kept.
-- Secondary: input tokens per session (cache reads and writes), first-request context, turns, seconds, verify pass rate.
+- Primary, T tasks: a production-code break of any of the 40 conventions after the task, before any review fix; total cost per run including the fix.
+- Primary, C tasks: total cost per run.
+- Manipulation check on the C tasks: breaks and loop catches, expected 0 in every arm; a run that changes `src/` is reported, and kept.
+- Secondary: breaks per convention and per run, loop catches, turns, first-request context, verify pass rate.
 
 ## Hypotheses and tests
 
-- H9: `prose` costs more per run than `rules`.
-  Geometric mean of the per-stratum ratios of mean total cost, one-sided stratified bootstrap p, alpha 0.05; one test, so no correction.
-- Expected size: the derived price of always-loaded tokens ([context-cost.md](context-cost.md)) is $0.0056 per 1k tokens per Sonnet session and $0.0004 per Haiku session, so about $0.011 and $0.001 for 1.9k tokens; on short tasks, roughly 5% to 15% of a run.
-- Descriptive, not tested: `prose` against `none` (the tax itself) and `rules` against `none` (what an idle loop and the pointer file cost: expected about 0).
-- Power: 64 runs per arm; with a per-run spread of about 25%, a difference near 10% is detectable, one near 5% likely not.
+- H9 (T tasks): `prose` has more runs broken than `rules`; exact one-sided CMH over the model strata.
+- H10 (T tasks): `prose` costs more per run than `rules`; geometric mean of the per-stratum cost ratios, one-sided stratified bootstrap p.
+- H11 (C tasks): `prose` costs more per run than `rules`; as H10.
+- H9 to H11 at a family-wise alpha of 0.05 with Holm's correction.
+- Expected size for H11: the derived price of always-loaded tokens ([context-cost.md](context-cost.md)) is $0.0056 per 1k tokens per Sonnet session and $0.0004 per Haiku session, about $0.011 and $0.001 for the 40 lines; roughly 5% to 15% of a short run.
+- Descriptive, not tested:
+  - `none` against `prose` and `rules` against `none`, on both task sets.
+  - Breaks of `prose` on T1 to T4 here against Plan 4, where the same 40 lines stood without the business context; across studies, so not randomised against each other.
+- Power: 32 runs per arm on the T tasks, 64 on the C tasks; a cost difference near 10% is detectable on the C tasks, one near 5% likely not.
 
 ## Threats
 
-- The tax depends on the size of the prose: 1.9k tokens here, 15.7k in Plan 3; the result scales with it only as far as the derived price is linear.
+- The business context is written by the experimenter for a demo app, at one size; a real file may be longer, and older.
+- All arms link the project's own `AGENTS.md`, as in Plan 4.
 - Sessions of an arm run back to back and share the prompt cache, as sessions in a working day do.
-- The tasks were written for this study, before any run.
+- The C tasks were written for this study, before any run.
 
 ## How to reproduce
 
 ```bash
-S=studies/bulletproof-context-tax/study.json
+S=studies/bulletproof-business-context/study.json
 node bench/bench.mjs run $S --models sonnet,haiku
 node bench/bench.mjs verify $S
-node bench/bench.mjs compare $S --arm prose --against rules --models sonnet,haiku   # H9
-node bench/bench.mjs compare $S --arm prose --against none --models sonnet,haiku    # descriptive
-node bench/bench.mjs compare $S --arm rules --against none --models sonnet,haiku    # descriptive
+node bench/bench.mjs compare $S --arm prose --against rules --models sonnet,haiku --tasks T1,T2,T3,T4   # H9, H10
+node bench/bench.mjs compare $S --arm prose --against rules --models sonnet,haiku --tasks C1,C2,C3,C4   # H11
+node bench/bench.mjs compare $S --arm none --against prose --models sonnet,haiku --tasks T1,T2,T3,T4    # descriptive
+node bench/bench.mjs compare $S --arm prose --against none --models sonnet,haiku --tasks C1,C2,C3,C4    # descriptive
+node bench/bench.mjs compare $S --arm rules --against none --models sonnet,haiku --tasks C1,C2,C3,C4    # descriptive
 ```
