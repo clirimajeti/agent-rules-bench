@@ -1,0 +1,20 @@
+diff --git a/apps/react-vite/vite.config.ts b/apps/react-vite/vite.config.ts
+index 88d9a64..38f7952 100644
+--- a/apps/react-vite/vite.config.ts
++++ b/apps/react-vite/vite.config.ts
+@@ -25,10 +25,15 @@ export default defineConfig({
+   },
+   optimizeDeps: { exclude: ['fsevents'] },
+   build: {
++    sourcemap: true,
+     rollupOptions: {
+       external: ['fs/promises'],
+       output: {
+         experimentalMinChunkSize: 3500,
++        manualChunks: {
++          vendor: ['react', 'react-dom', 'react-router-dom'],
++          query: ['@tanstack/react-query'],
++        },
+       },
+     },
+   },

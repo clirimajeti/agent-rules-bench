@@ -1,0 +1,365 @@
+diff --git a/apps/react-vite/src/app/router.tsx b/apps/react-vite/src/app/router.tsx
+index 4ea857d..8e9a1a0 100644
+--- a/apps/react-vite/src/app/router.tsx
++++ b/apps/react-vite/src/app/router.tsx
+@@ -62,6 +62,10 @@ export const createAppRouter = (queryClient: QueryClient) =>
+           path: paths.app.users.path,
+           lazy: () => import('./routes/app/users').then(convert(queryClient)),
+         },
++        {
++          path: paths.app.teams.path,
++          lazy: () => import('./routes/app/teams').then(convert(queryClient)),
++        },
+         {
+           path: paths.app.profile.path,
+           lazy: () => import('./routes/app/profile').then(convert(queryClient)),
+diff --git a/apps/react-vite/src/app/routes/app/__tests__/teams.test.tsx b/apps/react-vite/src/app/routes/app/__tests__/teams.test.tsx
+new file mode 100644
+index 0000000..9b258ae
+--- /dev/null
++++ b/apps/react-vite/src/app/routes/app/__tests__/teams.test.tsx
+@@ -0,0 +1,50 @@
++import type { Mock } from 'vitest';
++
++import { createTeam } from '@/testing/data-generators';
++import {
++  renderApp,
++  screen,
++  userEvent,
++  waitFor,
++  within,
++} from '@/testing/test-utils';
++
++import { default as TeamsRoute } from '../teams';
++
++beforeAll(() => {
++  vi.spyOn(console, 'error').mockImplementation(() => {});
++});
++
++afterAll(() => {
++  (console.error as Mock).mockRestore();
++});
++
++test('should create a team and render it in the list', async () => {
++  await renderApp(<TeamsRoute />);
++
++  const newTeam = createTeam();
++
++  expect(await screen.findByText(/no entries/i)).toBeInTheDocument();
++
++  await userEvent.click(screen.getByRole('button', { name: /create team/i }));
++
++  const drawer = await screen.findByRole('dialog', {
++    name: /create team/i,
++  });
++
++  await userEvent.type(within(drawer).getByText(/name/i), newTeam.name);
++  await userEvent.type(
++    within(drawer).getByText(/description/i),
++    newTeam.description,
++  );
++
++  await userEvent.click(within(drawer).getByRole('button', { name: /submit/i }));
++
++  await screen.findByText(/team created/i);
++
++  await waitFor(() => expect(drawer).not.toBeInTheDocument());
++
++  expect(
++    await screen.findByRole('cell', { name: newTeam.name }, { timeout: 5000 }),
++  ).toBeInTheDocument();
++});
+diff --git a/apps/react-vite/src/app/routes/app/teams.tsx b/apps/react-vite/src/app/routes/app/teams.tsx
+new file mode 100644
+index 0000000..cd1cccc
+--- /dev/null
++++ b/apps/react-vite/src/app/routes/app/teams.tsx
+@@ -0,0 +1,22 @@
++import { ContentLayout } from '@/components/layouts';
++import { CreateTeam } from '@/features/teams/components/create-team';
++import { TeamsList } from '@/features/teams/components/teams-list';
++import { Authorization, ROLES } from '@/lib/authorization';
++
++const TeamsRoute = () => {
++  return (
++    <ContentLayout title="Teams">
++      <Authorization
++        forbiddenFallback={<div>Only admin can view this.</div>}
++        allowedRoles={[ROLES.ADMIN]}
++      >
++        <div className="flex justify-end">
++          <CreateTeam />
++        </div>
++        <TeamsList />
++      </Authorization>
++    </ContentLayout>
++  );
++};
++
++export default TeamsRoute;
+diff --git a/apps/react-vite/src/components/layouts/dashboard-layout.tsx b/apps/react-vite/src/components/layouts/dashboard-layout.tsx
+index 5182391..2fa1037 100644
+--- a/apps/react-vite/src/components/layouts/dashboard-layout.tsx
++++ b/apps/react-vite/src/components/layouts/dashboard-layout.tsx
+@@ -1,4 +1,11 @@
+-import { Home, PanelLeft, Folder, Users, User2 } from 'lucide-react';
++import {
++  Building2,
++  Home,
++  PanelLeft,
++  Folder,
++  Users,
++  User2,
++} from 'lucide-react';
+ import { useEffect, useState } from 'react';
+ import { NavLink, useNavigate, useNavigation } from 'react-router';
+ 
+@@ -90,6 +97,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
+       to: paths.app.users.getHref(),
+       icon: Users,
+     },
++    checkAccess({ allowedRoles: [ROLES.ADMIN] }) && {
++      name: 'Teams',
++      to: paths.app.teams.getHref(),
++      icon: Building2,
++    },
+   ].filter(Boolean) as SideNavigationItem[];
+ 
+   return (
+diff --git a/apps/react-vite/src/config/paths.ts b/apps/react-vite/src/config/paths.ts
+index 965512b..c41f7de 100644
+--- a/apps/react-vite/src/config/paths.ts
++++ b/apps/react-vite/src/config/paths.ts
+@@ -38,6 +38,10 @@ export const paths = {
+       path: 'users',
+       getHref: () => '/app/users',
+     },
++    teams: {
++      path: 'teams',
++      getHref: () => '/app/teams',
++    },
+     profile: {
+       path: 'profile',
+       getHref: () => '/app/profile',
+diff --git a/apps/react-vite/src/features/teams/api/create-team.ts b/apps/react-vite/src/features/teams/api/create-team.ts
+new file mode 100644
+index 0000000..8974c80
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/api/create-team.ts
+@@ -0,0 +1,52 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { useNotifications } from '@/components/ui/notifications';
++import { api } from '@/lib/api-client';
++import { MutationConfig } from '@/lib/react-query';
++import { Team } from '@/types/api';
++
++import { getTeamsQueryOptions } from './get-teams';
++
++export const createTeamInputSchema = z.object({
++  name: z.string().min(1, 'Required'),
++  description: z.string().min(1, 'Required'),
++});
++
++export type CreateTeamInput = z.infer<typeof createTeamInputSchema>;
++
++export const createTeam = ({
++  data,
++}: {
++  data: CreateTeamInput;
++}): Promise<Team> => {
++  return api.post(`/teams`, data);
++};
++
++type UseCreateTeamOptions = {
++  mutationConfig?: MutationConfig<typeof createTeam>;
++};
++
++export const useCreateTeam = ({
++  mutationConfig,
++}: UseCreateTeamOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      queryClient.invalidateQueries({
++        queryKey: getTeamsQueryOptions().queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'Team Created',
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: createTeam,
++  });
++};
+diff --git a/apps/react-vite/src/features/teams/components/create-team.tsx b/apps/react-vite/src/features/teams/components/create-team.tsx
+new file mode 100644
+index 0000000..35520a2
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/components/create-team.tsx
+@@ -0,0 +1,59 @@
++import { Plus } from 'lucide-react';
++
++import { Button } from '@/components/ui/button';
++import { Form, FormDrawer, Input, Textarea } from '@/components/ui/form';
++import { Authorization, ROLES } from '@/lib/authorization';
++
++import { createTeamInputSchema, useCreateTeam } from '../api/create-team';
++
++export const CreateTeam = () => {
++  const createTeamMutation = useCreateTeam();
++
++  return (
++    <Authorization allowedRoles={[ROLES.ADMIN]}>
++      <FormDrawer
++        isDone={createTeamMutation.isSuccess}
++        triggerButton={
++          <Button size="sm" icon={<Plus className="size-4" />}>
++            Create Team
++          </Button>
++        }
++        title="Create Team"
++        submitButton={
++          <Button
++            form="create-team"
++            type="submit"
++            size="sm"
++            isLoading={createTeamMutation.isPending}
++          >
++            Submit
++          </Button>
++        }
++      >
++        <Form
++          id="create-team"
++          onSubmit={(values) => {
++            createTeamMutation.mutate({ data: values });
++          }}
++          schema={createTeamInputSchema}
++        >
++          {({ register, formState }) => (
++            <>
++              <Input
++                label="Name"
++                error={formState.errors['name']}
++                registration={register('name')}
++              />
++
++              <Textarea
++                label="Description"
++                error={formState.errors['description']}
++                registration={register('description')}
++              />
++            </>
++          )}
++        </Form>
++      </FormDrawer>
++    </Authorization>
++  );
++};
+diff --git a/apps/react-vite/src/features/teams/components/teams-list.tsx b/apps/react-vite/src/features/teams/components/teams-list.tsx
+new file mode 100644
+index 0000000..f72381f
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/components/teams-list.tsx
+@@ -0,0 +1,44 @@
++import { Spinner } from '@/components/ui/spinner';
++import { Table } from '@/components/ui/table';
++import { formatDate } from '@/utils/format';
++
++import { useTeams } from '../api/get-teams';
++
++export const TeamsList = () => {
++  const teamsQuery = useTeams();
++
++  if (teamsQuery.isLoading) {
++    return (
++      <div className="flex h-48 w-full items-center justify-center">
++        <Spinner size="lg" />
++      </div>
++    );
++  }
++
++  const teams = teamsQuery.data?.data;
++
++  if (!teams) return null;
++
++  return (
++    <Table
++      data={teams}
++      columns={[
++        {
++          title: 'Name',
++          field: 'name',
++        },
++        {
++          title: 'Description',
++          field: 'description',
++        },
++        {
++          title: 'Created At',
++          field: 'createdAt',
++          Cell({ entry: { createdAt } }) {
++            return <span>{formatDate(createdAt)}</span>;
++          },
++        },
++      ]}
++    />
++  );
++};
+diff --git a/apps/react-vite/src/testing/mocks/handlers/teams.ts b/apps/react-vite/src/testing/mocks/handlers/teams.ts
+index cbec607..f9ffc5b 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/teams.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/teams.ts
+@@ -2,8 +2,13 @@ import { HttpResponse, http } from 'msw';
+ 
+ import { env } from '@/config/env';
+ 
+-import { db } from '../db';
+-import { networkDelay } from '../utils';
++import { db, persistDb } from '../db';
++import { requireAuth, requireAdmin, networkDelay } from '../utils';
++
++type TeamBody = {
++  name: string;
++  description: string;
++};
+ 
+ export const teamsHandlers = [
+   http.get(`${env.API_URL}/teams`, async () => {
+@@ -19,4 +24,28 @@ export const teamsHandlers = [
+       );
+     }
+   }),
++
++  http.post(`${env.API_URL}/teams`, async ({ request, cookies }) => {
++    await networkDelay();
++
++    try {
++      const { user, error } = requireAuth(cookies);
++      if (error) {
++        return HttpResponse.json({ message: error }, { status: 401 });
++      }
++      requireAdmin(user);
++      const data = (await request.json()) as TeamBody;
++      const result = db.team.create({
++        name: data.name,
++        description: data.description,
++      });
++      await persistDb('team');
++      return HttpResponse.json(result);
++    } catch (error: any) {
++      return HttpResponse.json(
++        { message: error?.message || 'Server Error' },
++        { status: 500 },
++      );
++    }
++  }),
+ ];

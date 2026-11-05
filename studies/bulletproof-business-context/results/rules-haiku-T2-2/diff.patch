@@ -1,0 +1,284 @@
+diff --git a/apps/react-vite/src/components/ui/form/select.tsx b/apps/react-vite/src/components/ui/form/select.tsx
+index 6b38621..0d06437 100644
+--- a/apps/react-vite/src/components/ui/form/select.tsx
++++ b/apps/react-vite/src/components/ui/form/select.tsx
+@@ -14,12 +14,22 @@ type SelectFieldProps = FieldWrapperPassThroughProps & {
+   options: Option[];
+   className?: string;
+   defaultValue?: string;
++  value?: string;
++  disabled?: boolean;
+   registration: Partial<UseFormRegisterReturn>;
+ };
+ 
+ export const Select = (props: SelectFieldProps) => {
+-  const { label, options, error, className, defaultValue, registration } =
+-    props;
++  const {
++    label,
++    options,
++    error,
++    className,
++    defaultValue,
++    value,
++    disabled,
++    registration,
++  } = props;
+   return (
+     <FieldWrapper label={label} error={error}>
+       <select
+@@ -28,6 +38,8 @@ export const Select = (props: SelectFieldProps) => {
+           className,
+         )}
+         defaultValue={defaultValue}
++        value={value}
++        disabled={disabled}
+         {...registration}
+       >
+         {options.map(({ label, value }) => (
+diff --git a/apps/react-vite/src/features/users/api/update-user-role.ts b/apps/react-vite/src/features/users/api/update-user-role.ts
+new file mode 100644
+index 0000000..a4e8a75
+--- /dev/null
++++ b/apps/react-vite/src/features/users/api/update-user-role.ts
+@@ -0,0 +1,59 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { useNotifications } from '@/components/ui/notifications';
++import { api } from '@/lib/api-client';
++import { ROLES } from '@/lib/authorization';
++import { MutationConfig } from '@/lib/react-query';
++import { User } from '@/types/api';
++
++import { getUsersQueryOptions } from './get-users';
++
++export const updateUserRoleInputSchema = z.object({
++  role: z.nativeEnum(ROLES),
++});
++
++export type UpdateUserRoleInput = z.infer<typeof updateUserRoleInputSchema>;
++
++export type UpdateUserRoleDTO = {
++  userId: string;
++  data: UpdateUserRoleInput;
++};
++
++export const updateUserRole = ({
++  userId,
++  data,
++}: UpdateUserRoleDTO): Promise<User> => {
++  return api.patch(`/users/${userId}/role`, data);
++};
++
++type UseUpdateUserRoleOptions = {
++  mutationConfig?: MutationConfig<typeof updateUserRole>;
++};
++
++export const useUpdateUserRole = ({
++  mutationConfig,
++}: UseUpdateUserRoleOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: async (...args) => {
++      const [user] = args;
++      // Wait for the refetch so the row shows the new role before the mutation settles.
++      await queryClient.invalidateQueries({
++        queryKey: getUsersQueryOptions().queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'Role Updated',
++        message: `${user.firstName} ${user.lastName} is now ${user.role}`,
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateUserRole,
++  });
++};
+diff --git a/apps/react-vite/src/features/users/components/__tests__/update-user-role.test.tsx b/apps/react-vite/src/features/users/components/__tests__/update-user-role.test.tsx
+new file mode 100644
+index 0000000..41d7bed
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/__tests__/update-user-role.test.tsx
+@@ -0,0 +1,31 @@
++import {
++  createUser,
++  renderApp,
++  screen,
++  userEvent,
++  waitFor,
++  within,
++} from '@/testing/test-utils';
++
++import { UsersList } from '../users-list';
++
++test('should let an admin change a member role and show the new role', async () => {
++  const admin = await createUser({ role: 'ADMIN' });
++  const member = await createUser({ teamId: admin.teamId, role: 'USER' });
++
++  await renderApp(<UsersList />, { user: admin });
++
++  const getMemberRow = () =>
++    screen.getByText(member.email).closest('tr') as HTMLElement;
++  const getMemberRoleSelect = () =>
++    within(getMemberRow()).getByRole('combobox');
++
++  await screen.findByText(member.email);
++  expect(getMemberRoleSelect()).toHaveValue('USER');
++
++  await userEvent.selectOptions(getMemberRoleSelect(), 'ADMIN');
++
++  await screen.findByText(/role updated/i);
++
++  await waitFor(() => expect(getMemberRoleSelect()).toHaveValue('ADMIN'));
++});
+diff --git a/apps/react-vite/src/features/users/components/update-user-role.tsx b/apps/react-vite/src/features/users/components/update-user-role.tsx
+new file mode 100644
+index 0000000..fe70793
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/update-user-role.tsx
+@@ -0,0 +1,42 @@
++import { Select } from '@/components/ui/form';
++import { ROLES } from '@/lib/authorization';
++import { User } from '@/types/api';
++
++import {
++  updateUserRoleInputSchema,
++  useUpdateUserRole,
++} from '../api/update-user-role';
++
++type UpdateUserRoleProps = {
++  user: User;
++};
++
++const roleLabels: Record<ROLES, string> = {
++  [ROLES.ADMIN]: 'Admin',
++  [ROLES.USER]: 'User',
++};
++
++export const UpdateUserRole = ({ user }: UpdateUserRoleProps) => {
++  const updateUserRoleMutation = useUpdateUserRole();
++
++  return (
++    <Select
++      label="Role"
++      value={user.role}
++      disabled={updateUserRoleMutation.isPending}
++      options={Object.values(ROLES).map((role) => ({
++        label: roleLabels[role],
++        value: role,
++      }))}
++      registration={{
++        name: 'role',
++        onChange: async (event) => {
++          const data = updateUserRoleInputSchema.parse({
++            role: event.target.value,
++          });
++          updateUserRoleMutation.mutate({ userId: user.id, data });
++        },
++      }}
++    />
++  );
++};
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..f6b1ee6 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -5,6 +5,7 @@ import { formatDate } from '@/utils/format';
+ import { useUsers } from '../api/get-users';
+ 
+ import { DeleteUser } from './delete-user';
++import { UpdateUserRole } from './update-user-role';
+ 
+ export const UsersList = () => {
+   const usersQuery = useUsers();
+@@ -40,6 +41,9 @@ export const UsersList = () => {
+         {
+           title: 'Role',
+           field: 'role',
++          Cell({ entry }) {
++            return <UpdateUserRole user={entry} />;
++          },
+         },
+         {
+           title: 'Created At',
+diff --git a/apps/react-vite/src/testing/mocks/handlers/users.ts b/apps/react-vite/src/testing/mocks/handlers/users.ts
+index 444b918..cac311e 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/users.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/users.ts
+@@ -17,6 +17,10 @@ type ProfileBody = {
+   bio: string;
+ };
+ 
++type UpdateRoleBody = {
++  role: 'ADMIN' | 'USER';
++};
++
+ export const usersHandlers = [
+   http.get(`${env.API_URL}/users`, async ({ cookies }) => {
+     await networkDelay();
+@@ -72,6 +76,58 @@ export const usersHandlers = [
+     }
+   }),
+ 
++  http.patch(
++    `${env.API_URL}/users/:userId/role`,
++    async ({ request, cookies, params }) => {
++      await networkDelay();
++
++      try {
++        const { user, error } = requireAuth(cookies);
++        if (error) {
++          return HttpResponse.json({ message: error }, { status: 401 });
++        }
++        if (user?.role !== 'ADMIN') {
++          return HttpResponse.json(
++            { message: 'Forbidden' },
++            { status: 403 },
++          );
++        }
++        const { role } = (await request.json()) as UpdateRoleBody;
++        if (role !== 'ADMIN' && role !== 'USER') {
++          return HttpResponse.json(
++            { message: 'Invalid role' },
++            { status: 400 },
++          );
++        }
++        const userId = params.userId as string;
++        const result = db.user.update({
++          where: {
++            id: {
++              equals: userId,
++            },
++            teamId: {
++              equals: user?.teamId,
++            },
++          },
++          data: { role },
++        });
++        if (!result) {
++          return HttpResponse.json(
++            { message: 'User not found' },
++            { status: 404 },
++          );
++        }
++        await persistDb('user');
++        return HttpResponse.json(sanitizeUser(result));
++      } catch (error: any) {
++        return HttpResponse.json(
++          { message: error?.message || 'Server Error' },
++          { status: 500 },
++        );
++      }
++    },
++  ),
++
+   http.delete(`${env.API_URL}/users/:userId`, async ({ cookies, params }) => {
+     await networkDelay();
+ 

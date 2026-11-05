@@ -1,0 +1,398 @@
+diff --git a/apps/react-vite/src/app/router.tsx b/apps/react-vite/src/app/router.tsx
+index 4ea857d..2be0073 100644
+--- a/apps/react-vite/src/app/router.tsx
++++ b/apps/react-vite/src/app/router.tsx
+@@ -58,6 +58,10 @@ export const createAppRouter = (queryClient: QueryClient) =>
+               convert(queryClient),
+             ),
+         },
++        {
++          path: paths.app.teams.path,
++          lazy: () => import('./routes/app/teams').then(convert(queryClient)),
++        },
+         {
+           path: paths.app.users.path,
+           lazy: () => import('./routes/app/users').then(convert(queryClient)),
+diff --git a/apps/react-vite/src/app/routes/app/__tests__/teams.test.tsx b/apps/react-vite/src/app/routes/app/__tests__/teams.test.tsx
+new file mode 100644
+index 0000000..611de5d
+--- /dev/null
++++ b/apps/react-vite/src/app/routes/app/__tests__/teams.test.tsx
+@@ -0,0 +1,50 @@
++import type { Mock } from 'vitest';
++
++import { createTeam as generateTeam } from '@/testing/data-generators';
++import {
++  renderApp,
++  screen,
++  userEvent,
++  waitFor,
++  within,
++} from '@/testing/test-utils';
++
++import { default as TeamsRoute } from '../teams';
++
++beforeAll(() => {
++  vi.spyOn(console, 'error').mockImplementation(() => {});
++});
++
++afterAll(() => {
++  (console.error as Mock).mockRestore();
++});
++
++test('should create a team and list it', { timeout: 10000 }, async () => {
++  await renderApp(<TeamsRoute />);
++
++  const newTeam = generateTeam();
++
++  await userEvent.click(screen.getByRole('button', { name: /create team/i }));
++
++  const drawer = await screen.findByRole('dialog', {
++    name: /create team/i,
++  });
++
++  await userEvent.type(within(drawer).getByText(/name/i), newTeam.name);
++  await userEvent.type(
++    within(drawer).getByText(/description/i),
++    newTeam.description,
++  );
++
++  await userEvent.click(
++    within(drawer).getByRole('button', { name: /submit/i }),
++  );
++
++  await waitFor(() => expect(drawer).not.toBeInTheDocument());
++
++  await screen.findByText(/team created/i);
++
++  expect(
++    await screen.findByRole('cell', { name: newTeam.name }, { timeout: 5000 }),
++  ).toBeInTheDocument();
++});
+diff --git a/apps/react-vite/src/app/routes/app/teams.tsx b/apps/react-vite/src/app/routes/app/teams.tsx
+new file mode 100644
+index 0000000..aa12792
+--- /dev/null
++++ b/apps/react-vite/src/app/routes/app/teams.tsx
+@@ -0,0 +1,36 @@
++import { QueryClient } from '@tanstack/react-query';
++
++import { ContentLayout } from '@/components/layouts';
++import { getTeamsQueryOptions } from '@/features/teams/api/get-teams';
++import { CreateTeam } from '@/features/teams/components/create-team';
++import { TeamsList } from '@/features/teams/components/teams-list';
++import { Authorization, ROLES } from '@/lib/authorization';
++
++export const clientLoader = (queryClient: QueryClient) => async () => {
++  const query = getTeamsQueryOptions();
++
++  return (
++    queryClient.getQueryData(query.queryKey) ??
++    (await queryClient.fetchQuery(query))
++  );
++};
++
++const TeamsRoute = () => {
++  return (
++    <ContentLayout title="Teams">
++      <Authorization
++        forbiddenFallback={<div>Only admin can view this.</div>}
++        allowedRoles={[ROLES.ADMIN]}
++      >
++        <div className="flex justify-end">
++          <CreateTeam />
++        </div>
++        <div className="mt-4">
++          <TeamsList />
++        </div>
++      </Authorization>
++    </ContentLayout>
++  );
++};
++
++export default TeamsRoute;
+diff --git a/apps/react-vite/src/components/layouts/dashboard-layout.tsx b/apps/react-vite/src/components/layouts/dashboard-layout.tsx
+index 5182391..a8630fe 100644
+--- a/apps/react-vite/src/components/layouts/dashboard-layout.tsx
++++ b/apps/react-vite/src/components/layouts/dashboard-layout.tsx
+@@ -1,4 +1,11 @@
+-import { Home, PanelLeft, Folder, Users, User2 } from 'lucide-react';
++import {
++  Building2,
++  Home,
++  PanelLeft,
++  Folder,
++  Users,
++  User2,
++} from 'lucide-react';
+ import { useEffect, useState } from 'react';
+ import { NavLink, useNavigate, useNavigation } from 'react-router';
+ 
+@@ -85,6 +92,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
+   const navigation = [
+     { name: 'Dashboard', to: paths.app.dashboard.getHref(), icon: Home },
+     { name: 'Discussions', to: paths.app.discussions.getHref(), icon: Folder },
++    checkAccess({ allowedRoles: [ROLES.ADMIN] }) && {
++      name: 'Teams',
++      to: paths.app.teams.getHref(),
++      icon: Building2,
++    },
+     checkAccess({ allowedRoles: [ROLES.ADMIN] }) && {
+       name: 'Users',
+       to: paths.app.users.getHref(),
+diff --git a/apps/react-vite/src/config/paths.ts b/apps/react-vite/src/config/paths.ts
+index 965512b..f7c500a 100644
+--- a/apps/react-vite/src/config/paths.ts
++++ b/apps/react-vite/src/config/paths.ts
+@@ -34,6 +34,10 @@ export const paths = {
+       path: 'discussions/:discussionId',
+       getHref: (id: string) => `/app/discussions/${id}`,
+     },
++    teams: {
++      path: 'teams',
++      getHref: () => '/app/teams',
++    },
+     users: {
+       path: 'users',
+       getHref: () => '/app/users',
+diff --git a/apps/react-vite/src/features/teams/api/create-team.ts b/apps/react-vite/src/features/teams/api/create-team.ts
+new file mode 100644
+index 0000000..8974c80
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/api/create-team.ts
+@@ -0,0 +1,52 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { useNotifications } from '@/components/ui/notifications';
++import { api } from '@/lib/api-client';
++import { MutationConfig } from '@/lib/react-query';
++import { Team } from '@/types/api';
++
++import { getTeamsQueryOptions } from './get-teams';
++
++export const createTeamInputSchema = z.object({
++  name: z.string().min(1, 'Required'),
++  description: z.string().min(1, 'Required'),
++});
++
++export type CreateTeamInput = z.infer<typeof createTeamInputSchema>;
++
++export const createTeam = ({
++  data,
++}: {
++  data: CreateTeamInput;
++}): Promise<Team> => {
++  return api.post(`/teams`, data);
++};
++
++type UseCreateTeamOptions = {
++  mutationConfig?: MutationConfig<typeof createTeam>;
++};
++
++export const useCreateTeam = ({
++  mutationConfig,
++}: UseCreateTeamOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      queryClient.invalidateQueries({
++        queryKey: getTeamsQueryOptions().queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'Team Created',
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: createTeam,
++  });
++};
+diff --git a/apps/react-vite/src/features/teams/components/create-team.tsx b/apps/react-vite/src/features/teams/components/create-team.tsx
+new file mode 100644
+index 0000000..35520a2
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/components/create-team.tsx
+@@ -0,0 +1,59 @@
++import { Plus } from 'lucide-react';
++
++import { Button } from '@/components/ui/button';
++import { Form, FormDrawer, Input, Textarea } from '@/components/ui/form';
++import { Authorization, ROLES } from '@/lib/authorization';
++
++import { createTeamInputSchema, useCreateTeam } from '../api/create-team';
++
++export const CreateTeam = () => {
++  const createTeamMutation = useCreateTeam();
++
++  return (
++    <Authorization allowedRoles={[ROLES.ADMIN]}>
++      <FormDrawer
++        isDone={createTeamMutation.isSuccess}
++        triggerButton={
++          <Button size="sm" icon={<Plus className="size-4" />}>
++            Create Team
++          </Button>
++        }
++        title="Create Team"
++        submitButton={
++          <Button
++            form="create-team"
++            type="submit"
++            size="sm"
++            isLoading={createTeamMutation.isPending}
++          >
++            Submit
++          </Button>
++        }
++      >
++        <Form
++          id="create-team"
++          onSubmit={(values) => {
++            createTeamMutation.mutate({ data: values });
++          }}
++          schema={createTeamInputSchema}
++        >
++          {({ register, formState }) => (
++            <>
++              <Input
++                label="Name"
++                error={formState.errors['name']}
++                registration={register('name')}
++              />
++
++              <Textarea
++                label="Description"
++                error={formState.errors['description']}
++                registration={register('description')}
++              />
++            </>
++          )}
++        </Form>
++      </FormDrawer>
++    </Authorization>
++  );
++};
+diff --git a/apps/react-vite/src/features/teams/components/teams-list.tsx b/apps/react-vite/src/features/teams/components/teams-list.tsx
+new file mode 100644
+index 0000000..f72381f
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/components/teams-list.tsx
+@@ -0,0 +1,44 @@
++import { Spinner } from '@/components/ui/spinner';
++import { Table } from '@/components/ui/table';
++import { formatDate } from '@/utils/format';
++
++import { useTeams } from '../api/get-teams';
++
++export const TeamsList = () => {
++  const teamsQuery = useTeams();
++
++  if (teamsQuery.isLoading) {
++    return (
++      <div className="flex h-48 w-full items-center justify-center">
++        <Spinner size="lg" />
++      </div>
++    );
++  }
++
++  const teams = teamsQuery.data?.data;
++
++  if (!teams) return null;
++
++  return (
++    <Table
++      data={teams}
++      columns={[
++        {
++          title: 'Name',
++          field: 'name',
++        },
++        {
++          title: 'Description',
++          field: 'description',
++        },
++        {
++          title: 'Created At',
++          field: 'createdAt',
++          Cell({ entry: { createdAt } }) {
++            return <span>{formatDate(createdAt)}</span>;
++          },
++        },
++      ]}
++    />
++  );
++};
+diff --git a/apps/react-vite/src/testing/mocks/handlers/teams.ts b/apps/react-vite/src/testing/mocks/handlers/teams.ts
+index cbec607..85f12c1 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/teams.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/teams.ts
+@@ -2,8 +2,16 @@ import { HttpResponse, http } from 'msw';
+ 
+ import { env } from '@/config/env';
+ 
+-import { db } from '../db';
+-import { networkDelay } from '../utils';
++import { db, persistDb } from '../db';
++import { networkDelay, requireAuth } from '../utils';
++
++type CreateTeamBody = {
++  name: string;
++  description: string;
++};
++
++const isNonEmptyString = (value: unknown): value is string =>
++  typeof value === 'string' && value.trim().length > 0;
+ 
+ export const teamsHandlers = [
+   http.get(`${env.API_URL}/teams`, async () => {
+@@ -19,4 +27,44 @@ export const teamsHandlers = [
+       );
+     }
+   }),
++
++  http.post(`${env.API_URL}/teams`, async ({ request, cookies }) => {
++    await networkDelay();
++
++    try {
++      const { user, error } = requireAuth(cookies);
++      if (error) {
++        return HttpResponse.json({ message: error }, { status: 401 });
++      }
++      if (user?.role !== 'ADMIN') {
++        return HttpResponse.json(
++          { message: 'Only admins can create teams' },
++          { status: 403 },
++        );
++      }
++
++      const data = (await request.json()) as Partial<CreateTeamBody>;
++      if (
++        !isNonEmptyString(data.name) ||
++        !isNonEmptyString(data.description)
++      ) {
++        return HttpResponse.json(
++          { message: 'Team name and description are required' },
++          { status: 400 },
++        );
++      }
++
++      const result = db.team.create({
++        name: data.name,
++        description: data.description,
++      });
++      await persistDb('team');
++      return HttpResponse.json(result);
++    } catch (error: any) {
++      return HttpResponse.json(
++        { message: error?.message || 'Server Error' },
++        { status: 500 },
++      );
++    }
++  }),
+ ];

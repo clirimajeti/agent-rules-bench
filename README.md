@@ -20,8 +20,8 @@ It was built to test the claims behind [codemyrules](https://github.com/clirimaj
 
 ## Results so far
 
-Public data: 504 runs (575 headless sessions, counting review fixes) on three open-source projects in Java, Python and TypeScript; every setup, prompt, session, diff and log is in `studies/`.
-200 runs are exploratory (four studies), 304 confirmatory (three studies, each with an [analysis plan](studies/analysis-plan.md) committed before its runs).
+Public data: 792 runs (899 headless sessions, counting review fixes) on three open-source projects in Java, Python and TypeScript; every setup, prompt, session, diff and log is in `studies/`.
+200 runs are exploratory (four studies), 592 confirmatory (four studies, each with an [analysis plan](studies/analysis-plan.md) committed before its runs).
 An internal Kotlin/Spring pilot (124 sessions, aggregate numbers only, see [studies/internal-backend](studies/internal-backend/README.md)) shaped the design and is not part of any pooled number.
 
 Exploratory, pooled over the 152 runs that compare text with the lint rule + pointer + loop ([studies/pooled.md](studies/pooled.md)):
@@ -49,8 +49,14 @@ Confirmatory, the same weight on both sides, 96 runs ([studies/bulletproof-40-ru
 - Without the conventions every run broke one and cost 35% more (+21% to +50%), so stating them matters, as prose or as rules.
   Only 4 of the 40 were ever broken; the agent followed the other 36 by copying the code.
 
-Functional correctness, all 504 runs (`bench.mjs verify`: each final diff built and tested on the plain upstream commit):
-- Production code passes the project's original test suite in 493 of 504 runs; the setups do not differ, and the 11 failures are type and compile errors (10 of them Haiku) unrelated to the rules.
+Confirmatory, the same 40 conventions in a realistic `CLAUDE.md`, 288 runs ([studies/bulletproof-business-context](studies/bulletproof-business-context/README.md)):
+- Every arm's `CLAUDE.md` also holds 1,328 words of business context; the prose arm adds the 40 lines.
+- On the feature tasks prose broke a convention in 4/32 runs, lint rules in 0/32 (p = 0.056), at the same cost (-3%, -12% to +8%); not significant.
+- On tasks no convention applies to, the 1.9k tokens of prose cost a few percent of a session with a warm prompt cache, too little to measure (+3%, -19% to +29%).
+- Exploratory, pooled with the 40-rules study after seeing both: prose broke a convention in 7 of 64 runs, lint rules in none (p = 0.007), at equal cost.
+
+Functional correctness, all 792 runs (`bench.mjs verify`: each final diff built and tested on the plain upstream commit):
+- Production code passes the project's original test suite in 773 of 792 runs; the setups do not differ, and the 19 failures are type and compile errors (15 of them Haiku) unrelated to the rules.
 
 Local model in other harnesses, exploratory, 48 runs: qwen3.6 in pi and Codex on the bulletproof study ([studies/local-agents.md](studies/local-agents.md)):
 - With the rule only in the docs, every run broke it in both harnesses (16/16); with lint rules and the loop, 1 of 16 did.

@@ -1,0 +1,93 @@
+diff --git a/apps/react-vite/e2e/tests/discussion-comments.spec.ts b/apps/react-vite/e2e/tests/discussion-comments.spec.ts
+new file mode 100644
+index 0000000..441e3f1
+--- /dev/null
++++ b/apps/react-vite/e2e/tests/discussion-comments.spec.ts
+@@ -0,0 +1,87 @@
++import { test, expect } from '@playwright/test';
++
++import {
++  createDiscussion,
++  createComment,
++} from '../../src/testing/data-generators';
++
++test('discussion comments', async ({ page }) => {
++  const discussion = createDiscussion();
++  const firstComment = createComment();
++  const secondComment = createComment();
++
++  await page.goto('/');
++  await page.getByRole('button', { name: 'Get started' }).click();
++  await page.waitForURL('/app');
++
++  // create discussion:
++  await page.getByRole('link', { name: 'Discussions' }).click();
++  await page.waitForURL('/app/discussions');
++
++  await page.getByRole('button', { name: 'Create Discussion' }).click();
++  await page.getByLabel('Title').click();
++  await page.getByLabel('Title').fill(discussion.title);
++  await page.getByLabel('Body').click();
++  await page.getByLabel('Body').fill(discussion.body);
++  await page.getByRole('button', { name: 'Submit' }).click();
++  await page
++    .getByLabel('Discussion Created')
++    .getByRole('button', { name: 'Close' })
++    .click();
++
++  // visit discussion page:
++  await page.getByRole('link', { name: 'View' }).click();
++
++  await expect(
++    page.getByRole('heading', { name: discussion.title }),
++  ).toBeVisible();
++
++  // add first comment:
++  await page.getByRole('button', { name: 'Create Comment' }).click();
++  await page.getByLabel('Body').click();
++  await page.getByLabel('Body').fill(firstComment.body);
++  await page.getByRole('button', { name: 'Submit' }).click();
++  await expect(page.getByText(firstComment.body)).toBeVisible();
++  await page
++    .getByLabel('Comment Created')
++    .getByRole('button', { name: 'Close' })
++    .click();
++
++  // add second comment:
++  await page.getByRole('button', { name: 'Create Comment' }).click();
++  await page.getByLabel('Body').click();
++  await page.getByLabel('Body').fill(secondComment.body);
++  await page.getByRole('button', { name: 'Submit' }).click();
++  await expect(page.getByText(secondComment.body)).toBeVisible();
++  await page
++    .getByLabel('Comment Created')
++    .getByRole('button', { name: 'Close' })
++    .click();
++
++  // both comments are listed, oldest first:
++  const comments = page.getByRole('list', { name: 'comments' });
++  await expect(comments.getByRole('listitem')).toHaveCount(2);
++
++  // delete the first comment:
++  const firstItem = comments.getByRole('listitem', {
++    name: `comment-${firstComment.body}-0`,
++  });
++  await firstItem.getByRole('button', { name: 'Delete Comment' }).click();
++  const dialog = page.getByRole('dialog');
++  await expect(
++    dialog.getByText('Are you sure you want to delete this comment?'),
++  ).toBeVisible();
++  await dialog.getByRole('button', { name: 'Delete Comment' }).click();
++  await page
++    .getByLabel('Comment Deleted')
++    .getByRole('button', { name: 'Close' })
++    .click();
++
++  // only the second comment is left:
++  await expect(comments.getByRole('listitem')).toHaveCount(1);
++  await expect(
++    comments.getByRole('listitem').filter({ hasText: secondComment.body }),
++  ).toBeVisible();
++  await expect(page.getByText(firstComment.body)).toBeHidden();
++  await expect(page.getByText(secondComment.body)).toBeVisible();
++});

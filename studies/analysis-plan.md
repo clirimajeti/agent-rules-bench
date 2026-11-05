@@ -269,6 +269,11 @@ It replaces a first Plan 5 (commit 41a58b0, the context-tax tasks with the plain
 - Sessions of an arm run back to back and share the prompt cache, as sessions in a working day do.
 - The C tasks were written for this study, before any run.
 
+## Deviations
+
+- 2026-11-05: the review fix of `none-sonnet-T4-4` hit the usage limit and the harness still counted the run as ok; the harness now fails such a run (996e393), and this run was rerun. It is in no hypothesis.
+- 2026-11-05: Plans 4 and 5 pooled for prose against rules on T1-T4, chosen after seeing both results; reported as exploratory.
+
 ## How to reproduce
 
 ```bash

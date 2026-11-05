@@ -1,0 +1,326 @@
+diff --git a/apps/react-vite/src/app/routes/app/profile.tsx b/apps/react-vite/src/app/routes/app/profile.tsx
+index a84b9a4..9e72df2 100644
+--- a/apps/react-vite/src/app/routes/app/profile.tsx
++++ b/apps/react-vite/src/app/routes/app/profile.tsx
+@@ -1,4 +1,5 @@
+ import { ContentLayout } from '@/components/layouts';
++import { TeamSection } from '@/features/teams/components/team-section';
+ import { UpdateProfile } from '@/features/users/components/update-profile';
+ import { useUser } from '@/lib/auth';
+ 
+@@ -44,6 +45,9 @@ const ProfileRoute = () => {
+           </dl>
+         </div>
+       </div>
++      <div className="mt-6">
++        <TeamSection teamId={user.data.teamId} />
++      </div>
+     </ContentLayout>
+   );
+ };
+diff --git a/apps/react-vite/src/features/teams/api/get-team.ts b/apps/react-vite/src/features/teams/api/get-team.ts
+new file mode 100644
+index 0000000..8a12cd1
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/api/get-team.ts
+@@ -0,0 +1,28 @@
++import { queryOptions, useQuery } from '@tanstack/react-query';
++
++import { api } from '@/lib/api-client';
++import { QueryConfig } from '@/lib/react-query';
++import { Team } from '@/types/api';
++
++export const getTeam = ({ teamId }: { teamId: string }): Promise<Team> => {
++  return api.get(`/teams/${teamId}`);
++};
++
++export const getTeamQueryOptions = (teamId: string) => {
++  return queryOptions({
++    queryKey: ['teams', teamId],
++    queryFn: () => getTeam({ teamId }),
++  });
++};
++
++type UseTeamOptions = {
++  teamId: string;
++  queryConfig?: QueryConfig<typeof getTeamQueryOptions>;
++};
++
++export const useTeam = ({ teamId, queryConfig }: UseTeamOptions) => {
++  return useQuery({
++    ...getTeamQueryOptions(teamId),
++    ...queryConfig,
++  });
++};
+diff --git a/apps/react-vite/src/features/teams/api/update-team.ts b/apps/react-vite/src/features/teams/api/update-team.ts
+new file mode 100644
+index 0000000..576dc8b
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/api/update-team.ts
+@@ -0,0 +1,57 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { useNotifications } from '@/components/ui/notifications';
++import { api } from '@/lib/api-client';
++import { MutationConfig } from '@/lib/react-query';
++import { Team } from '@/types/api';
++
++import { getTeamQueryOptions } from './get-team';
++import { getTeamsQueryOptions } from './get-teams';
++
++export const updateTeamInputSchema = z.object({
++  name: z.string().trim().min(1, 'Required'),
++});
++
++export type UpdateTeamInput = z.infer<typeof updateTeamInputSchema>;
++
++export const updateTeam = ({
++  teamId,
++  data,
++}: {
++  teamId: string;
++  data: UpdateTeamInput;
++}): Promise<Team> => {
++  return api.patch(`/teams/${teamId}`, data);
++};
++
++type UseUpdateTeamOptions = {
++  mutationConfig?: MutationConfig<typeof updateTeam>;
++};
++
++export const useUpdateTeam = ({
++  mutationConfig,
++}: UseUpdateTeamOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (data, variables, ...rest) => {
++      queryClient.invalidateQueries({
++        queryKey: getTeamQueryOptions(variables.teamId).queryKey,
++      });
++      queryClient.invalidateQueries({
++        queryKey: getTeamsQueryOptions().queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'Team Renamed',
++      });
++      onSuccess?.(data, variables, ...rest);
++    },
++    ...restConfig,
++    mutationFn: updateTeam,
++  });
++};
+diff --git a/apps/react-vite/src/features/teams/components/rename-team.tsx b/apps/react-vite/src/features/teams/components/rename-team.tsx
+new file mode 100644
+index 0000000..39fa359
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/components/rename-team.tsx
+@@ -0,0 +1,54 @@
++import { Pen } from 'lucide-react';
++
++import { Button } from '@/components/ui/button';
++import { Form, FormDrawer, Input } from '@/components/ui/form';
++
++import { updateTeamInputSchema, useUpdateTeam } from '../api/update-team';
++
++type RenameTeamProps = {
++  teamId: string;
++  currentName: string;
++};
++
++export const RenameTeam = ({ teamId, currentName }: RenameTeamProps) => {
++  const updateTeamMutation = useUpdateTeam();
++
++  return (
++    <FormDrawer
++      isDone={updateTeamMutation.isSuccess}
++      triggerButton={
++        <Button icon={<Pen className="size-4" />} size="sm">
++          Rename
++        </Button>
++      }
++      title="Rename Team"
++      submitButton={
++        <Button
++          form="rename-team"
++          type="submit"
++          size="sm"
++          isLoading={updateTeamMutation.isPending}
++        >
++          Submit
++        </Button>
++      }
++    >
++      <Form
++        id="rename-team"
++        onSubmit={(values) => {
++          updateTeamMutation.mutate({ teamId, data: values });
++        }}
++        options={{ defaultValues: { name: currentName } }}
++        schema={updateTeamInputSchema}
++      >
++        {({ register, formState }) => (
++          <Input
++            label="Team Name"
++            error={formState.errors['name']}
++            registration={register('name')}
++          />
++        )}
++      </Form>
++    </FormDrawer>
++  );
++};
+diff --git a/apps/react-vite/src/features/teams/components/team-section.tsx b/apps/react-vite/src/features/teams/components/team-section.tsx
+new file mode 100644
+index 0000000..cd340d6
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/components/team-section.tsx
+@@ -0,0 +1,52 @@
++import { Spinner } from '@/components/ui/spinner';
++import { Authorization, ROLES } from '@/lib/authorization';
++
++import { useTeam } from '../api/get-team';
++
++import { RenameTeam } from './rename-team';
++
++type TeamSectionProps = {
++  teamId: string;
++};
++
++export const TeamSection = ({ teamId }: TeamSectionProps) => {
++  const teamQuery = useTeam({ teamId });
++
++  if (teamQuery.isLoading) {
++    return (
++      <div className="flex h-24 items-center justify-center">
++        <Spinner size="md" />
++      </div>
++    );
++  }
++
++  const team = teamQuery.data;
++
++  if (!team) return null;
++
++  return (
++    <div className="overflow-hidden bg-white shadow sm:rounded-lg">
++      <div className="flex items-center justify-between px-4 py-5 sm:px-6">
++        <div>
++          <h3 className="text-lg font-medium leading-6 text-gray-900">Team</h3>
++          <p className="mt-1 max-w-2xl text-sm text-gray-500">
++            The team you belong to.
++          </p>
++        </div>
++        <Authorization allowedRoles={[ROLES.ADMIN]}>
++          <RenameTeam teamId={team.id} currentName={team.name} />
++        </Authorization>
++      </div>
++      <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
++        <dl>
++          <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 sm:py-5">
++            <dt className="text-sm font-medium text-gray-500">Name</dt>
++            <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
++              {team.name}
++            </dd>
++          </div>
++        </dl>
++      </div>
++    </div>
++  );
++};
+diff --git a/apps/react-vite/src/testing/mocks/handlers/teams.ts b/apps/react-vite/src/testing/mocks/handlers/teams.ts
+index cbec607..ab5aa60 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/teams.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/teams.ts
+@@ -2,8 +2,8 @@ import { HttpResponse, http } from 'msw';
+ 
+ import { env } from '@/config/env';
+ 
+-import { db } from '../db';
+-import { networkDelay } from '../utils';
++import { db, persistDb } from '../db';
++import { networkDelay, requireAuth } from '../utils';
+ 
+ export const teamsHandlers = [
+   http.get(`${env.API_URL}/teams`, async () => {
+@@ -19,4 +19,75 @@ export const teamsHandlers = [
+       );
+     }
+   }),
++
++  http.get(`${env.API_URL}/teams/:teamId`, async ({ cookies, params }) => {
++    await networkDelay();
++
++    try {
++      const { user, error } = requireAuth(cookies);
++      if (error) {
++        return HttpResponse.json({ message: error }, { status: 401 });
++      }
++      const teamId = params.teamId as string;
++      const team =
++        user?.teamId === teamId
++          ? db.team.findFirst({ where: { id: { equals: teamId } } })
++          : null;
++      if (!team) {
++        return HttpResponse.json({ message: 'Team not found' }, { status: 404 });
++      }
++      return HttpResponse.json(team);
++    } catch (error: any) {
++      return HttpResponse.json(
++        { message: error?.message || 'Server Error' },
++        { status: 500 },
++      );
++    }
++  }),
++
++  http.patch(
++    `${env.API_URL}/teams/:teamId`,
++    async ({ request, cookies, params }) => {
++      await networkDelay();
++
++      try {
++        const { user, error } = requireAuth(cookies);
++        if (error) {
++          return HttpResponse.json({ message: error }, { status: 401 });
++        }
++        const teamId = params.teamId as string;
++        if (user?.role !== 'ADMIN' || user.teamId !== teamId) {
++          return HttpResponse.json(
++            { message: 'Unauthorized' },
++            { status: 403 },
++          );
++        }
++        const { name } = (await request.json()) as { name?: string };
++        const trimmed = typeof name === 'string' ? name.trim() : '';
++        if (!trimmed) {
++          return HttpResponse.json(
++            { message: 'Team name is required' },
++            { status: 400 },
++          );
++        }
++        const result = db.team.update({
++          where: { id: { equals: teamId } },
++          data: { name: trimmed },
++        });
++        if (!result) {
++          return HttpResponse.json(
++            { message: 'Team not found' },
++            { status: 404 },
++          );
++        }
++        await persistDb('team');
++        return HttpResponse.json(result);
++      } catch (error: any) {
++        return HttpResponse.json(
++          { message: error?.message || 'Server Error' },
++          { status: 500 },
++        );
++      }
++    },
++  ),
+ ];

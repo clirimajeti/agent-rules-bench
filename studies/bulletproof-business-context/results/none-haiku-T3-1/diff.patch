@@ -1,0 +1,397 @@
+diff --git a/apps/react-vite/src/app/routes/app/profile.tsx b/apps/react-vite/src/app/routes/app/profile.tsx
+index a84b9a4..5e737c7 100644
+--- a/apps/react-vite/src/app/routes/app/profile.tsx
++++ b/apps/react-vite/src/app/routes/app/profile.tsx
+@@ -1,4 +1,5 @@
+ import { ContentLayout } from '@/components/layouts';
++import { TeamInfo } from '@/features/teams/components/team-info';
+ import { UpdateProfile } from '@/features/users/components/update-profile';
+ import { useUser } from '@/lib/auth';
+ 
+@@ -22,27 +23,30 @@ const ProfileRoute = () => {
+ 
+   return (
+     <ContentLayout title="Profile">
+-      <div className="overflow-hidden bg-white shadow sm:rounded-lg">
+-        <div className="px-4 py-5 sm:px-6">
+-          <div className="flex justify-between">
+-            <h3 className="text-lg font-medium leading-6 text-gray-900">
+-              User Information
+-            </h3>
+-            <UpdateProfile />
++      <div className="space-y-6">
++        <div className="overflow-hidden bg-white shadow sm:rounded-lg">
++          <div className="px-4 py-5 sm:px-6">
++            <div className="flex justify-between">
++              <h3 className="text-lg font-medium leading-6 text-gray-900">
++                User Information
++              </h3>
++              <UpdateProfile />
++            </div>
++            <p className="mt-1 max-w-2xl text-sm text-gray-500">
++              Personal details of the user.
++            </p>
++          </div>
++          <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
++            <dl className="sm:divide-y sm:divide-gray-200">
++              <Entry label="First Name" value={user.data.firstName} />
++              <Entry label="Last Name" value={user.data.lastName} />
++              <Entry label="Email Address" value={user.data.email} />
++              <Entry label="Role" value={user.data.role} />
++              <Entry label="Bio" value={user.data.bio} />
++            </dl>
+           </div>
+-          <p className="mt-1 max-w-2xl text-sm text-gray-500">
+-            Personal details of the user.
+-          </p>
+-        </div>
+-        <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
+-          <dl className="sm:divide-y sm:divide-gray-200">
+-            <Entry label="First Name" value={user.data.firstName} />
+-            <Entry label="Last Name" value={user.data.lastName} />
+-            <Entry label="Email Address" value={user.data.email} />
+-            <Entry label="Role" value={user.data.role} />
+-            <Entry label="Bio" value={user.data.bio} />
+-          </dl>
+         </div>
++        <TeamInfo />
+       </div>
+     </ContentLayout>
+   );
+diff --git a/apps/react-vite/src/features/teams/api/update-team.ts b/apps/react-vite/src/features/teams/api/update-team.ts
+new file mode 100644
+index 0000000..bc42b09
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/api/update-team.ts
+@@ -0,0 +1,53 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { useNotifications } from '@/components/ui/notifications';
++import { api } from '@/lib/api-client';
++import { MutationConfig } from '@/lib/react-query';
++import { Team } from '@/types/api';
++
++import { getTeamsQueryOptions } from './get-teams';
++
++export const updateTeamInputSchema = z.object({
++  name: z.string().trim().min(1, 'Required'),
++});
++
++export type UpdateTeamInput = z.infer<typeof updateTeamInputSchema>;
++
++export const updateTeam = ({
++  data,
++  teamId,
++}: {
++  data: UpdateTeamInput;
++  teamId: string;
++}): Promise<Team> => {
++  return api.patch(`/teams/${teamId}`, data);
++};
++
++type UseUpdateTeamOptions = {
++  mutationConfig?: MutationConfig<typeof updateTeam>;
++};
++
++export const useUpdateTeam = ({
++  mutationConfig,
++}: UseUpdateTeamOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      queryClient.invalidateQueries({
++        queryKey: getTeamsQueryOptions().queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'Team Renamed',
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateTeam,
++  });
++};
+diff --git a/apps/react-vite/src/features/teams/components/__tests__/team-info.test.tsx b/apps/react-vite/src/features/teams/components/__tests__/team-info.test.tsx
+new file mode 100644
+index 0000000..4394fd5
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/components/__tests__/team-info.test.tsx
+@@ -0,0 +1,69 @@
++import { default as ProfileRoute } from '@/app/routes/app/profile';
++import { db } from '@/testing/mocks/db';
++import {
++  createUser,
++  renderApp,
++  screen,
++  userEvent,
++  waitFor,
++  within,
++} from '@/testing/test-utils';
++
++const renderProfile = async (role: 'ADMIN' | 'USER') => {
++  const team = db.team.create({ name: 'Old Team Name' });
++  const fakeUser = await createUser({ teamId: team.id, role });
++
++  const utils = await renderApp(<ProfileRoute />, {
++    user: fakeUser,
++    path: '/app/profile',
++    url: '/app/profile',
++  });
++
++  await screen.findByText('Old Team Name');
++
++  return { ...utils, team };
++};
++
++test('should show the team name and a rename button to admins', async () => {
++  await renderProfile('ADMIN');
++
++  expect(screen.getByText('Team Name')).toBeInTheDocument();
++  expect(screen.getByRole('button', { name: /rename/i })).toBeInTheDocument();
++});
++
++test('should show the team name but hide the rename button from users', async () => {
++  await renderProfile('USER');
++
++  expect(screen.getByText('Old Team Name')).toBeInTheDocument();
++  expect(
++    screen.queryByRole('button', { name: /rename/i }),
++  ).not.toBeInTheDocument();
++});
++
++test('should rename the team and show a success message', async () => {
++  const { team } = await renderProfile('ADMIN');
++
++  await userEvent.click(screen.getByRole('button', { name: /rename/i }));
++
++  const drawer = await screen.findByRole('dialog', {
++    name: /rename team/i,
++  });
++
++  const nameField = within(drawer).getByRole('textbox');
++  await userEvent.clear(nameField);
++  await userEvent.type(nameField, 'New Team Name');
++
++  await userEvent.click(
++    within(drawer).getByRole('button', { name: /submit/i }),
++  );
++
++  await waitFor(() => expect(drawer).not.toBeInTheDocument());
++
++  expect(await screen.findByText('Team Renamed')).toBeInTheDocument();
++  expect(await screen.findByText('New Team Name')).toBeInTheDocument();
++
++  const storedTeam = db.team.findFirst({
++    where: { id: { equals: team.id } },
++  });
++  expect(storedTeam?.name).toBe('New Team Name');
++});
+diff --git a/apps/react-vite/src/features/teams/components/rename-team.tsx b/apps/react-vite/src/features/teams/components/rename-team.tsx
+new file mode 100644
+index 0000000..b7d5103
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/components/rename-team.tsx
+@@ -0,0 +1,61 @@
++import { Pen } from 'lucide-react';
++
++import { Button } from '@/components/ui/button';
++import { Form, FormDrawer, Input } from '@/components/ui/form';
++import { Authorization, ROLES } from '@/lib/authorization';
++import { Team } from '@/types/api';
++
++import { updateTeamInputSchema, useUpdateTeam } from '../api/update-team';
++
++type RenameTeamProps = {
++  team: Team;
++};
++
++export const RenameTeam = ({ team }: RenameTeamProps) => {
++  const renameTeamMutation = useUpdateTeam();
++
++  return (
++    <Authorization allowedRoles={[ROLES.ADMIN]}>
++      <FormDrawer
++        isDone={renameTeamMutation.isSuccess}
++        triggerButton={
++          <Button icon={<Pen className="size-4" />} size="sm">
++            Rename
++          </Button>
++        }
++        title="Rename Team"
++        submitButton={
++          <Button
++            form="rename-team"
++            type="submit"
++            size="sm"
++            isLoading={renameTeamMutation.isPending}
++          >
++            Submit
++          </Button>
++        }
++      >
++        <Form
++          id="rename-team"
++          onSubmit={(values) => {
++            renameTeamMutation.mutate({ data: values, teamId: team.id });
++          }}
++          options={{
++            defaultValues: {
++              name: team.name,
++            },
++          }}
++          schema={updateTeamInputSchema}
++        >
++          {({ register, formState }) => (
++            <Input
++              label="Team Name"
++              error={formState.errors['name']}
++              registration={register('name')}
++            />
++          )}
++        </Form>
++      </FormDrawer>
++    </Authorization>
++  );
++};
+diff --git a/apps/react-vite/src/features/teams/components/team-info.tsx b/apps/react-vite/src/features/teams/components/team-info.tsx
+new file mode 100644
+index 0000000..aa7cf25
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/components/team-info.tsx
+@@ -0,0 +1,42 @@
++import { useUser } from '@/lib/auth';
++
++import { useTeams } from '../api/get-teams';
++
++import { RenameTeam } from './rename-team';
++
++export const TeamInfo = () => {
++  const user = useUser();
++  const teamsQuery = useTeams();
++
++  const team = teamsQuery.data?.data.find(
++    (item) => item.id === user.data?.teamId,
++  );
++
++  if (!team) return null;
++
++  return (
++    <div className="overflow-hidden bg-white shadow sm:rounded-lg">
++      <div className="px-4 py-5 sm:px-6">
++        <div className="flex justify-between">
++          <h3 className="text-lg font-medium leading-6 text-gray-900">
++            Team
++          </h3>
++          <RenameTeam team={team} />
++        </div>
++        <p className="mt-1 max-w-2xl text-sm text-gray-500">
++          The team you belong to.
++        </p>
++      </div>
++      <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
++        <dl className="sm:divide-y sm:divide-gray-200">
++          <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 sm:py-5">
++            <dt className="text-sm font-medium text-gray-500">Team Name</dt>
++            <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
++              {team.name}
++            </dd>
++          </div>
++        </dl>
++      </div>
++    </div>
++  );
++};
+diff --git a/apps/react-vite/src/testing/mocks/handlers/teams.ts b/apps/react-vite/src/testing/mocks/handlers/teams.ts
+index cbec607..c1fc802 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/teams.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/teams.ts
+@@ -2,8 +2,12 @@ import { HttpResponse, http } from 'msw';
+ 
+ import { env } from '@/config/env';
+ 
+-import { db } from '../db';
+-import { networkDelay } from '../utils';
++import { db, persistDb } from '../db';
++import { requireAuth, networkDelay } from '../utils';
++
++type UpdateTeamBody = {
++  name: string;
++};
+ 
+ export const teamsHandlers = [
+   http.get(`${env.API_URL}/teams`, async () => {
+@@ -19,4 +23,68 @@ export const teamsHandlers = [
+       );
+     }
+   }),
++
++  http.patch(
++    `${env.API_URL}/teams/:teamId`,
++    async ({ request, params, cookies }) => {
++      await networkDelay();
++
++      try {
++        const { user, error } = requireAuth(cookies);
++        if (error) {
++          return HttpResponse.json({ message: error }, { status: 401 });
++        }
++
++        if (user?.role !== 'ADMIN') {
++          return HttpResponse.json(
++            { message: 'Only admins can rename the team' },
++            { status: 403 },
++          );
++        }
++
++        const teamId = params.teamId as string;
++        if (teamId !== user.teamId) {
++          return HttpResponse.json(
++            { message: 'Team not found' },
++            { status: 404 },
++          );
++        }
++
++        const { name } = (await request.json()) as UpdateTeamBody;
++        const trimmedName = name?.trim();
++        if (!trimmedName) {
++          return HttpResponse.json(
++            { message: 'Team name is required' },
++            { status: 400 },
++          );
++        }
++
++        const result = db.team.update({
++          where: {
++            id: {
++              equals: teamId,
++            },
++          },
++          data: {
++            name: trimmedName,
++          },
++        });
++
++        if (!result) {
++          return HttpResponse.json(
++            { message: 'Team not found' },
++            { status: 404 },
++          );
++        }
++
++        await persistDb('team');
++        return HttpResponse.json(result);
++      } catch (error: any) {
++        return HttpResponse.json(
++          { message: error?.message || 'Server Error' },
++          { status: 500 },
++        );
++      }
++    },
++  ),
+ ];
