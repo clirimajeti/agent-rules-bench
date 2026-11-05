@@ -121,6 +121,8 @@ export async function fixPrompt(study, findings) {
   return study.fix.prompt.replace('{broken}', lines.join('\n'));
 }
 
+const sessionOk = (s) => s.json?.is_error === false || s.json?.subtype === 'error_max_turns';
+
 async function runOne(study, run, cmds, log, { first = true } = {}) {
   const copy = run.copy;
   fs.mkdirSync(run.dir, { recursive: true });
@@ -146,7 +148,8 @@ async function runOne(study, run, cmds, log, { first = true } = {}) {
   const result = {
     id: run.id, arm: run.arm.id, model: run.model, agent: run.spec.agent, task: run.task.id, rep: run.rep,
     // A session that ran out of turns is a result, not a failure: rerunning it would resample until one finishes.
-    ok: task.json?.is_error === false || task.json?.subtype === 'error_max_turns',
+    // A review fix that failed (for example on a usage limit) fails the run, so it is run again.
+    ok: sessionOk(task) && (!fix || sessionOk(fix)),
     capped: task.json?.subtype === 'error_max_turns',
     turns: (task.json?.num_turns ?? 0) + (fix?.json?.num_turns ?? 0),
     taskCost: task.json?.total_cost_usd ?? 0,

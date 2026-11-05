@@ -381,3 +381,13 @@ test('a task can set its own number of repeats', async (t) => {
   assert.ok(logs.some((m) => m.includes('rules-sonnet-C1-3')) && !logs.some((m) => m.includes('T1-3')));
   assert.match(validateStudy({ ...JSON.parse(fs.readFileSync(file)), tasks: [{ id: 'T1', prompt: 'x', repeats: 0 }] }, path.dirname(file)).join('\n'), /tasks\[0\]\.repeats/);
 });
+
+test('a run whose review fix failed is not ok, so it is run again', async (t) => {
+  const { file } = setup(t, { build: undefined });
+  const study = loadStudy(file);
+  prepareStudy(study, () => {});
+  process.env.FAKE_FIX_ERROR = '1';
+  t.after(() => delete process.env.FAKE_FIX_ERROR);
+  const results = await runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: () => {} });
+  assert.deepEqual(results.map((r) => [r.arm, r.ok]).sort(), [['prose', false], ['prose', false], ['rules', true], ['rules', true]]);
+});
