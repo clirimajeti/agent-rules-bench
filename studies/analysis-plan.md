@@ -218,3 +218,56 @@ node bench/bench.mjs compare $S --arm none --against prose --models sonnet,haiku
 ## Deviations
 
 - 2026-11-05: added `none` against `rules` as a descriptive comparison, after the runs; it tests nothing.
+
+# Plan 5: the context tax of always-loaded prose
+
+Written on 2026-11-05, before any of these runs, under the same rules as the plans above.
+
+## Question
+
+On tasks that none of the conventions apply to, does a project with its conventions as always-loaded prose cost more per session than one with the same conventions as lint rules?
+Plan 4 found prose and lint rules even on tasks that needed the conventions; there the prose earned its tokens.
+Most sessions in a real project touch few or none of the conventions, and the prose is loaded into all of them, while lint rules cost nothing until they fire.
+
+## Design
+
+- Study `bulletproof-context-tax`: the three arms of `bulletproof-40-rules`, unchanged (its `arms`, `plugin` and ESLint config, linked): `none`, `prose` (the 40 lines, 757 words, 1.9k more tokens in every session), `rules` (40 lint rules with the loop, 8 pointers in `src/features/CLAUDE.md`).
+- Four tasks outside the scope of all 40 conventions, which cover only `src/`:
+  - C1: a question about how sign-in state and 401 responses are handled, with no file changes.
+  - C2: a Playwright end-to-end test in `e2e/tests`.
+  - C3: chunk splitting and source maps in `vite.config.ts`.
+  - C4: more browsers, reporters and a base URL in `playwright.config.ts`.
+- Sonnet and Haiku, 8 repeats: 192 runs.
+- Review fix, run handling, failures and reruns as in Plan 4.
+
+## Outcomes
+
+- Primary: total cost per run.
+- Manipulation check: breaks of any of the 40 conventions and loop catches; both are expected to be 0 in every arm.
+  A run that changes `src/` is reported, and kept.
+- Secondary: input tokens per session (cache reads and writes), first-request context, turns, seconds, verify pass rate.
+
+## Hypotheses and tests
+
+- H9: `prose` costs more per run than `rules`.
+  Geometric mean of the per-stratum ratios of mean total cost, one-sided stratified bootstrap p, alpha 0.05; one test, so no correction.
+- Expected size: the derived price of always-loaded tokens ([context-cost.md](context-cost.md)) is $0.0056 per 1k tokens per Sonnet session and $0.0004 per Haiku session, so about $0.011 and $0.001 for 1.9k tokens; on short tasks, roughly 5% to 15% of a run.
+- Descriptive, not tested: `prose` against `none` (the tax itself) and `rules` against `none` (what an idle loop and the pointer file cost: expected about 0).
+- Power: 64 runs per arm; with a per-run spread of about 25%, a difference near 10% is detectable, one near 5% likely not.
+
+## Threats
+
+- The tax depends on the size of the prose: 1.9k tokens here, 15.7k in Plan 3; the result scales with it only as far as the derived price is linear.
+- Sessions of an arm run back to back and share the prompt cache, as sessions in a working day do.
+- The tasks were written for this study, before any run.
+
+## How to reproduce
+
+```bash
+S=studies/bulletproof-context-tax/study.json
+node bench/bench.mjs run $S --models sonnet,haiku
+node bench/bench.mjs verify $S
+node bench/bench.mjs compare $S --arm prose --against rules --models sonnet,haiku   # H9
+node bench/bench.mjs compare $S --arm prose --against none --models sonnet,haiku    # descriptive
+node bench/bench.mjs compare $S --arm rules --against none --models sonnet,haiku    # descriptive
+```

@@ -1,0 +1,124 @@
+{
+  "name": "bulletproof-context-tax",
+  "description": "The context tax of always-loaded prose: the three arms of bulletproof-40-rules (none, 40 prose lines in CLAUDE.md, 40 lint rules with the loop and pointers) on tasks that none of the 40 conventions apply to, so only what each arm loads into every session differs. Plan 5 in studies/analysis-plan.md.",
+  "repo": {
+    "source": "https://github.com/alan2207/bulletproof-react.git",
+    "commit": "9506629ed003a561c6627735480cce4994244bb4"
+  },
+  "tasks": [
+    {
+      "id": "C1",
+      "prompt": "In apps/react-vite, explain how the app finds out on load whether the user is signed in, and what happens when an API request returns 401. Answer in a few short paragraphs naming the files involved. Do not change any files."
+    },
+    {
+      "id": "C2",
+      "prompt": "In apps/react-vite, add a Playwright end-to-end test e2e/tests/discussion-comments.spec.ts that creates a discussion, adds two comments to it, deletes one of them and checks that only the other one is left. Follow the existing smoke test. Do not run tests, lint or the app."
+    },
+    {
+      "id": "C3",
+      "prompt": "In apps/react-vite/vite.config.ts, split the production bundle with manualChunks: react, react-dom and react-router-dom into a vendor chunk, @tanstack/react-query into a query chunk. Also turn on source maps for production builds. Do not run tests, lint or the app."
+    },
+    {
+      "id": "C4",
+      "prompt": "In apps/react-vite/playwright.config.ts, add Firefox and WebKit projects with the same setup dependency and storage state as Chromium, use the list reporter on CI and the html reporter elsewhere, and set baseURL to http://127.0.0.1:3000. Do not run tests, lint or the app."
+    }
+  ],
+  "arms": [
+    {
+      "id": "none",
+      "setup": "arms/none.sh",
+      "fix": true
+    },
+    {
+      "id": "prose",
+      "setup": "arms/prose.sh",
+      "fix": true
+    },
+    {
+      "id": "rules",
+      "setup": "arms/rules.sh",
+      "fix": true
+    }
+  ],
+  "baselineArm": "prose",
+  "models": [
+    "sonnet",
+    "haiku"
+  ],
+  "repeats": 8,
+  "maxTurns": 30,
+  "designRules": [
+    "local/no-cross-feature-imports",
+    "local/notifications-in-mutation-hook",
+    "local/data-hooks-in-api",
+    "local/api-client-in-api-folder",
+    "local/schemas-in-api",
+    "local/role-checks-through-authorization",
+    "local/ownership-through-policies",
+    "local/ui-form-controls"
+  ],
+  "eval": [
+    {
+      "name": "eslint",
+      "format": "eslint",
+      "command": [
+        "node",
+        "{study}/node_modules/eslint/bin/eslint.js",
+        "-c",
+        "{study}/eslint.config.mjs",
+        "--no-inline-config",
+        "--format",
+        "json",
+        "{files}"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx"
+      ]
+    }
+  ],
+  "fix": {
+    "prompt": "Code review feedback on your uncommitted change in apps/react-vite: it breaks these project rules.\n{broken}\nFix the new code accordingly; tests are not affected. Do not run tests, lint or the app.",
+    "ruleText": "plugin/conventions.mjs"
+  },
+  "verify": {
+    "testFiles": [
+      "*.test.ts",
+      "*.test.tsx",
+      "*/__tests__/*",
+      "apps/react-vite/src/testing/*"
+    ],
+    "keep": [
+      "apps/react-vite/node_modules",
+      "apps/react-vite/.env"
+    ],
+    "steps": [
+      {
+        "name": "setup",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "setup"
+        ],
+        "setup": true
+      },
+      {
+        "name": "typecheck",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "typecheck"
+        ]
+      },
+      {
+        "name": "tests",
+        "retries": 2,
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "tests"
+        ]
+      }
+    ]
+  }
+}

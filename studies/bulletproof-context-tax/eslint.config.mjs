@@ -1,0 +1,1 @@
+../bulletproof-40-rules/eslint.config.mjs
