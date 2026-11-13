@@ -22,7 +22,6 @@ It was built to test the claims behind [codemyrules](https://github.com/clirimaj
 
 Public data: 792 runs (899 headless sessions, counting review fixes) on three open-source projects in Java, Python and TypeScript; every setup, prompt, session, diff and log is in `studies/`.
 200 runs are exploratory (four studies), 592 confirmatory (four studies, each with an [analysis plan](studies/analysis-plan.md) committed before its runs).
-An internal Kotlin/Spring pilot (124 sessions, aggregate numbers only, see [studies/internal-backend](studies/internal-backend/README.md)) shaped the design and is not part of any pooled number.
 
 Exploratory, pooled over the 152 runs that compare text with the lint rule + pointer + loop ([studies/pooled.md](studies/pooled.md)):
 - **When the convention is written somewhere the agent can miss** (a doc linked from `CLAUDE.md`, or one bullet in long docs), the agent broke it in 17 of 56 runs.
@@ -125,3 +124,8 @@ None of these compares where a rule lives, with rule compliance and fix-round co
 - Three public projects, seven rules and two tasks per project, with 8 runs per setup and model and a wide spread; the tasks are designed so that copying nearby code breaks a rule, so break rates are an upper bound for everyday work.
 - The review-fix round is idealised: one precise prompt, no human time, no CI round trip.
 - Rule breaks are counted with the study's own checkers on added lines, so a checker's blind spots are the study's blind spots.
+
+## License
+
+The harness, the study setups and the results are under the [MIT license](LICENSE).
+The studied projects keep their own licenses; `prepare` clones them from their public repositories.
