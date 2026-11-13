@@ -11,12 +11,15 @@
 \usepackage{amsmath}
 \usepackage[numbers,sort&compress]{natbib}
 \usepackage{xcolor}
+\usepackage{float}
+\usepackage{xurl}
 \usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
 
 \input{generated/macros.tex}
 % \input is not expandable inside a tabular, so a rule after it fails; the primitive is.
 \makeatletter\let\rows\@@input\makeatother
 \emergencystretch=3em
+\raggedbottom
 
 \newcommand{\file}[1]{\texttt{#1}}
 \newcommand{\arm}[1]{\texttt{#1}}
@@ -149,6 +152,14 @@ Two further arms take the \arm{rules} arm apart.
 \arm{rule\_only} keeps the lint rules and the loop but removes the pointers.
 \arm{pointer\_only} keeps the pointers but removes the loop.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{generated/fig2-loop.pdf}
+\caption{The in-session feedback loop of the \arm{rules} arm. After each edit, a guard and the linter run on the edited file. A clean result costs no tokens. A violation returns a message with the fix, and the agent usually fixes it in the same turn. A full check runs at the end of each turn.}
+\label{fig:loop}
+\end{figure}
+
+
 We separate two kinds of rules.
 A \emph{mechanical} rule changes one expression, for example \texttt{status.HTTP\_404\_NOT\_FOUND} instead of \texttt{status\_code=404}.
 A \emph{design-shaping} rule changes where code goes, for example a success notification in the mutation hook instead of in the component.
@@ -158,13 +169,6 @@ The pointer exists for this second kind, because it tells the agent the right sh
 
 The \arm{rules} arm is the setup that the open-source tool codemyrules installs.
 The author of this paper also wrote codemyrules (see the conflict-of-interest statement).
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{generated/fig2-loop.pdf}
-\caption{The in-session feedback loop of the \arm{rules} arm. After each edit, a guard and the linter run on the edited file. A clean result costs no tokens. A violation returns a message with the fix, and the agent usually fixes it in the same turn. A full check runs at the end of each turn.}
-\label{fig:loop}
-\end{figure}
 
 \section{Method}
 \label{sec:method}
@@ -183,7 +187,7 @@ If a run violated a rule, one more session gives the agent precise review feedba
 \textbf{summarize}, \textbf{compare} and \textbf{pool} produce the statistics.
 The harness needs only Node.js and git, and its own test suite runs against a fake agent.
 
-\begin{figure}[t]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{generated/fig3-bench.pdf}
 \caption{One run in agent-rules-bench. Every session starts from a fresh copy of its arm. A run that violated a rule gets one review-fix session.}
@@ -192,7 +196,13 @@ The harness needs only Node.js and git, and its own test suite runs against a fa
 
 \subsection{Projects, rules and tasks}
 
-\begin{table}[t]
+Table~\ref{tab:projects} lists the three public projects.
+In each project the existing code already violates the rules: jhipster calls \texttt{Instant.now()} 7 times, the FastAPI routes call the database session 32 times, and all 7 bulletproof-react feature components with a mutation call the notification hook themselves.
+An agent that copies nearby code therefore violates the rule.
+We chose this design on purpose, because it makes a missed rule visible.
+It also means that our violation rates are an upper bound for everyday work (Section~\ref{sec:threats}).
+
+\begin{table}[H]
 \centering
 \small
 \caption{Projects and rules. D = design-shaping, M = mechanical.}
@@ -208,11 +218,6 @@ bulletproof-react (TypeScript, ESLint) & D: success notifications in the mutatio
 \end{tabularx}
 \end{table}
 
-Table~\ref{tab:projects} lists the three public projects.
-In each project the existing code already violates the rules: jhipster calls \texttt{Instant.now()} 7 times, the FastAPI routes call the database session 32 times, and all 7 bulletproof-react feature components with a mutation call the notification hook themselves.
-An agent that copies nearby code therefore violates the rule.
-We chose this design on purpose, because it makes a missed rule visible.
-It also means that our violation rates are an upper bound for everyday work (Section~\ref{sec:threats}).
 
 Plans 4 and 5 use a list of 40 conventions for bulletproof-react.
 The conventions cover architecture, the API layer, authorization, UI, routing, TypeScript, files and the mock API.
@@ -270,7 +275,9 @@ A script generates every table and every number in this paper from the published
 
 \subsection{Exploratory studies}
 
-\begin{table}[t]
+Table~\ref{tab:pooled} pools the four exploratory studies, and Appendix~\ref{app:per} lists each comparison.
+
+\begin{table}[H]
 \centering
 \small
 \caption{Exploratory studies: \arm{rules} against prose. Cost change is rules/prose with a 95\% bootstrap interval; violating = runs with a violation after the task. One FastAPI comparison is excluded, because those Sonnet runs skipped the linked documents and wrote no tests, so they did less work. With it, always-loaded prose vs.\ rules is +10\% ($-$1\% to +22\%) for all models. Violations in jhipster-buried include new test files, which its documents did not cover; in production code only, its prose arms violated the rule in 0/8 (Sonnet) and 3/8 (Haiku) runs, so prose the agent can miss was violated in 11/56 runs.}
@@ -284,7 +291,6 @@ Rule location & Model & Cells & Prose violating & Rules violating & Cost & 95\% 
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:pooled} pools the four exploratory studies, and Appendix~\ref{app:per} lists each comparison.
 
 \paragraph{Prose that the agent can miss.}
 When the rule was in linked or buried prose, the agent violated it in \PoolMissProse{} runs.
@@ -305,7 +311,12 @@ Always-loaded text can change what else the agent reads.
 
 \subsection{Pre-registered studies}
 
-\begin{table}[t]
+The five pre-registered studies test the ideas that the exploratory studies gave us.
+Table~\ref{tab:hyp} gives every pre-registered hypothesis with its result.
+Of the nine hypotheses that we could test, three are supported.
+H3 has no test by design, and H4 could not be tested.
+
+\begin{table}[H]
 \centering
 \footnotesize
 \setlength{\tabcolsep}{4pt}
@@ -320,10 +331,6 @@ Always-loaded text can change what else the agent reads.
 \end{tabularx}
 \end{table}
 
-The five pre-registered studies test the ideas that the exploratory studies gave us.
-Table~\ref{tab:hyp} gives every pre-registered hypothesis with its result.
-Of the nine hypotheses that we could test, three are supported.
-H3 has no test by design, and H4 could not be tested.
 We report the other six in full, because a null result here is also information for practice.
 
 \paragraph{What the loop and the pointer do (Plan 1, 144 runs).}
@@ -379,7 +386,10 @@ This is close to the price that the token counts predict, and it is too small to
 
 \subsection{Descriptive and post hoc comparisons}
 
-\begin{table}[t]
+Table~\ref{tab:desc} lists the comparisons that the plans name as descriptive.
+Two of them matter for the discussion.
+
+\begin{table}[H]
 \centering
 \footnotesize
 \setlength{\tabcolsep}{3pt}
@@ -394,8 +404,6 @@ Comparison & Arms & Violating & $p$ & Cost [95\% CI] \\
 \end{tabularx}
 \end{table}
 
-Table~\ref{tab:desc} lists the comparisons that the plans name as descriptive.
-Two of them matter for the discussion.
 
 First, the same rule sentence was followed in the short file and violated in the large file (3 of 16 runs, all Haiku).
 This points to dilution, but the difference is not significant.
@@ -413,7 +421,11 @@ The \NVerifyFail{} failures are type errors and compile errors that are unrelate
 
 \subsection{Other agents and a local model}
 
-\begin{table}[t]
+Table~\ref{tab:local} shows \NLocalRuns{} exploratory runs with a local model in pi and Codex.
+These agents load only the root \file{AGENTS.md} by themselves and never load a folder-level pointer.
+In these runs, \arm{prose\_buried} therefore means documents that the agent must find without help.
+
+\begin{table}[H]
 \centering
 \small
 \caption{Exploratory: a local model (qwen3.6, 35B, quantized) in pi and Codex on bulletproof-react, 8 runs per cell. $p$: one-sided Fisher against \arm{rules}.}
@@ -427,9 +439,6 @@ Agent & Arm & Violating & $p$ & Mean turns \\
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:local} shows \NLocalRuns{} exploratory runs with a local model in pi and Codex.
-These agents load only the root \file{AGENTS.md} by themselves and never load a folder-level pointer.
-In these runs, \arm{prose\_buried} therefore means documents that the agent must find without help.
 
 With prose in documents, every run violated the design-shaping rule in both agents.
 With lint rules and the loop, pi had no violating run and Codex had one.
@@ -552,7 +561,7 @@ The author reviewed all code, analyses and text, and is responsible for the cont
 \section{Exploratory Comparisons}
 \label{app:per}
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \footnotesize
 \setlength{\tabcolsep}{2.4pt}

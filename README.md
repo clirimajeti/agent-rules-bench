@@ -127,5 +127,8 @@ None of these compares where a rule lives, with rule compliance and fix-round co
 
 ## License
 
-The harness, the study setups and the results are under the [MIT license](LICENSE).
-The studied projects keep their own licenses; `prepare` clones them from their public repositories.
+- Code is under the [MIT license](LICENSE): the harness in `bench/`, the study setups (`study.json`, `arms/`, `rules/`, checkers), `skill-eval/` and the scripts in `paper/`.
+- Results and text are under [CC BY 4.0](LICENSE-CC-BY-4.0): everything in `studies/*/results/`, the result and plan documents in `studies/*.md`, and the paper source in `paper/`.
+  If you reuse them, cite the paper.
+- The studied projects keep their own licenses.
+  `prepare` clones them from their public repositories, and the diffs in the results contain parts of their code.
