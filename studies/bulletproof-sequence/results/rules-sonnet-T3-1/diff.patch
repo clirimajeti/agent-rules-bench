@@ -1,0 +1,625 @@
+diff --git a/apps/react-vite/src/app/routes/app/profile.tsx b/apps/react-vite/src/app/routes/app/profile.tsx
+index a84b9a4..3cedb10 100644
+--- a/apps/react-vite/src/app/routes/app/profile.tsx
++++ b/apps/react-vite/src/app/routes/app/profile.tsx
+@@ -1,4 +1,5 @@
+ import { ContentLayout } from '@/components/layouts';
++import { TeamSection } from '@/features/teams/components/team-section';
+ import { UpdateProfile } from '@/features/users/components/update-profile';
+ import { useUser } from '@/lib/auth';
+ 
+@@ -44,6 +45,7 @@ const ProfileRoute = () => {
+           </dl>
+         </div>
+       </div>
++      <TeamSection />
+     </ContentLayout>
+   );
+ };
+diff --git a/apps/react-vite/src/features/comments/api/update-comment.ts b/apps/react-vite/src/features/comments/api/update-comment.ts
+new file mode 100644
+index 0000000..31742c0
+--- /dev/null
++++ b/apps/react-vite/src/features/comments/api/update-comment.ts
+@@ -0,0 +1,55 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { useNotifications } from '@/components/ui/notifications';
++import { api } from '@/lib/api-client';
++import { MutationConfig } from '@/lib/react-query';
++import { Comment } from '@/types/api';
++
++import { getInfiniteCommentsQueryOptions } from './get-comments';
++
++export const updateCommentInputSchema = z.object({
++  body: z.string().min(1, 'Required'),
++});
++
++export type UpdateCommentInput = z.infer<typeof updateCommentInputSchema>;
++
++export const updateComment = ({
++  data,
++  commentId,
++}: {
++  data: UpdateCommentInput;
++  commentId: string;
++}): Promise<Comment> => {
++  return api.patch(`/comments/${commentId}`, data);
++};
++
++type UseUpdateCommentOptions = {
++  discussionId: string;
++  mutationConfig?: MutationConfig<typeof updateComment>;
++};
++
++export const useUpdateComment = ({
++  mutationConfig,
++  discussionId,
++}: UseUpdateCommentOptions) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      queryClient.invalidateQueries({
++        queryKey: getInfiniteCommentsQueryOptions(discussionId).queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'Comment Updated',
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateComment,
++  });
++};
+diff --git a/apps/react-vite/src/features/comments/components/comments-list.tsx b/apps/react-vite/src/features/comments/components/comments-list.tsx
+index ee30725..cab6713 100644
+--- a/apps/react-vite/src/features/comments/components/comments-list.tsx
++++ b/apps/react-vite/src/features/comments/components/comments-list.tsx
+@@ -11,6 +11,7 @@ import { formatDate } from '@/utils/format';
+ import { useInfiniteComments } from '../api/get-comments';
+ 
+ import { DeleteComment } from './delete-comment';
++import { UpdateComment } from './update-comment';
+ 
+ type CommentsListProps = {
+   discussionId: string;
+@@ -69,7 +70,21 @@ export const CommentsList = ({ discussionId }: CommentsListProps) => {
+                     </span>
+                   )}
+                 </div>
+-                <DeleteComment discussionId={discussionId} id={comment.id} />
++                <div className="flex gap-2">
++                  <Authorization
++                    policyCheck={POLICIES['comment:update'](
++                      user.data as User,
++                      comment,
++                    )}
++                  >
++                    <UpdateComment
++                      discussionId={discussionId}
++                      id={comment.id}
++                      body={comment.body}
++                    />
++                  </Authorization>
++                  <DeleteComment discussionId={discussionId} id={comment.id} />
++                </div>
+               </div>
+             </Authorization>
+ 
+diff --git a/apps/react-vite/src/features/comments/components/update-comment.tsx b/apps/react-vite/src/features/comments/components/update-comment.tsx
+new file mode 100644
+index 0000000..403cd3b
+--- /dev/null
++++ b/apps/react-vite/src/features/comments/components/update-comment.tsx
+@@ -0,0 +1,64 @@
++import { Pen } from 'lucide-react';
++
++import { Button } from '@/components/ui/button';
++import { Form, FormDrawer, Textarea } from '@/components/ui/form';
++
++import {
++  updateCommentInputSchema,
++  useUpdateComment,
++} from '../api/update-comment';
++
++type UpdateCommentProps = {
++  id: string;
++  body: string;
++  discussionId: string;
++};
++
++export const UpdateComment = ({
++  id,
++  body,
++  discussionId,
++}: UpdateCommentProps) => {
++  const updateCommentMutation = useUpdateComment({ discussionId });
++  const formId = `update-comment-${id}`;
++
++  return (
++    <FormDrawer
++      isDone={updateCommentMutation.isSuccess}
++      triggerButton={
++        <Button size="sm" variant="outline" icon={<Pen className="size-4" />}>
++          Edit Comment
++        </Button>
++      }
++      title="Edit Comment"
++      submitButton={
++        <Button
++          isLoading={updateCommentMutation.isPending}
++          form={formId}
++          type="submit"
++          size="sm"
++          disabled={updateCommentMutation.isPending}
++        >
++          Submit
++        </Button>
++      }
++    >
++      <Form
++        id={formId}
++        onSubmit={(values) => {
++          updateCommentMutation.mutate({ data: values, commentId: id });
++        }}
++        schema={updateCommentInputSchema}
++        options={{ defaultValues: { body } }}
++      >
++        {({ register, formState }) => (
++          <Textarea
++            label="Body"
++            error={formState.errors['body']}
++            registration={register('body')}
++          />
++        )}
++      </Form>
++    </FormDrawer>
++  );
++};
+diff --git a/apps/react-vite/src/features/teams/api/update-team.ts b/apps/react-vite/src/features/teams/api/update-team.ts
+new file mode 100644
+index 0000000..50dcf60
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/api/update-team.ts
+@@ -0,0 +1,53 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { useNotifications } from '@/components/ui/notifications';
++import { api } from '@/lib/api-client';
++import { MutationConfig } from '@/lib/react-query';
++import { Team } from '@/types/api';
++
++import { getTeamsQueryOptions } from './get-teams';
++
++export const updateTeamInputSchema = z.object({
++  name: z.string().min(1, 'Required'),
++});
++
++export type UpdateTeamInput = z.infer<typeof updateTeamInputSchema>;
++
++export const updateTeam = ({
++  teamId,
++  data,
++}: {
++  teamId: string;
++  data: UpdateTeamInput;
++}): Promise<Team> => {
++  return api.patch(`/teams/${teamId}`, data);
++};
++
++type UseUpdateTeamOptions = {
++  mutationConfig?: MutationConfig<typeof updateTeam>;
++};
++
++export const useUpdateTeam = ({
++  mutationConfig,
++}: UseUpdateTeamOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      queryClient.invalidateQueries({
++        queryKey: getTeamsQueryOptions().queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'Team Renamed',
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateTeam,
++  });
++};
+diff --git a/apps/react-vite/src/features/teams/components/rename-team.tsx b/apps/react-vite/src/features/teams/components/rename-team.tsx
+new file mode 100644
+index 0000000..39fa359
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/components/rename-team.tsx
+@@ -0,0 +1,54 @@
++import { Pen } from 'lucide-react';
++
++import { Button } from '@/components/ui/button';
++import { Form, FormDrawer, Input } from '@/components/ui/form';
++
++import { updateTeamInputSchema, useUpdateTeam } from '../api/update-team';
++
++type RenameTeamProps = {
++  teamId: string;
++  currentName: string;
++};
++
++export const RenameTeam = ({ teamId, currentName }: RenameTeamProps) => {
++  const updateTeamMutation = useUpdateTeam();
++
++  return (
++    <FormDrawer
++      isDone={updateTeamMutation.isSuccess}
++      triggerButton={
++        <Button icon={<Pen className="size-4" />} size="sm">
++          Rename
++        </Button>
++      }
++      title="Rename Team"
++      submitButton={
++        <Button
++          form="rename-team"
++          type="submit"
++          size="sm"
++          isLoading={updateTeamMutation.isPending}
++        >
++          Submit
++        </Button>
++      }
++    >
++      <Form
++        id="rename-team"
++        onSubmit={(values) => {
++          updateTeamMutation.mutate({ teamId, data: values });
++        }}
++        options={{ defaultValues: { name: currentName } }}
++        schema={updateTeamInputSchema}
++      >
++        {({ register, formState }) => (
++          <Input
++            label="Team Name"
++            error={formState.errors['name']}
++            registration={register('name')}
++          />
++        )}
++      </Form>
++    </FormDrawer>
++  );
++};
+diff --git a/apps/react-vite/src/features/teams/components/team-section.tsx b/apps/react-vite/src/features/teams/components/team-section.tsx
+new file mode 100644
+index 0000000..ded5763
+--- /dev/null
++++ b/apps/react-vite/src/features/teams/components/team-section.tsx
+@@ -0,0 +1,38 @@
++import { useUser } from '@/lib/auth';
++import { Authorization, ROLES } from '@/lib/authorization';
++
++import { useTeams } from '../api/get-teams';
++
++import { RenameTeam } from './rename-team';
++
++export const TeamSection = () => {
++  const user = useUser();
++  const teamsQuery = useTeams();
++
++  const team = teamsQuery.data?.data.find((t) => t.id === user.data?.teamId);
++
++  if (!team) return null;
++
++  return (
++    <div className="mt-6 overflow-hidden bg-white shadow sm:rounded-lg">
++      <div className="px-4 py-5 sm:px-6">
++        <div className="flex justify-between">
++          <h3 className="text-lg font-medium leading-6 text-gray-900">Team</h3>
++          <Authorization allowedRoles={[ROLES.ADMIN]}>
++            <RenameTeam teamId={team.id} currentName={team.name} />
++          </Authorization>
++        </div>
++      </div>
++      <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
++        <dl className="sm:divide-y sm:divide-gray-200">
++          <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 sm:py-5">
++            <dt className="text-sm font-medium text-gray-500">Team Name</dt>
++            <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
++              {team.name}
++            </dd>
++          </div>
++        </dl>
++      </div>
++    </div>
++  );
++};
+diff --git a/apps/react-vite/src/features/users/api/update-user-role.ts b/apps/react-vite/src/features/users/api/update-user-role.ts
+new file mode 100644
+index 0000000..790375d
+--- /dev/null
++++ b/apps/react-vite/src/features/users/api/update-user-role.ts
+@@ -0,0 +1,53 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { useNotifications } from '@/components/ui/notifications';
++import { api } from '@/lib/api-client';
++import { MutationConfig } from '@/lib/react-query';
++import { User } from '@/types/api';
++
++import { getUsersQueryOptions } from './get-users';
++
++export const updateUserRoleInputSchema = z.object({
++  role: z.enum(['ADMIN', 'USER']),
++});
++
++export type UpdateUserRoleInput = z.infer<typeof updateUserRoleInputSchema>;
++
++export const updateUserRole = ({
++  userId,
++  data,
++}: {
++  userId: string;
++  data: UpdateUserRoleInput;
++}): Promise<User> => {
++  return api.patch(`/users/${userId}/role`, data);
++};
++
++type UseUpdateUserRoleOptions = {
++  mutationConfig?: MutationConfig<typeof updateUserRole>;
++};
++
++export const useUpdateUserRole = ({
++  mutationConfig,
++}: UseUpdateUserRoleOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      queryClient.invalidateQueries({
++        queryKey: getUsersQueryOptions().queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: 'User Role Updated',
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: updateUserRole,
++  });
++};
+diff --git a/apps/react-vite/src/features/users/components/update-user-role.tsx b/apps/react-vite/src/features/users/components/update-user-role.tsx
+new file mode 100644
+index 0000000..0a3b583
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/update-user-role.tsx
+@@ -0,0 +1,36 @@
++import { User } from '@/types/api';
++
++import {
++  UpdateUserRoleInput,
++  updateUserRoleInputSchema,
++  useUpdateUserRole,
++} from '../api/update-user-role';
++
++type UpdateUserRoleProps = {
++  id: string;
++  role: User['role'];
++};
++
++export const UpdateUserRole = ({ id, role }: UpdateUserRoleProps) => {
++  const updateUserRoleMutation = useUpdateUserRole();
++
++  return (
++    <select
++      aria-label="Role"
++      className="block rounded-md border-gray-600 py-1 pl-3 pr-8 text-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
++      value={role}
++      disabled={updateUserRoleMutation.isPending}
++      onChange={(e) => {
++        const parsed = updateUserRoleInputSchema.safeParse({
++          role: e.target.value,
++        });
++        if (!parsed.success) return;
++        const data: UpdateUserRoleInput = parsed.data;
++        updateUserRoleMutation.mutate({ userId: id, data });
++      }}
++    >
++      <option value="ADMIN">ADMIN</option>
++      <option value="USER">USER</option>
++    </select>
++  );
++};
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..526feb8 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -5,6 +5,7 @@ import { formatDate } from '@/utils/format';
+ import { useUsers } from '../api/get-users';
+ 
+ import { DeleteUser } from './delete-user';
++import { UpdateUserRole } from './update-user-role';
+ 
+ export const UsersList = () => {
+   const usersQuery = useUsers();
+@@ -40,6 +41,9 @@ export const UsersList = () => {
+         {
+           title: 'Role',
+           field: 'role',
++          Cell({ entry: { id, role } }) {
++            return <UpdateUserRole id={id} role={role} />;
++          },
+         },
+         {
+           title: 'Created At',
+diff --git a/apps/react-vite/src/lib/authorization.tsx b/apps/react-vite/src/lib/authorization.tsx
+index 563fca3..86c7372 100644
+--- a/apps/react-vite/src/lib/authorization.tsx
++++ b/apps/react-vite/src/lib/authorization.tsx
+@@ -23,6 +23,9 @@ export const POLICIES = {
+ 
+     return false;
+   },
++  'comment:update': (user: User, comment: Comment) => {
++    return comment.author?.id === user.id;
++  },
+ };
+ 
+ export const useAuthorization = () => {
+diff --git a/apps/react-vite/src/testing/mocks/handlers/comments.ts b/apps/react-vite/src/testing/mocks/handlers/comments.ts
+index 5d3678c..fce9e42 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/comments.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/comments.ts
+@@ -95,6 +95,36 @@ export const commentsHandlers = [
+     }
+   }),
+ 
++  http.patch(
++    `${env.API_URL}/comments/:commentId`,
++    async ({ request, params, cookies }) => {
++      await networkDelay();
++
++      try {
++        const { user, error } = requireAuth(cookies);
++        if (error) {
++          return HttpResponse.json({ message: error }, { status: 401 });
++        }
++        const data = (await request.json()) as { body: string };
++        const commentId = params.commentId as string;
++        const result = db.comment.update({
++          where: {
++            id: { equals: commentId },
++            authorId: { equals: user?.id },
++          },
++          data,
++        });
++        await persistDb('comment');
++        return HttpResponse.json(result);
++      } catch (error: any) {
++        return HttpResponse.json(
++          { message: error?.message || 'Server Error' },
++          { status: 500 },
++        );
++      }
++    },
++  ),
++
+   http.delete(
+     `${env.API_URL}/comments/:commentId`,
+     async ({ params, cookies }) => {
+diff --git a/apps/react-vite/src/testing/mocks/handlers/teams.ts b/apps/react-vite/src/testing/mocks/handlers/teams.ts
+index cbec607..bb11dc5 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/teams.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/teams.ts
+@@ -2,8 +2,8 @@ import { HttpResponse, http } from 'msw';
+ 
+ import { env } from '@/config/env';
+ 
+-import { db } from '../db';
+-import { networkDelay } from '../utils';
++import { db, persistDb } from '../db';
++import { networkDelay, requireAdmin, requireAuth } from '../utils';
+ 
+ export const teamsHandlers = [
+   http.get(`${env.API_URL}/teams`, async () => {
+@@ -19,4 +19,38 @@ export const teamsHandlers = [
+       );
+     }
+   }),
++
++  http.patch(
++    `${env.API_URL}/teams/:teamId`,
++    async ({ request, cookies, params }) => {
++      await networkDelay();
++
++      try {
++        const { user, error } = requireAuth(cookies);
++        if (error) {
++          return HttpResponse.json({ message: error }, { status: 401 });
++        }
++        requireAdmin(user);
++        const teamId = params.teamId as string;
++        if (user?.teamId !== teamId) {
++          return HttpResponse.json(
++            { message: 'Unauthorized' },
++            { status: 401 },
++          );
++        }
++        const { name } = (await request.json()) as { name: string };
++        const result = db.team.update({
++          where: { id: { equals: teamId } },
++          data: { name },
++        });
++        await persistDb('team');
++        return HttpResponse.json(result);
++      } catch (error: any) {
++        return HttpResponse.json(
++          { message: error?.message || 'Server Error' },
++          { status: 500 },
++        );
++      }
++    },
++  ),
+ ];
+diff --git a/apps/react-vite/src/testing/mocks/handlers/users.ts b/apps/react-vite/src/testing/mocks/handlers/users.ts
+index 444b918..46db959 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/users.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/users.ts
+@@ -72,6 +72,41 @@ export const usersHandlers = [
+     }
+   }),
+ 
++  http.patch(
++    `${env.API_URL}/users/:userId/role`,
++    async ({ request, cookies, params }) => {
++      await networkDelay();
++
++      try {
++        const { user, error } = requireAuth(cookies);
++        if (error) {
++          return HttpResponse.json({ message: error }, { status: 401 });
++        }
++        requireAdmin(user);
++        const userId = params.userId as string;
++        const { role } = (await request.json()) as { role: 'ADMIN' | 'USER' };
++        const result = db.user.update({
++          where: {
++            id: {
++              equals: userId,
++            },
++            teamId: {
++              equals: user?.teamId,
++            },
++          },
++          data: { role },
++        });
++        await persistDb('user');
++        return HttpResponse.json(result ? sanitizeUser(result) : result);
++      } catch (error: any) {
++        return HttpResponse.json(
++          { message: error?.message || 'Server Error' },
++          { status: 500 },
++        );
++      }
++    },
++  ),
++
+   http.delete(`${env.API_URL}/users/:userId`, async ({ cookies, params }) => {
+     await networkDelay();
+ 
