@@ -18,20 +18,14 @@ case "$1" in
       pnpm exec turbo run build --filter="@formbricks/web^..." --output-logs=errors-only' ;;
   # typegen validates the env and needs a REDIS_URL (any value; nothing connects); the tests keep the CI .env's empty one
   typecheck) in_container 'cd apps/web && REDIS_URL=redis://localhost:6379 pnpm typecheck' ;;
-  # Only the tests related to the files the run changed. Vitest's JSON report decides: a failing test file that
-  # also fails on the unchanged commit (baseline-failing-tests.txt) does not count.
+  # Only the tests related to the files the run changed. Vitest's JSON report decides (verify-tests.mjs): a failing
+  # test file that also fails on the unchanged commit (baseline-failing-tests.txt) does not count. The file list
+  # goes in as a file, since Next.js paths hold shell characters such as "(app)" and "[workspaceId]".
   tests)
-    files=$(cd "$BENCH_CHECKOUT" && { git diff --name-only HEAD; git ls-files --others --exclude-standard; } | grep -E '^apps/web/.*\.(ts|tsx)$' | sed 's|^apps/web/||' | sort -u | tr '\n' ' ')
-    [ -n "$files" ] || { echo "no changed web files"; exit 0; }
+    (cd "$BENCH_CHECKOUT" && { git diff --name-only HEAD; git ls-files --others --exclude-standard; } | grep -E '^apps/web/.*\.(ts|tsx)$' | sed 's|^apps/web/||' | sort -u) > "$BENCH_CHECKOUT/.verify-files.txt" || true
+    [ -s "$BENCH_CHECKOUT/.verify-files.txt" ] || { echo "no changed web files"; exit 0; }
     cp "$BENCH_STUDY_DIR/baseline-failing-tests.txt" "$BENCH_CHECKOUT/.verify-baseline.txt"
-    in_container "cd apps/web && { pnpm exec dotenv -e ../../.env -- vitest related --run --passWithNoTests --reporter=default --reporter=json --outputFile=/repo/.verify-vitest.json $files || true; } && node -e '
-      const fs = require(\"fs\");
-      const base = new Set(fs.readFileSync(\"/repo/.verify-baseline.txt\", \"utf8\").split(\"\\n\").filter(Boolean));
-      const r = JSON.parse(fs.readFileSync(\"/repo/.verify-vitest.json\", \"utf8\"));
-      const failed = r.testResults.filter((t) => t.status !== \"passed\").map((t) => t.name.split(\"/apps/web/\")[1]);
-      const fresh = failed.filter((f) => !base.has(f));
-      console.log(\"related test files: \" + r.testResults.length + \", failing: \" + failed.length + \", outside the baseline: \" + fresh.length);
-      for (const f of fresh) console.log(\"  \" + f);
-      process.exit(fresh.length ? 1 : 0);'" ;;
+    cp "$BENCH_STUDY_DIR/verify-tests.mjs" "$BENCH_CHECKOUT/.verify-tests.mjs"
+    in_container 'cd apps/web && mapfile -t F < /repo/.verify-files.txt && rm -f /repo/.verify-vitest.json && { pnpm exec dotenv -e ../../.env -- vitest related --run --passWithNoTests --reporter=default --reporter=json --outputFile=/repo/.verify-vitest.json "${F[@]}" || true; } && node /repo/.verify-tests.mjs /repo/.verify-vitest.json /repo/.verify-baseline.txt' ;;
   *) echo "unknown step $1" >&2; exit 2 ;;
 esac
