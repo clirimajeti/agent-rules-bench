@@ -1,6 +1,7 @@
 // Stand-in for `claude -p` in tests: writes rule-breaking code unless the arm has a .rules marker,
 // and removes the break when the prompt is review feedback. Prints a result JSON like Claude Code does.
 import fs from 'node:fs';
+if (process.argv.includes('--version')) { console.log('9.9.9 (Fake Code)'); process.exit(0); }
 const prompt = process.argv[process.argv.indexOf('-p') + 1];
 const fix = /Code review/.test(prompt);
 const file = 'src.ts';

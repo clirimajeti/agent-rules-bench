@@ -35,7 +35,8 @@ Copy [`_template/`](_template/) to `studies/<name>/` and fill it in.
 | `tasks` | the prompts; ids use letters, digits or `_` |
 | `arms` | one copy each; `setup` is a script run inside the fresh copy (env: `BENCH_COPY`, `BENCH_STUDY_DIR`, `BENCH_ARM`), `fix: true` gives runs that broke a rule one review-fix session |
 | `baselineArm` | the arm others are compared with; default the first |
-| `models` | Claude Code model aliases (`sonnet`, `haiku`, `opus`), or agent specs such as `{ "id": "qwen36", "agent": "pi", "model": "ollama/qwen3.6:35b-a3b-coding" }` (optional `baseUrl`, `timeoutSec`, and `maxTurns` to override the study's cap for that model); the `id` is the model's name in run ids and summaries |
+| `models` | Claude Code model aliases (`sonnet`, `haiku`, `opus`), or agent specs such as `{ "id": "qwen36", "agent": "pi", "model": "ollama/qwen3.6:35b-a3b-coding" }` (optional `baseUrl`, `timeoutSec`, `maxTurns` to override the study's cap for that model, and `price` as `{ "input", "cacheWrite", "cacheRead", "output" }` in USD per million tokens for an agent that reports tokens but no cost, such as Codex); the `id` is the model's name in run ids and summaries |
+| `seed` | optional integer: shuffles the runs (in a sequence study, the chains) with this seed, so the arms interleave in time and no arm gets its own time slot or warm prompt cache; the order is reproducible from the seed |
 | `repeats`, `maxTurns`, `allowedTools` | defaults 4, 30, and read/edit tools plus `git status`, `git diff`, `ls` |
 | `eval` | checkers run on changed files after each session, in ESLint, ast-grep or Ruff JSON format; `{files}` is replaced by the changed files, `{study}` by the study folder |
 | `fix.prompt` | the review feedback for fix sessions |
@@ -47,6 +48,7 @@ Copy [`_template/`](_template/) to `studies/<name>/` and fill it in.
 - **Neutral prompts**: describe the task only. "Follow the project's conventions" sends every arm to the docs and hides the difference.
 - **Same checkers for every arm**, kept in the study folder, not in the copies, so no arm is measured with its own rules.
 - **Arms differ in one thing** where possible; a second difference makes the result hard to read.
+- **A `seed` in every confirmatory study**, written into its analysis plan, so the run order is random and can be reproduced.
 - **Fresh copies of the same kind** for every arm: an earlier study found a cost difference that came from a differently prepared copy, not from the setup under test.
 - **At least 8 runs per arm and model**; the spread between runs of the same setup is large.
 - **Verify on the plain upstream code**: `verify` applies each run's patch to a clean checkout of the pinned commit, without any arm's setup, so every arm's code is built and tested the same way. Give test steps `retries` and read `flaky` in the summary: a suite that fails under load must not count against the agent. A step with `"setup": true` prepares the environment; when it fails, `verify` stops instead of blaming the run.

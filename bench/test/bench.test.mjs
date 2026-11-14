@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadStudy, validateStudy } from '../config.mjs';
 import { prepareStudy } from '../prepare.mjs';
-import { fixPrompt, runStudy } from '../run.mjs';
+import { costOf, fixPrompt, runStudy, shuffle } from '../run.mjs';
 import { aggregate, loadResults, summarizeStudy } from '../summarize.mjs';
 import { checkoutPath, verifyStudy } from '../verify.mjs';
 
@@ -390,4 +390,36 @@ test('a run whose review fix failed is not ok, so it is run again', async (t) =>
   t.after(() => delete process.env.FAKE_FIX_ERROR);
   const results = await runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: () => {} });
   assert.deepEqual(results.map((r) => [r.arm, r.ok]).sort(), [['prose', false], ['prose', false], ['rules', true], ['rules', true]]);
+});
+
+test('a seed shuffles the runs reproducibly, and every run records when it started and with which versions', async (t) => {
+  assert.deepEqual(shuffle([1, 2, 3, 4, 5, 6], 7), shuffle([1, 2, 3, 4, 5, 6], 7));
+  assert.notDeepEqual(shuffle([1, 2, 3, 4, 5, 6], 7), [1, 2, 3, 4, 5, 6]);
+  assert.deepEqual([...shuffle([1, 2, 3, 4, 5, 6], 7)].sort(), [1, 2, 3, 4, 5, 6]);
+  assert.match(validateStudy({ seed: -1 }, os.tmpdir()).join('\n'), /seed must be a non-negative integer/);
+
+  const { file } = setup(t, { seed: 42, repeats: 3 });
+  const study = loadStudy(file);
+  prepareStudy(study, () => {});
+  const order = [];
+  const results = await runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: (m) => order.push(m.split(':')[0]) });
+  assert.equal(results.length, 6);
+  // two copies run in parallel, so the log interleaves the arms either way; the seed fixes the order inside each copy
+  const ids = (arm) => order.filter((id) => id.startsWith(`${arm}-`));
+  assert.notDeepEqual(ids('prose'), ['prose-sonnet-T1-1', 'prose-sonnet-T1-2', 'prose-sonnet-T1-3']);
+  for (const r of results) {
+    assert.ok(!Number.isNaN(Date.parse(r.startedAt)));
+    assert.deepEqual(r.modelIds, ['sonnet']);
+    assert.equal(r.versions.agent.claude, '9.9.9 (Fake Code)');
+    assert.equal(r.versions.node, process.version);
+  }
+});
+
+test('costOf prices the tokens of an agent that reports no cost', () => {
+  const json = { total_cost_usd: 0, usage: { input_tokens: 1e6, cache_creation_input_tokens: 0, cache_read_input_tokens: 2e6, output_tokens: 1e5 } };
+  const price = { input: 1.25, cacheWrite: 0, cacheRead: 0.125, output: 10 };
+  assert.equal(costOf(json, { price }), 1.25 + 0.25 + 1);
+  assert.equal(costOf({ ...json, total_cost_usd: 0.3 }, { price }), 0.3); // the agent's own cost wins
+  assert.equal(costOf(json, {}), 0);
+  assert.match(validateStudy({ models: [{ id: 'gpt', agent: 'codex', model: 'openai/x', price: { input: 1 } }] }, os.tmpdir()).join('\n'), /price must give/);
 });

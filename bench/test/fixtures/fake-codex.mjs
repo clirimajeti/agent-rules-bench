@@ -1,6 +1,7 @@
 // Stand-in for `codex exec --json` in tests: edits like fake-claude, records its arguments and CODEX_HOME,
 // and prints Codex-style JSON events, including a warning item that must not fail the run.
 import fs from 'node:fs';
+if (process.argv.includes('--version')) { console.log('9.9.9 (fake codex)'); process.exit(0); }
 const prompt = process.argv.at(-1);
 const fix = /Code review/.test(prompt);
 let text = fs.existsSync('src.ts') ? fs.readFileSync('src.ts', 'utf8') : '';

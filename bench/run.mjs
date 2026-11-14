@@ -2,8 +2,9 @@
 // optionally runs a review-fix session and a build, and writes one result.json per run. Resumable: finished runs are skipped.
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { changedLines, onChangedLines, runLinters } from './lib/codemyrules-lib.mjs';
 import { copyPath } from './prepare.mjs';
 import { assertNoClaudeMemoryAbove } from './config.mjs';
@@ -110,6 +111,41 @@ const usageOf = (j) => {
   return { input: u.input_tokens ?? 0, cacheWrite: u.cache_creation_input_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0, output: u.output_tokens ?? 0 };
 };
 
+// The agent's own cost, or, for an agent that reports none (codex), the tokens at the model's study price.
+export function costOf(json, spec) {
+  if (!json) return 0;
+  if (json.total_cost_usd || !spec.price) return json.total_cost_usd ?? 0;
+  const u = usageOf(json);
+  return Object.keys(spec.price).reduce((n, k) => n + (u[k] * spec.price[k]) / 1e6, 0);
+}
+
+// The model ids the agent reports it used (Claude Code: modelUsage; pi: model), else the configured one.
+const modelIdsOf = (json, spec) => (json?.modelUsage ? Object.keys(json.modelUsage) : json?.model ? [json.model] : [spec.model]);
+
+// Seeded shuffle (mulberry32 + Fisher-Yates), so a study's run order is random and reproducible from its seed.
+export function shuffle(list, seed) {
+  let a = seed >>> 0;
+  const rand = () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+  return out;
+}
+
+// Versions that can change a result, recorded in every run: the harness commit, Node, and each agent's CLI.
+function versionsOf(cmds, agents) {
+  const harnessDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+  const commit = git(harnessDir, 'rev-parse', 'HEAD').stdout.trim() || null;
+  const dirty = git(harnessDir, 'status', '--porcelain', '--', 'bench').stdout.trim() !== '';
+  const agent = {};
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'arb-version-')); // never inside a copy or the harness
+  for (const a of agents) {
+    const r = spawnSync(cmds[a][0], [...cmds[a].slice(1), '--version'], { cwd, encoding: 'utf8', timeout: 30000 });
+    agent[a] = (r.stdout || r.stderr || '').trim().split('\n')[0] || null;
+  }
+  fs.rmSync(cwd, { recursive: true, force: true });
+  return { harness: commit && (dirty ? `${commit}-dirty` : commit), node: process.version, platform: `${process.platform}-${process.arch}`, agent };
+}
+
 // In a sequence study, a chain's later sessions continue on the code of the earlier ones: no reset before them,
 // and each session's result is committed, so the checks and the loop count only the lines it added.
 // The review names what the task broke: {broken} becomes one line per broken rule, in the words the study's
@@ -123,8 +159,9 @@ export async function fixPrompt(study, findings) {
 
 const sessionOk = (s) => s.json?.is_error === false || s.json?.subtype === 'error_max_turns';
 
-async function runOne(study, run, cmds, log, { first = true } = {}) {
+async function runOne(study, run, cmds, log, { first = true, versions = null } = {}) {
   const copy = run.copy;
+  const startedAt = new Date().toISOString();
   fs.mkdirSync(run.dir, { recursive: true });
   if (first) reset(copy);
   const task = await session(study, copy, run.spec, run.task.prompt, path.join(run.dir, 'task'), cmds);
@@ -152,8 +189,8 @@ async function runOne(study, run, cmds, log, { first = true } = {}) {
     ok: sessionOk(task) && (!fix || sessionOk(fix)),
     capped: task.json?.subtype === 'error_max_turns',
     turns: (task.json?.num_turns ?? 0) + (fix?.json?.num_turns ?? 0),
-    taskCost: task.json?.total_cost_usd ?? 0,
-    fixCost: fix?.json?.total_cost_usd ?? 0,
+    taskCost: costOf(task.json, run.spec),
+    fixCost: costOf(fix?.json, run.spec),
     usage: usageOf(task.json),
     fixUsage: fix ? usageOf(fix.json) : null,
     seconds: task.seconds + (fix?.seconds ?? 0),
@@ -166,6 +203,9 @@ async function runOne(study, run, cmds, log, { first = true } = {}) {
     changedFiles: final.changedFiles,
     hookCatches,
     build,
+    startedAt,
+    modelIds: modelIdsOf(task.json, run.spec),
+    versions,
   };
   fs.writeFileSync(path.join(run.dir, 'result.json'), JSON.stringify(result, null, 2) + '\n');
   if (study.sequence) {
@@ -196,22 +236,45 @@ export async function runStudy(study, { arms: onlyArms, models: onlyModels, dryR
   for (const copy of new Set(todo.map((r) => r.copy))) {
     if (git(copy, 'rev-parse', '-q', '--verify', 'bench-base').status !== 0) throw new Error(`${copy} is not prepared; run "prepare" first`);
   }
-  // Runs on one copy go one after another. Copies run in parallel, except those of agents on local models
-  // (pi, codex), which share one machine's model server and run one copy after another.
-  const byCopy = new Map();
-  for (const r of todo) byCopy.set(r.copy, [...(byCopy.get(r.copy) ?? []), r]);
-  const runCopy = async (list) => {
-    const out = [];
-    for (const r of list) out.push(await runOne(study, r, cmds, log, { first: !study.sequence || r.task.id === study.tasks[0].id }));
-    reset(list[0].copy);
-    return out;
-  };
-  const groups = [...byCopy.values()];
-  const isLocal = (g) => g[0].spec.agent !== 'claude';
-  const local = groups.filter(isLocal);
-  const results = await Promise.all([
-    ...groups.filter((g) => !isLocal(g)).map(runCopy),
-    (async () => { const out = []; for (const g of local) out.push(...(await runCopy(g))); return out; })(),
-  ]);
-  return results.flat();
+  const versions = versionsOf(cmds, [...new Set(todo.map((r) => r.spec.agent))]);
+  // The unit of work is a run, or in a sequence study a chain. With a seed the units are shuffled, so the arms
+  // interleave in time and no arm gets a time slot or a warm prompt cache of its own; without one they keep
+  // the planned order (arm by arm). A unit starts when its copy is free; agents on local models (pi, codex)
+  // share one machine's model server, so only one of their units runs at a time.
+  const units = [];
+  for (const r of todo) {
+    const last = units.at(-1);
+    if (study.sequence && last && chainOf(last[0]) === chainOf(r)) last.push(r);
+    else units.push([r]);
+  }
+  const queue = study.seed === undefined ? units : shuffle(units, study.seed);
+  const busy = new Set();
+  let localBusy = false;
+  const isLocal = (u) => u[0].spec.agent !== 'claude';
+  const results = [];
+  await new Promise((resolve, reject) => {
+    let running = 0;
+    const next = () => {
+      if (!queue.length && !running) return resolve();
+      for (let i = 0; i < queue.length; i++) {
+        const u = queue[i];
+        if (busy.has(u[0].copy) || (isLocal(u) && localBusy)) continue;
+        queue.splice(i--, 1);
+        busy.add(u[0].copy);
+        if (isLocal(u)) localBusy = true;
+        running++;
+        (async () => {
+          for (const r of u) results.push(await runOne(study, r, cmds, log, { first: !study.sequence || r.task.id === study.tasks[0].id, versions }));
+          reset(u[0].copy);
+        })().then(() => {
+          busy.delete(u[0].copy);
+          if (isLocal(u)) localBusy = false;
+          running--;
+          next();
+        }, reject);
+      }
+    };
+    next();
+  });
+  return results;
 }
