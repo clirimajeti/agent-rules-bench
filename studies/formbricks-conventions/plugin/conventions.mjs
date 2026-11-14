@@ -23,9 +23,14 @@ export const conventions = [
     id: 'no-new-server-actions', files: TS,
     source: line('AGENTS.md', SERVER_ACTIONS), prose: SERVER_ACTIONS,
     pointer: 'Server actions are legacy: do not add new ones; new backend work goes in an `/api/v3` route consumed with TanStack Query (enforced by lint).',
-    valid: [{ filename: f('app/api/v3/tags/route.ts'), code: 'export const GET = async () => Response.json({ data: [] });' }],
+    valid: [
+      { filename: f('app/api/v3/tags/route.ts'), code: 'export const GET = async () => Response.json({ data: [] });' },
+      { filename: f('modules/x/lib/service.ts'), code: 'export const rotate = async () => 1;' },
+    ],
     invalid: [
       { filename: f('modules/x/actions.ts'), code: '"use server";\nexport const updateXAction = async () => ({ data: 1 });' },
+      // the pilot's case: a new action added to an existing actions file, below its directive
+      { filename: f('modules/x/actions.ts'), code: '"use server";\nimport { z } from "zod";\nexport const rotateApiKeyAction = authenticatedActionClient.inputSchema(z.object({})).action(async () => 1);', line: 3 },
       { filename: f('modules/x/components/form.tsx'), code: 'export const Form = () => { async function save() { "use server"; } return null; };' },
     ],
   },

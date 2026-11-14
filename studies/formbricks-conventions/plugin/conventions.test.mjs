@@ -14,8 +14,9 @@ const eslint = new ESLint({ cwd: studyDir, overrideConfigFile: path.join(studyDi
 const lint = async (filename, code) => {
   const [r] = await eslint.lintText(code, { filePath: path.join(studyDir, filename) });
   assert.equal(r.messages.filter((m) => m.fatal).length, 0, `parse error in ${filename}: ${r.messages.map((m) => m.message).join('; ')}`);
-  return r.messages.map((m) => m.ruleId);
+  return r.messages;
 };
+const ids = async (filename, code) => (await lint(filename, code)).map((m) => m.ruleId);
 
 test('every convention has a unique id, its source line, examples and review text', () => {
   assert.equal(new Set(conventions.map((c) => c.id)).size, conventions.length);
@@ -34,12 +35,17 @@ test('every source line is in the pinned Formbricks docs, once', { skip: !proces
 });
 
 test('tests and stories are left alone', async () => {
-  assert.deepEqual(await lint('apps/web/modules/x/components/a.test.tsx', 'export const A = ({ d }: { d: Date }) => <p>{d.toLocaleDateString()}</p>;'), []);
+  assert.deepEqual(await ids('apps/web/modules/x/components/a.test.tsx', 'export const A = ({ d }: { d: Date }) => <p>{d.toLocaleDateString()}</p>;'), []);
 });
 
 for (const c of conventions) {
   test(c.id, async () => {
-    for (const v of c.valid) assert.ok(!(await lint(v.filename, v.code)).includes(`local/${c.id}`), `valid example flagged: ${v.code}`);
-    for (const v of c.invalid) assert.ok((await lint(v.filename, v.code)).includes(`local/${c.id}`), `invalid example not flagged: ${v.code}`);
+    for (const v of c.valid) assert.ok(!(await ids(v.filename, v.code)).includes(`local/${c.id}`), `valid example flagged: ${v.code}`);
+    for (const v of c.invalid) {
+      const hits = (await lint(v.filename, v.code)).filter((m) => m.ruleId === `local/${c.id}`);
+      assert.ok(hits.length, `invalid example not flagged: ${v.code}`);
+      // the checkers count only added lines, so the finding must be on the line that breaks the rule
+      if (v.line) assert.ok(hits.some((m) => m.line === v.line), `not flagged on line ${v.line}: ${v.code}`);
+    }
   });
 }

@@ -10,8 +10,16 @@ const fnName = (fn) => fn.id?.name ?? (fn.parent?.type === 'VariableDeclarator' 
 const isReadonly = (t) => t?.type === 'TSTypeReference' && t.typeName?.type === 'Identifier' && t.typeName.name === 'Readonly';
 
 const checks = {
-  // a "use server" directive, at the top of a file or inside a function
-  'no-new-server-actions': (report) => ({ 'ExpressionStatement[directive="use server"]': report }),
+  // a "use server" directive, at the top of a file or inside a function, and every export of a file whose top
+  // has one (each is a server action). The checkers count only added lines, so a new action in an existing
+  // actions file is a finding, and a change inside an existing action is not.
+  'no-new-server-actions': (report) => ({
+    'ExpressionStatement[directive="use server"]': report,
+    Program: (program) => {
+      if (!program.body.some((s) => s.directive === 'use server')) return;
+      for (const s of program.body) if (s.type === 'ExportNamedDeclaration' || s.type === 'ExportDefaultDeclaration') report(s);
+    },
+  }),
 
   // a function component (PascalCase name, renders JSX itself) whose typed first parameter is not Readonly<...>;
   // an untyped parameter (for example inside forwardRef) is left alone
