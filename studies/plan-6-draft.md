@@ -31,8 +31,8 @@ To check before registration: the counts above are rough `git grep` counts; each
 - `rules`: the same files without the convention lines; each convention is a lint rule with the in-session feedback loop, and each design-shaping convention has a one-line pointer.
   In formbricks the lines are removed from `AGENTS.md` and `CODING_STANDARDS.md` and nothing else changes.
 
-Open choice for the user: `rules` could keep the prose and add the lint rules (additive, what a team would do), instead of replacing it (what the earlier plans did).
-Replacing tests "where should the rule live"; adding tests "does a lint rule help on top of prose".
+The lint rules replace the prose; they are not added on top of it (decided 2026-11-14).
+This keeps the question of the paper, "where should the rule live", and keeps the arms comparable with Plans 1 to 5.
 
 ## Design
 
