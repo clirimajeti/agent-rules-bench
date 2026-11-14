@@ -23,3 +23,5 @@ FORMBRICKS_SRC=<checkout of fa28916> npm test                   # also: each sou
 
 `verify` needs Docker: every step runs in `node:24-bookworm` with only the checkout mounted (no credentials), installs with the frozen lockfile and `--ignore-scripts`, and runs the type check and the tests related to the changed files.
 The 8 test files in `baseline-failing-tests.txt` fail on the unchanged commit in the container (two full runs: 18 and 21 failing tests, so some are flaky) and are excluded.
+
+The pilot runs (16, never analysed) are in `results-pilot/`, with notes at the end of its `summary.md`.

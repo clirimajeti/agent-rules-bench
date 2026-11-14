@@ -1,0 +1,307 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..375e6c517 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,6 +1,7 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
++import { DownloadMyDataButton } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+ import {
+@@ -11,7 +12,9 @@ import {
+ } from "@/lib/constants";
+ import { getOrganizationsWhereUserIsSingleOwner } from "@/lib/organization/service";
+ import { getUser } from "@/lib/user/service";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
+ import { getTranslate } from "@/lingodotdev/server";
++import { AccountQueryClientProvider } from "@/modules/account/components/query-client-provider";
+ import { requiresPasswordConfirmationForAccountDeletion } from "@/modules/account/lib/account-deletion-auth";
+ import { getSession } from "@/modules/auth/lib/session";
+ import { LiteLicenseTip } from "@/modules/ee/license-check/components/lite-license-tip";
+@@ -24,6 +27,17 @@ import { PageContentWrapper } from "@/modules/ui/components/page-content-wrapper
+ import { PageHeader } from "@/modules/ui/components/page-header";
+ import { UpgradePrompt } from "@/modules/ui/components/upgrade-prompt";
+ 
++// Account activity is shown in UTC so the same instant reads the same for every user, whatever the server's time zone.
++const ACCOUNT_ACTIVITY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
++  year: "numeric",
++  month: "short",
++  day: "numeric",
++  hour: "numeric",
++  minute: "2-digit",
++  timeZone: "UTC",
++  timeZoneName: "short",
++};
++
+ const Page = async () => {
+   const isTwoFactorAuthEnabled = await getIsTwoFactorAuthEnabled();
+   const isMultiOrgEnabled = await getIsMultiOrgEnabled();
+@@ -99,6 +113,28 @@ const Page = async () => {
+             isPasswordResetEnabled={isPasswordResetEnabled}
+           />
+         </SettingsCard>
++
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <dl className="grid gap-4 text-sm sm:grid-cols-2">
++            <div>
++              <dt className="text-slate-500">{t("workspace.settings.profile.account_created")}</dt>
++              <dd className="font-medium text-slate-900">
++                {formatDateTimeForDisplay(user.createdAt, user.locale, ACCOUNT_ACTIVITY_DATE_OPTIONS)}
++              </dd>
++            </div>
++            <div>
++              <dt className="text-slate-500">{t("workspace.settings.profile.last_login")}</dt>
++              <dd className="font-medium text-slate-900">
++                {user.lastLoginAt
++                  ? formatDateTimeForDisplay(user.lastLoginAt, user.locale, ACCOUNT_ACTIVITY_DATE_OPTIONS)
++                  : t("workspace.settings.profile.never_signed_in")}
++              </dd>
++            </div>
++          </dl>
++        </SettingsCard>
++
+         {user.identityProvider === "email" && (
+           <SettingsCard
+             title={t("common.security")}
+@@ -108,6 +144,14 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.download_my_data")}
++          description={t("workspace.settings.profile.download_my_data_description")}>
++          <AccountQueryClientProvider>
++            <DownloadMyDataButton />
++          </AccountQueryClientProvider>
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx
+new file mode 100644
+index 000000000..5e74d6dd9
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx
+@@ -0,0 +1,43 @@
++"use client";
++
++import toast from "react-hot-toast";
++import { useTranslation } from "react-i18next";
++import { useUserDataExport } from "@/modules/account/hooks/use-user-data-export";
++import { Button } from "@/modules/ui/components/button";
++
++const DOWNLOAD_FILE_NAME = "formbricks-user-data.json";
++
++const saveJsonFile = (data: unknown, fileName: string) => {
++  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
++  const url = URL.createObjectURL(blob);
++  const link = document.createElement("a");
++  link.href = url;
++  link.download = fileName;
++  link.style.display = "none";
++  document.body.appendChild(link);
++  try {
++    link.click();
++  } finally {
++    link.remove();
++    // Revoked on the next task: some browsers read the URL only after `click()` has returned.
++    setTimeout(() => URL.revokeObjectURL(url), 0);
++  }
++};
++
++export const DownloadMyDataButton = () => {
++  const { t } = useTranslation();
++  const dataExport = useUserDataExport();
++
++  const handleDownload = () => {
++    dataExport.mutate(undefined, {
++      onSuccess: (data) => saveJsonFile(data, DOWNLOAD_FILE_NAME),
++      onError: () => toast.error(t("common.something_went_wrong_please_try_again")),
++    });
++  };
++
++  return (
++    <Button variant="secondary" size="sm" onClick={handleDownload} loading={dataExport.isPending}>
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
+diff --git a/apps/web/app/api/v3/account/data-export/route.ts b/apps/web/app/api/v3/account/data-export/route.ts
+new file mode 100644
+index 000000000..2ff344c23
+--- /dev/null
++++ b/apps/web/app/api/v3/account/data-export/route.ts
+@@ -0,0 +1,20 @@
++/**
++ * GET /api/v3/account/data-export - the signed-in user's own personal data (name, email, locale,
++ * notification settings and organization memberships) as JSON. Session-only: an API key belongs to a
++ * workspace, not to a person, so it must not export a user's data.
++ */
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { problemUnauthorized, successResponse } from "@/app/api/v3/lib/response";
++import { getUserDataExport } from "@/modules/account/lib/user-data-export";
++
++export const GET = withV3ApiWrapper({
++  auth: "session",
++  handler: async ({ authentication, requestId, instance }) => {
++    if (!authentication || !("user" in authentication) || !authentication.user?.id) {
++      return problemUnauthorized(requestId, "Session required", instance);
++    }
++
++    const data = await getUserDataExport(authentication.user.id);
++    return successResponse(data, { requestId });
++  },
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..ccedde5cf 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "When your account was created and when you last signed in.",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,11 +3753,15 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Download a JSON file with your name, email, locale, notification settings and organization memberships.",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
+         "lost_access": "Lost access",
++        "never_signed_in": "Never",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+         "permanent_removal_of_all_of_your_personal_information_and_data": "Permanent removal of all of your personal information and data",
+diff --git a/apps/web/modules/account/components/query-client-provider.tsx b/apps/web/modules/account/components/query-client-provider.tsx
+new file mode 100644
+index 000000000..ef76fd725
+--- /dev/null
++++ b/apps/web/modules/account/components/query-client-provider.tsx
+@@ -0,0 +1,16 @@
++"use client";
++
++import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
++import { type ReactNode, useState } from "react";
++
++/** Provider for the account profile's client components. Created once per mount, so the cache is not shared across requests. */
++export const AccountQueryClientProvider = ({ children }: Readonly<{ children: ReactNode }>) => {
++  const [queryClient] = useState(
++    () =>
++      new QueryClient({
++        defaultOptions: { queries: { refetchOnWindowFocus: false } },
++      })
++  );
++
++  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
++};
+diff --git a/apps/web/modules/account/hooks/use-user-data-export.ts b/apps/web/modules/account/hooks/use-user-data-export.ts
+new file mode 100644
+index 000000000..c234dcefe
+--- /dev/null
++++ b/apps/web/modules/account/hooks/use-user-data-export.ts
+@@ -0,0 +1,12 @@
++"use client";
++
++import { useMutation } from "@tanstack/react-query";
++import { fetchUserDataExport } from "@/modules/account/lib/api-client";
++import { accountKeys } from "@/modules/account/lib/query";
++
++/** Fetches the signed-in user's data export on demand. The caller decides what to do with the result. */
++export const useUserDataExport = () =>
++  useMutation({
++    mutationKey: accountKeys.dataExport(),
++    mutationFn: fetchUserDataExport,
++  });
+diff --git a/apps/web/modules/account/lib/api-client.ts b/apps/web/modules/account/lib/api-client.ts
+new file mode 100644
+index 000000000..d4f18310e
+--- /dev/null
++++ b/apps/web/modules/account/lib/api-client.ts
+@@ -0,0 +1,13 @@
++import { parseV3ApiError } from "@/modules/api/lib/v3-client";
++import type { TUserDataExport } from "./user-data-export";
++
++const ENDPOINT = "/api/v3/account/data-export";
++
++/** Client fetcher for the signed-in user's data export. */
++export async function fetchUserDataExport(): Promise<TUserDataExport> {
++  const response = await fetch(ENDPOINT, { method: "GET", cache: "no-store" });
++  if (!response.ok) {
++    throw await parseV3ApiError(response);
++  }
++  return ((await response.json()) as { data: TUserDataExport }).data;
++}
+diff --git a/apps/web/modules/account/lib/query.ts b/apps/web/modules/account/lib/query.ts
+new file mode 100644
+index 000000000..85021b874
+--- /dev/null
++++ b/apps/web/modules/account/lib/query.ts
+@@ -0,0 +1,5 @@
++/** Typed query-key factory for the account module. Never inline string keys. */
++export const accountKeys = {
++  all: ["account"] as const,
++  dataExport: () => [...accountKeys.all, "data-export"] as const,
++};
+diff --git a/apps/web/modules/account/lib/user-data-export.ts b/apps/web/modules/account/lib/user-data-export.ts
+new file mode 100644
+index 000000000..48433dde7
+--- /dev/null
++++ b/apps/web/modules/account/lib/user-data-export.ts
+@@ -0,0 +1,42 @@
++import "server-only";
++import { prisma } from "@formbricks/database";
++import { ZId } from "@formbricks/types/common";
++import { ResourceNotFoundError } from "@formbricks/types/errors";
++import { getUser } from "@/lib/user/service";
++import { validateInputs } from "@/lib/utils/validate";
++
++/**
++ * The personal data a user can download from their profile page. Only the fields listed here are
++ * exported; credentials, two-factor secrets, sessions and internal ids stay out of the file.
++ */
++export const getUserDataExport = async (userId: string) => {
++  validateInputs([userId, ZId]);
++
++  const user = await getUser(userId);
++  if (!user) {
++    throw new ResourceNotFoundError("User", userId);
++  }
++
++  // Pending invitations are not memberships yet, so only accepted rows are exported.
++  const memberships = await prisma.membership.findMany({
++    where: { userId, accepted: true },
++    select: {
++      role: true,
++      organization: { select: { name: true } },
++    },
++    orderBy: { organization: { name: "asc" } },
++  });
++
++  return {
++    name: user.name,
++    email: user.email,
++    locale: user.locale,
++    notificationSettings: user.notificationSettings,
++    organizations: memberships.map((membership) => ({
++      name: membership.organization.name,
++      role: membership.role,
++    })),
++  };
++};
++
++export type TUserDataExport = Awaited<ReturnType<typeof getUserDataExport>>;
