@@ -228,15 +228,6 @@ export async function runStudy(study, { arms: onlyArms, models: onlyModels, dryR
   const brokenChains = new Set(runs.filter((r) => !done(r)).map(chainOf));
   const todo = study.sequence ? runs.filter((r) => brokenChains.has(chainOf(r))) : runs.filter((r) => !done(r));
   log(`${runs.length} runs planned, ${runs.length - todo.length} already done, ${todo.length} to run`);
-  if (dryRun) {
-    for (const r of todo) log(`  would run ${r.id}`);
-    return [];
-  }
-  if (todo.length) assertNoClaudeMemoryAbove(study.workdir);
-  for (const copy of new Set(todo.map((r) => r.copy))) {
-    if (git(copy, 'rev-parse', '-q', '--verify', 'bench-base').status !== 0) throw new Error(`${copy} is not prepared; run "prepare" first`);
-  }
-  const versions = versionsOf(cmds, [...new Set(todo.map((r) => r.spec.agent))]);
   // The unit of work is a run, or in a sequence study a chain. With a seed the units are shuffled, so the arms
   // interleave in time and no arm gets a time slot or a warm prompt cache of its own; without one they keep
   // the planned order (arm by arm). A unit starts when its copy is free; agents on local models (pi, codex)
@@ -248,6 +239,15 @@ export async function runStudy(study, { arms: onlyArms, models: onlyModels, dryR
     else units.push([r]);
   }
   const queue = study.seed === undefined ? units : shuffle(units, study.seed);
+  if (dryRun) {
+    for (const r of queue.flat()) log(`  would run ${r.id}`);
+    return [];
+  }
+  if (todo.length) assertNoClaudeMemoryAbove(study.workdir);
+  for (const copy of new Set(todo.map((r) => r.copy))) {
+    if (git(copy, 'rev-parse', '-q', '--verify', 'bench-base').status !== 0) throw new Error(`${copy} is not prepared; run "prepare" first`);
+  }
+  const versions = versionsOf(cmds, [...new Set(todo.map((r) => r.spec.agent))]);
   const busy = new Set();
   let localBusy = false;
   const isLocal = (u) => u[0].spec.agent !== 'claude';

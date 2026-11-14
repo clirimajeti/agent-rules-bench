@@ -10,6 +10,7 @@ import { prepareStudy } from '../prepare.mjs';
 import { costOf, fixPrompt, runStudy, shuffle } from '../run.mjs';
 import { aggregate, loadResults, summarizeStudy } from '../summarize.mjs';
 import { checkoutPath, verifyStudy } from '../verify.mjs';
+import { loopArgs } from '../agents/loop.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FAKE_CLAUDE = path.join(here, 'fixtures', 'fake-claude.mjs');
@@ -422,4 +423,20 @@ test('costOf prices the tokens of an agent that reports no cost', () => {
   assert.equal(costOf({ ...json, total_cost_usd: 0.3 }, { price }), 0.3); // the agent's own cost wins
   assert.equal(costOf(json, {}), 0);
   assert.match(validateStudy({ models: [{ id: 'gpt', agent: 'codex', model: 'openai/x', price: { input: 1 } }] }, os.tmpdir()).join('\n'), /price must give/);
+});
+
+test('loopArgs finds the loop of old installs (one script per hook) and of codemyrules 0.9+ (one CLI)', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'arb-loop-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  assert.equal(loopArgs(dir, 'lint-edited.mjs'), null);
+  const loop = path.join(dir, '.claude', 'codemyrules');
+  fs.mkdirSync(loop, { recursive: true });
+  fs.writeFileSync(path.join(loop, 'lint-edited.mjs'), '');
+  assert.deepEqual(loopArgs(dir, 'lint-edited.mjs'), [path.join(loop, 'lint-edited.mjs')]);
+  const cli = path.join(loop, 'pkg', 'skills', 'codemyrules', 'scripts', 'cli.mjs');
+  fs.mkdirSync(path.dirname(cli), { recursive: true });
+  fs.writeFileSync(cli, '');
+  assert.deepEqual(loopArgs(dir, 'lint-edited.mjs'), [cli, 'hook', 'edited']);
+  assert.deepEqual(loopArgs(dir, 'lint-turn.mjs'), [cli, 'hook', 'turn']);
+  assert.deepEqual(loopArgs(dir, 'guard.mjs'), [cli, 'hook', 'guard']);
 });

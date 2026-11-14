@@ -9,9 +9,9 @@ import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { changedLines } from '../lib/codemyrules-lib.mjs';
+import { loopArgs } from './loop.mjs';
 
-const LOOP = '.claude/codemyrules';
 const event = process.argv[2];
 let raw = '';
 for await (const c of process.stdin) raw += c;
@@ -20,8 +20,8 @@ const cwd = input.cwd ?? process.cwd();
 const stateFile = process.env.BENCH_CODEX_STATE;
 const state = (() => { try { return JSON.parse(fs.readFileSync(stateFile, 'utf8')); } catch { return { toolCalls: 0, hashes: {} }; } })();
 const save = () => { if (stateFile) fs.writeFileSync(stateFile, JSON.stringify(state)); };
-const hasLoop = fs.existsSync(path.join(cwd, LOOP, 'lint-edited.mjs'));
-const run = (script, extra) => spawnSync('node', [path.join(cwd, LOOP, script)], {
+const hasLoop = loopArgs(cwd, 'lint-edited.mjs') !== null;
+const run = (script, extra) => spawnSync('node', loopArgs(cwd, script), {
   cwd, encoding: 'utf8', input: JSON.stringify({ session_id: input.session_id, cwd, ...extra }), env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
 });
 
@@ -40,7 +40,6 @@ if (event === 'PreToolUse') {
 
 if (event === 'PostToolUse') {
   if (!hasLoop) process.exit(0);
-  const { changedLines } = await import(pathToFileURL(path.join(cwd, LOOP, 'lib.mjs')).href);
   const changed = [...(changedLines(cwd)?.keys() ?? [])].filter((f) => fs.existsSync(path.join(cwd, f)) && fs.statSync(path.join(cwd, f)).isFile());
   const messages = [];
   for (const f of changed) {
