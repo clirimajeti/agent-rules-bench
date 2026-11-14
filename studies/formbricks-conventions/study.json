@@ -1,0 +1,61 @@
+{
+  "name": "formbricks-conventions",
+  "description": "Plan 6 (draft): four conventions that the Formbricks maintainers wrote in AGENTS.md and CODING_STANDARDS.md and do not lint, as the maintainers' own prose (prose) or as lint rules with the feedback loop and one pointer, with the four lines removed (rules). Tasks T1 and T2 sit next to legacy server actions, T3 next to legacy actions in the profile settings, T4 next to the new API v3 pattern (tags).",
+  "repo": {
+    "source": "https://github.com/formbricks/formbricks.git",
+    "commit": "fa289168d43699043e8e4016c3aa38bc3109f865"
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "prompt": "In apps/web, on the organization API keys settings page, add a Last used column to the API keys table that shows when each key was last used (or that it was never used), and a Rotate button on each key that replaces the key with a new secret, keeps its label and access settings, and shows the new key once so the user can copy it. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T2",
+      "prompt": "In apps/web, on the workspace webhooks settings page, show when each webhook was created, and add a Duplicate button to each webhook that creates a new webhook with the same URL, triggers and surveys, named \"Copy of\" plus the original name, with its own new secret. The list must show the copy after it is created. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T3",
+      "prompt": "In apps/web, on the account profile settings page, add an Account activity card that shows when the account was created and when the user last logged in, and a Download my data button that downloads a JSON file with the user's name, email, locale, notification settings and organization memberships (organization name and role). Do not run tests, lint or the app."
+    },
+    {
+      "id": "T4",
+      "prompt": "In apps/web, on the workspace tags settings page, show when each tag was created, and add a Delete unused tags button that, after a confirmation, deletes every tag of the workspace that is not used on any response and then shows how many tags were deleted. Do not run tests, lint or the app."
+    }
+  ],
+  "arms": [
+    { "id": "prose", "setup": "arms/prose.sh", "fix": true },
+    { "id": "rules", "setup": "arms/rules.sh", "fix": true }
+  ],
+  "baselineArm": "prose",
+  "models": [
+    "sonnet",
+    "haiku",
+    { "id": "qwen36codex", "agent": "codex", "model": "ollama/qwen3.6:35b-a3b-coding", "maxTurns": 60 }
+  ],
+  "repeats": 8,
+  "maxTurns": 60,
+  "seed": 20261114,
+  "designRules": ["local/no-new-server-actions"],
+  "eval": [
+    {
+      "name": "eslint",
+      "format": "eslint",
+      "command": ["node", "{study}/node_modules/eslint/bin/eslint.js", "-c", "{study}/eslint.config.mjs", "--no-inline-config", "--no-warn-ignored", "--format", "json", "{files}"],
+      "extensions": [".ts", ".tsx", ".json"]
+    }
+  ],
+  "fix": {
+    "prompt": "Code review feedback on your uncommitted change in apps/web: it breaks these project rules.\n{broken}\nFix the new code accordingly. Do not run tests, lint or the app.",
+    "ruleText": "plugin/conventions.mjs"
+  },
+  "verify": {
+    "testFiles": ["*.test.ts", "*.test.tsx", "*/__tests__/*", "*/__mocks__/*"],
+    "keep": ["node_modules", ".pnpm-store", ".env", ".turbo", "dist", "packages/database/generated", "apps/web/next-env.d.ts", "apps/web/public/js"],
+    "steps": [
+      { "name": "setup", "command": ["bash", "{study}/verify.sh", "setup"], "setup": true, "timeoutSec": 1800 },
+      { "name": "typecheck", "command": ["bash", "{study}/verify.sh", "typecheck"], "timeoutSec": 900 },
+      { "name": "tests", "retries": 2, "command": ["bash", "{study}/verify.sh", "tests"], "timeoutSec": 1800 }
+    ]
+  }
+}

@@ -18,12 +18,14 @@ This plan tests that pooled result as a confirmatory hypothesis, on two projects
 
 | Id | Kind | Text (source) | Existing code that violates it |
 |---|---|---|---|
-| F1 | design-shaping | "Server actions are legacy, do not add new ones. New backend work belongs in an `/api/v3` route consumed from the client with TanStack Query" (AGENTS.md) | 59 files with `"use server"`, 110 client components that call actions |
-| F2 | mechanical | "React component props use `Readonly<>`." (CODING_STANDARDS.md, "Conventions Awaiting Automated Enforcement") | about 122 components without, 640 with |
-| F3 | mechanical | "All user-facing dates and times must use shared formatting helpers instead of ad hoc `date-fns`, `Intl`, or `toLocale*` calls in components." (CODING_STANDARDS.md) | 16 component files |
+| F1 | design-shaping | "Server actions are legacy — do not add new ones. New backend work belongs in an `/api/v3` route consumed from the client with TanStack Query, ..." (AGENTS.md) | 57 files with `"use server"` (checker), 110 client components that call actions |
+| F2 | mechanical | "React component props use `Readonly<>`." (CODING_STANDARDS.md, "Conventions Awaiting Automated Enforcement") | 383 components without (checker), 640 with |
+| F3 | mechanical | "All user-facing dates and times must use shared formatting helpers instead of ad hoc `date-fns`, `Intl`, or `toLocale*` calls in components." (CODING_STANDARDS.md) | 1 component (checker); the other grep hits are numbers (`toLocaleString`) or type names |
 | F4 | mechanical | "Only ever add or edit strings in `en-US.json`." (AGENTS.md) | none (a pure instruction) |
 
-To check before registration: the counts above are rough `git grep` counts; each checker must be run on the pinned commit and its false positives read by hand.
+The checkers are in `formbricks-conventions/` (ESLint 9.17.0, one local rule per convention, examples tested); the counts above are their findings on the pinned commit.
+A hand check of 8 evenly spaced `readonly-props` findings found 8 true positives; the full precision check is part of the measurement checks below.
+`toLocaleString` is not checked, because on numbers it is not a date.
 
 ## Arms
 
@@ -38,14 +40,16 @@ This keeps the question of the paper, "where should the rule live", and keeps th
 
 - Models, primary: Claude Code with `sonnet` and `haiku`; the resolved model ids are recorded per run.
 - Model, secondary: `qwen3.6:35b-a3b` in Codex with the same loop (second model family; violations and turns only, no cost).
-- Tasks: 4 feature tasks per project; prompts describe only the feature.
-  Formbricks tasks are placed where the legacy pattern is next to the code (for example account notification and profile settings, which still use server actions).
+- Tasks: 4 feature tasks per project; prompts describe only the feature and never mention conventions.
+  Formbricks (prompts in `formbricks-conventions/study.json`): T1 API keys (last used, rotate), T2 webhooks (created date, duplicate), T3 profile (account activity, download my data), T4 tags (created date, delete unused tags).
+  T1 to T3 sit next to legacy server actions; T4 sits next to the new API v3 pattern, as a contrast.
 - Runs, primary: 2 projects x 2 models x 4 tasks x 8 repeats = 64 per arm per project, 128 per arm, 256 in all.
-- Runs, secondary: 2 projects x 4 tasks x 4 repeats = 32 per arm, 64 in all.
-- Order: `"seed"` in each study.json (value fixed in this plan), so the arms interleave in time.
+- Runs, secondary: 2 projects x 4 tasks x 8 repeats = 64 per arm, 128 in all (the local model costs nothing, only time).
+- Order: `"seed": 20261114` in each study.json, so the arms interleave in time; `run --dry-run` prints the order.
 - Turn cap: 30 (bulletproof, as before); formbricks: 60, fixed after a pilot of 4 runs per arm that is not analysed.
 - Sessions that fail (usage limit, crash) are run again by the harness; no other run is excluded or repeated.
 - Safety: install, build and verify run in a container (`node:24-bookworm`) without the user's credentials; install uses the frozen lockfile and `--ignore-scripts`.
+- Verify (formbricks): type check of `apps/web` and the unit tests related to the changed files (`vitest related`); the test files that fail on the unchanged commit are excluded and listed in `formbricks-conventions/baseline-failing-tests.txt`.
 
 ## Sample size
 
