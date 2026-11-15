@@ -423,6 +423,17 @@ test('a session killed at its time limit is a capped result, not a failure, so i
   assert.match(logs[0], /2 already done, 0 to run/);
 });
 
+test('a usage limit stops the study after the run that hit it, which is not ok and runs again later', async (t) => {
+  const { file } = setup(t, { build: undefined });
+  const study = loadStudy(file);
+  prepareStudy(study, () => {});
+  process.env.FAKE_LIMIT = '1';
+  t.after(() => delete process.env.FAKE_LIMIT);
+  await assert.rejects(runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: () => {} }), /usage limit: You've hit your 5-hour limit/);
+  const results = fs.readdirSync(path.join(path.dirname(file), 'results'));
+  assert.ok(results.length < 4, `only the runs already started have results, got ${results.length}`);
+});
+
 test('a seed shuffles the runs reproducibly, and every run records when it started and with which versions', async (t) => {
   assert.deepEqual(shuffle([1, 2, 3, 4, 5, 6], 7), shuffle([1, 2, 3, 4, 5, 6], 7));
   assert.notDeepEqual(shuffle([1, 2, 3, 4, 5, 6], 7), [1, 2, 3, 4, 5, 6]);

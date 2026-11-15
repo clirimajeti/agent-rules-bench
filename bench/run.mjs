@@ -224,6 +224,9 @@ async function runOne(study, run, cmds, log, { first = true, versions = null } =
   if (result.evalNotes.length) result.ok = false;
   fs.writeFileSync(path.join(run.dir, 'result.json'), JSON.stringify(result, null, 2) + '\n');
   if (result.evalNotes.length) throw new Error(`${run.id}: checker failed: ${result.evalNotes[0]}`);
+  // A usage limit fails every later session at once: stop, and rerun the failed runs after the reset.
+  const limit = [task, fix].map((s) => s?.json?.is_error && String(s.json.result ?? '')).find((m) => /hit your .*limit/i.test(m || ''));
+  if (limit) throw new Error(`${run.id}: usage limit: ${limit}`);
   if (study.sequence) {
     git(copy, 'add', '-A');
     git(copy, '-c', 'user.email=bench@local', '-c', 'user.name=bench', 'commit', '-q', '--allow-empty', '--no-verify', '-m', `bench: after ${run.id}`);
@@ -279,8 +282,10 @@ export async function runStudy(study, { arms: onlyArms, models: onlyModels, dryR
   const isLocal = (u) => u[0].spec.agent !== 'claude';
   const results = [];
   await new Promise((resolve, reject) => {
-    let running = 0;
+    // On an error (a failed checker, a usage limit) no new unit starts; the study stops once the running ones end.
+    let running = 0, stop = null;
     const next = () => {
+      if (stop) return running ? undefined : reject(stop);
       if (!queue.length && !running) return resolve();
       for (let i = 0; i < queue.length; i++) {
         const u = queue[i];
@@ -292,12 +297,12 @@ export async function runStudy(study, { arms: onlyArms, models: onlyModels, dryR
         (async () => {
           for (const r of u) results.push(await runOne(study, r, cmds, log, { first: !study.sequence || r.task.id === study.tasks[0].id, versions }));
           reset(u[0].copy);
-        })().then(() => {
+        })().catch((e) => { stop ??= e; }).then(() => {
           busy.delete(u[0].copy);
           if (isLocal(u)) localBusy = false;
           running--;
           next();
-        }, reject);
+        });
       }
     };
     next();
