@@ -1,0 +1,309 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..d3e77f3f4 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,6 +1,8 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
++import { AccountActivity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
++import { DownloadMyData } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+ import {
+@@ -99,6 +101,19 @@ const Page = async () => {
+             isPasswordResetEnabled={isPasswordResetEnabled}
+           />
+         </SettingsCard>
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <AccountActivity
++            createdAt={user.createdAt}
++            lastLoginAt={user.lastLoginAt}
++            locale={user.locale}
++            createdLabel={t("workspace.settings.profile.account_created")}
++            lastLoginLabel={t("workspace.settings.profile.last_login")}
++            neverLabel={t("workspace.settings.profile.never")}
++          />
++          <DownloadMyData />
++        </SettingsCard>
+         {user.identityProvider === "email" && (
+           <SettingsCard
+             title={t("common.security")}
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
+new file mode 100644
+index 000000000..89d033153
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
+@@ -0,0 +1,32 @@
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
++
++interface AccountActivityProps {
++  createdAt: Date;
++  lastLoginAt: Date | null;
++  locale: string;
++  createdLabel: string;
++  lastLoginLabel: string;
++  neverLabel: string;
++}
++
++export const AccountActivity = ({
++  createdAt,
++  lastLoginAt,
++  locale,
++  createdLabel,
++  lastLoginLabel,
++  neverLabel,
++}: Readonly<AccountActivityProps>) => (
++  <dl className="space-y-3 text-sm">
++    <div className="flex justify-between">
++      <dt className="text-slate-500">{createdLabel}</dt>
++      <dd className="text-slate-900">{formatDateTimeForDisplay(createdAt, locale)}</dd>
++    </div>
++    <div className="flex justify-between">
++      <dt className="text-slate-500">{lastLoginLabel}</dt>
++      <dd className="text-slate-900">
++        {lastLoginAt ? formatDateTimeForDisplay(lastLoginAt, locale) : neverLabel}
++      </dd>
++    </div>
++  </dl>
++);
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx
+new file mode 100644
+index 000000000..4c9b9c013
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx
+@@ -0,0 +1,25 @@
++"use client";
++
++import { useTranslation } from "react-i18next";
++import { Button } from "@/modules/ui/components/button";
++
++/**
++ * The export route answers with `Content-Disposition: attachment`, so navigating to it downloads the
++ * file and leaves the page where it is. There is no server data to cache or mirror here.
++ */
++export const DownloadMyData = () => {
++  const { t } = useTranslation();
++
++  return (
++    <div>
++      <p className="text-sm text-slate-700">{t("workspace.settings.profile.download_my_data_description")}</p>
++      <Button
++        className="mt-4"
++        variant="secondary"
++        size="sm"
++        onClick={() => window.location.assign("/api/v3/account/data-export")}>
++        {t("workspace.settings.profile.download_my_data")}
++      </Button>
++    </div>
++  );
++};
+diff --git a/apps/web/app/api/v3/account/data-export/lib/operations.ts b/apps/web/app/api/v3/account/data-export/lib/operations.ts
+new file mode 100644
+index 000000000..382333917
+--- /dev/null
++++ b/apps/web/app/api/v3/account/data-export/lib/operations.ts
+@@ -0,0 +1,64 @@
++import "server-only";
++import { prisma } from "@formbricks/database";
++import { problemInternalError, problemUnauthorized } from "@/app/api/v3/lib/response";
++import type { TV3Authentication } from "@/app/api/v3/lib/types";
++
++type TBaseParams = {
++  authentication: TV3Authentication;
++  requestId: string;
++  instance?: string;
++};
++
++/**
++ * The caller's own personal data as a downloadable JSON attachment. Scoped to the session user id and
++ * nothing else, so there is no identifier a caller could swap for someone else's.
++ *
++ * Only the documented fields are selected: credentials, 2FA material and tokens never leave the database.
++ */
++export async function exportV3AccountData({
++  authentication,
++  requestId,
++  instance,
++}: TBaseParams): Promise<Response> {
++  if (!authentication || !("user" in authentication) || !authentication.user?.id) {
++    return problemUnauthorized(requestId, "Session required", instance);
++  }
++
++  const user = await prisma.user.findUnique({
++    where: { id: authentication.user.id },
++    select: {
++      name: true,
++      email: true,
++      locale: true,
++      notificationSettings: true,
++      memberships: {
++        select: { role: true, organization: { select: { name: true } } },
++      },
++    },
++  });
++
++  if (!user) {
++    return problemInternalError(requestId, "Account data could not be loaded.", instance);
++  }
++
++  const data = {
++    name: user.name,
++    email: user.email,
++    locale: user.locale,
++    notificationSettings: user.notificationSettings,
++    organizationMemberships: user.memberships.map((membership) => ({
++      organizationName: membership.organization.name,
++      role: membership.role,
++    })),
++  };
++
++  return new Response(JSON.stringify(data, null, 2), {
++    status: 200,
++    headers: {
++      "Content-Type": "application/json",
++      "Content-Disposition": 'attachment; filename="formbricks-account-data.json"',
++      "Cache-Control": "private, no-store",
++      "X-Request-Id": requestId,
++    },
++  });
++}
+diff --git a/apps/web/app/api/v3/account/data-export/route.ts b/apps/web/app/api/v3/account/data-export/route.ts
+new file mode 100644
+index 000000000..f603983dc
+--- /dev/null
++++ b/apps/web/app/api/v3/account/data-export/route.ts
+@@ -0,0 +1,14 @@
++/**
++ * GET /api/v3/account/data-export - download the signed-in user's own data as a JSON file.
++ *
++ * Session-only, like `/api/v3/tags`: the data belongs to the person at the keyboard, so an API key has no
++ * business reading it.
++ */
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { exportV3AccountData } from "./lib/operations";
++
++export const GET = withV3ApiWrapper({
++  auth: "session",
++  handler: async ({ authentication, requestId, instance }) =>
++    exportV3AccountData({ authentication, requestId, instance }),
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..742f0aa04 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "See when your account was created and when you last logged in.",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,11 +3753,15 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Download a JSON file with your name, email, language, notification settings and organization memberships.",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
+         "lost_access": "Lost access",
++        "never": "Never",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+         "permanent_removal_of_all_of_your_personal_information_and_data": "Permanent removal of all of your personal information and data",
+diff --git a/docs/api-v3-reference/src/openapi.yml b/docs/api-v3-reference/src/openapi.yml
+index 22d57e490..df1a5f479 100644
+--- a/docs/api-v3-reference/src/openapi.yml
++++ b/docs/api-v3-reference/src/openapi.yml
+@@ -480,6 +480,8 @@ paths:
+     $ref: paths/api_v3_contacts_attribute-values.yml
+   /api/v3/segments:
+     $ref: paths/api_v3_segments.yml
++  /api/v3/account/data-export:
++    $ref: paths/api_v3_account_data-export.yml
+   /api/v3/tags:
+     $ref: paths/api_v3_tags.yml
+   /api/v3/tags/{tagId}:
+diff --git a/docs/api-v3-reference/src/paths/api_v3_account_data-export.yml b/docs/api-v3-reference/src/paths/api_v3_account_data-export.yml
+new file mode 100644
+index 000000000..c95f0b79d
+--- /dev/null
++++ b/docs/api-v3-reference/src/paths/api_v3_account_data-export.yml
+@@ -0,0 +1,68 @@
++get:
++  operationId: exportAccountDataV3
++  # Session-only, like the tags operations: it backs the Download my data button on the profile page.
++  x-excluded: true
++  summary: Download my account data
++  description: |
++    Returns the signed-in user's name, email, locale, notification settings and organization memberships
++    (organization name and role) as a JSON file attachment.
++
++    Session cookie only. This endpoint backs the profile page, so it does not accept `x-api-key`.
++  tags:
++    - V3 Account
++  responses:
++    "200":
++      description: Account data
++      headers:
++        X-Request-Id:
++          schema:
++            type: string
++          description: Request correlation ID
++        Content-Disposition:
++          schema:
++            type: string
++          example: attachment; filename="formbricks-account-data.json"
++        Cache-Control:
++          schema:
++            type: string
++          example: private, no-store
++      content:
++        application/json:
++          schema:
++            type: object
++            required:
++              - name
++              - email
++              - locale
++              - notificationSettings
++              - organizationMemberships
++            properties:
++              name:
++                type: string
++              email:
++                type: string
++              locale:
++                type: string
++              notificationSettings:
++                type: object
++                additionalProperties: true
++              organizationMemberships:
++                type: array
++                items:
++                  type: object
++                  required:
++                    - organizationName
++                    - role
++                  properties:
++                    organizationName:
++                      type: string
++                    role:
++                      type: string
++    "401":
++      $ref: ../components/responses/V3UnauthorizedSession.yml
++    "429":
++      $ref: ../components/responses/V3TooManyRequests.yml
++    "500":
++      $ref: ../components/responses/V3InternalServerError.yml
++  security:
++    - sessionAuth: []

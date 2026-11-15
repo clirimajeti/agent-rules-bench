@@ -1,0 +1,158 @@
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..15ce7653d 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -2144,6 +2144,7 @@
+       "api_key_updated": "API Key updated",
+       "delete_api_key_confirmation": "Any applications using this key will no longer be able to access your Formbricks data.",
+       "duplicate_access": "Duplicate workspace access not allowed",
++      "never_used": "Never used",
+       "no_api_keys_yet": "You do not have any API keys yet",
+       "no_workspace_permissions_found": "No Workspace permissions found",
+       "organization_access": "Organization Access",
+diff --git a/apps/web/modules/organization/settings/api-keys/components/edit-api-keys.tsx b/apps/web/modules/organization/settings/api-keys/components/edit-api-keys.tsx
+index 8a51dd267..d2b8a8f32 100644
+--- a/apps/web/modules/organization/settings/api-keys/components/edit-api-keys.tsx
++++ b/apps/web/modules/organization/settings/api-keys/components/edit-api-keys.tsx
+@@ -82,7 +82,7 @@ export const getApiKeyColumns = ({
+   {
+     id: "label",
+     header: t("common.label"),
+-    headerClassName: "w-[25%]",
++    headerClassName: "w-[20%]",
+     cellClassName: "font-semibold",
+     skeletonWidth: "w-32",
+     cell: (apiKey) => apiKey.label,
+@@ -90,7 +90,7 @@ export const getApiKeyColumns = ({
+   {
+     id: "apiKey",
+     header: t("workspace.api_keys.api_key"),
+-    headerClassName: "w-[45%]",
++    headerClassName: "w-[35%]",
+     // Replaces `hidden sm:block`, which would have restored a `<td>` to `display: block` and dropped it
+     // out of the table's column layout. `hideBelow` uses `table-cell` for exactly that reason.
+     hideBelow: "sm",
+@@ -104,6 +104,14 @@ export const getApiKeyColumns = ({
+     skeletonWidth: "w-20",
+     cell: (apiKey) => timeSince(apiKey.createdAt.toString(), locale),
+   },
++  {
++    id: "lastUsedAt",
++    header: t("common.last_used"),
++    headerClassName: "w-[15%]",
++    skeletonWidth: "w-20",
++    cell: (apiKey) =>
++      apiKey.lastUsedAt ? timeSince(apiKey.lastUsedAt.toString(), locale) : t("workspace.api_keys.never_used"),
++  },
+   {
+     id: "actions",
+     header: null,
+diff --git a/apps/web/modules/organization/settings/api-keys/lib/api-key.ts b/apps/web/modules/organization/settings/api-keys/lib/api-key.ts
+index 09f791ca2..8c83bd9b4 100644
+--- a/apps/web/modules/organization/settings/api-keys/lib/api-key.ts
++++ b/apps/web/modules/organization/settings/api-keys/lib/api-key.ts
+@@ -34,6 +34,7 @@ export const getApiKeysWithEnvironmentPermissions = reactCache(
+           id: true,
+           label: true,
+           createdAt: true,
++          lastUsedAt: true,
+           organizationAccess: true,
+           apiKeyWorkspaces: {
+             select: {
+@@ -159,6 +160,22 @@ export const deleteApiKey = async (id: string): Promise<ApiKey | null> => {
+   }
+ };
+ 
++// Generates a fresh secret and its two stored hashes. Shared by create and rotate so both produce keys
++// in the same format and with the same hashing.
++const generateApiKeySecret = async (): Promise<{ secret: string; lookupHash: string; hashedKey: string }> => {
++  // Generate a secure random secret (32 bytes base64url)
++  const secret = randomBytes(32).toString("base64url");
++
++  // Hybrid approach for security + performance:
++  // 1. SHA-256 lookup hash
++  const lookupHash = hashSha256(secret);
++
++  // 2. bcrypt hash
++  const hashedKey = await hashSecret(secret, 12);
++
++  return { secret, lookupHash, hashedKey };
++};
++
+ export const createApiKey = async (
+   organizationId: string,
+   userId: string,
+@@ -190,15 +207,7 @@ export const createApiKey = async (
+       }
+     }
+ 
+-    // Generate a secure random secret (32 bytes base64url)
+-    const secret = randomBytes(32).toString("base64url");
+-
+-    // Hybrid approach for security + performance:
+-    // 1. SHA-256 lookup hash
+-    const lookupHash = hashSha256(secret);
+-
+-    // 2. bcrypt hash
+-    const hashedKey = await hashSecret(secret, 12);
++    const { secret, lookupHash, hashedKey } = await generateApiKeySecret();
+ 
+     // Create the API key
+     const result = await prisma.apiKey.create({
+@@ -239,6 +248,43 @@ export const createApiKey = async (
+   }
+ };
+ 
++// Replaces the secret of an existing key. The row keeps its id, label, organization access and workspace
++// permissions, so existing relationships stay valid; only the stored hashes change, which makes the old
++// secret fail lookup and verification immediately.
++export const rotateApiKey = async (
++  apiKeyId: string
++): Promise<TApiKeyWithEnvironmentPermission & { actualKey: string }> => {
++  validateInputs([apiKeyId, ZId]);
++  try {
++    const { secret, lookupHash, hashedKey } = await generateApiKeySecret();
++
++    const result = await prisma.apiKey.update({
++      where: { id: apiKeyId },
++      data: { hashedKey, lookupHash },
++      select: {
++        id: true,
++        label: true,
++        createdAt: true,
++        lastUsedAt: true,
++        organizationAccess: true,
++        apiKeyWorkspaces: {
++          select: {
++            permission: true,
++            workspaceId: true,
++          },
++        },
++      },
++    });
++
++    return { ...result, actualKey: `fbk_${secret}` };
++  } catch (error) {
++    if (error instanceof Prisma.PrismaClientKnownRequestError) {
++      throw new DatabaseError(error.message);
++    }
++    throw error;
++  }
++};
++
+ export const updateApiKey = async (apiKeyId: string, data: TApiKeyUpdateInput): Promise<ApiKey | null> => {
+   try {
+     const updatedApiKey = await prisma.apiKey.update({
+diff --git a/apps/web/modules/organization/settings/api-keys/types/api-keys.ts b/apps/web/modules/organization/settings/api-keys/types/api-keys.ts
+index b1b6b1810..2d24c1d55 100644
+--- a/apps/web/modules/organization/settings/api-keys/types/api-keys.ts
++++ b/apps/web/modules/organization/settings/api-keys/types/api-keys.ts
+@@ -47,7 +47,7 @@ export type TApiKeyWorkspacePermission = z.infer<typeof ZApiKeyWorkspacePermissi
+ 
+ export interface TApiKeyWithEnvironmentPermission extends Pick<
+   ApiKey,
+-  "id" | "label" | "createdAt" | "organizationAccess"
++  "id" | "label" | "createdAt" | "lastUsedAt" | "organizationAccess"
+ > {
+   apiKeyWorkspaces: TApiKeyWorkspacePermission[];
+ }

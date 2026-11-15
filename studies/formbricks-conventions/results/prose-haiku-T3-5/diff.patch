@@ -1,0 +1,289 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
+new file mode 100644
+index 000000000..afa1e6801
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
+@@ -0,0 +1,28 @@
++"use client";
++
++import { useTranslation } from "react-i18next";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
++
++interface AccountActivityProps {
++  createdAt: Date;
++  lastLoginAt: Date | null;
++}
++
++export const AccountActivity = ({ createdAt, lastLoginAt }: Readonly<AccountActivityProps>) => {
++  const { t, i18n } = useTranslation();
++
++  const formatDate = (date: Date) =>
++    formatDateTimeForDisplay(date, i18n.language, { dateStyle: "medium", timeStyle: "short" });
++
++  return (
++    <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm">
++      <dt className="font-medium text-slate-800">{t("workspace.settings.profile.account_created")}</dt>
++      <dd className="text-slate-600">{formatDate(createdAt)}</dd>
++
++      <dt className="font-medium text-slate-800">{t("workspace.settings.profile.last_login")}</dt>
++      <dd className="text-slate-600">
++        {lastLoginAt ? formatDate(lastLoginAt) : t("workspace.settings.profile.never_logged_in")}
++      </dd>
++    </dl>
++  );
++};
+diff --git a/apps/web/app/(app)/account/settings/profile/components/DownloadAccountData.tsx b/apps/web/app/(app)/account/settings/profile/components/DownloadAccountData.tsx
+new file mode 100644
+index 000000000..be8849536
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/components/DownloadAccountData.tsx
+@@ -0,0 +1,42 @@
++"use client";
++
++import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
++import { useState } from "react";
++import { toast } from "react-hot-toast";
++import { useTranslation } from "react-i18next";
++import { useDownloadAccountData } from "@/modules/account/hooks/use-download-account-data";
++import { getV3ApiErrorMessage } from "@/modules/api/lib/v3-client";
++import { Button } from "@/modules/ui/components/button";
++
++const DownloadAccountDataButton = () => {
++  const { t } = useTranslation();
++  const downloadAccountData = useDownloadAccountData();
++
++  return (
++    <Button
++      variant="secondary"
++      loading={downloadAccountData.isPending}
++      onClick={() =>
++        downloadAccountData.mutate(undefined, {
++          onError: (error) =>
++            toast.error(getV3ApiErrorMessage(error, t("common.something_went_wrong_please_try_again"))),
++        })
++      }>
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
++
++/**
++ * Mounts its own `QueryClientProvider`: the account settings segment has no app-wide one, the same
++ * reason the tags settings page carries a provider of its own.
++ */
++export const DownloadAccountData = () => {
++  const [queryClient] = useState(() => new QueryClient());
++
++  return (
++    <QueryClientProvider client={queryClient}>
++      <DownloadAccountDataButton />
++    </QueryClientProvider>
++  );
++};
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..3bffe9b06 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,4 +1,6 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
++import { AccountActivity } from "@/app/(app)/account/settings/profile/components/AccountActivity";
++import { DownloadAccountData } from "@/app/(app)/account/settings/profile/components/DownloadAccountData";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+@@ -108,6 +110,18 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <AccountActivity createdAt={user.createdAt} lastLoginAt={user.lastLoginAt} />
++        </SettingsCard>
++
++        <SettingsCard
++          title={t("workspace.settings.profile.your_data")}
++          description={t("workspace.settings.profile.download_my_data_description")}>
++          <DownloadAccountData />
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/api/v3/account/data-export/route.ts b/apps/web/app/api/v3/account/data-export/route.ts
+new file mode 100644
+index 000000000..8d9668ff3
+--- /dev/null
++++ b/apps/web/app/api/v3/account/data-export/route.ts
+@@ -0,0 +1,26 @@
++/**
++ * GET /api/v3/account/data-export - the signed-in user's own personal data as JSON.
++ *
++ * Session-only: the export is the caller's own profile, so an API key has no meaning here and accepting
++ * one would only widen the surface.
++ */
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { problemNotFound, problemUnauthorized, successResponse } from "@/app/api/v3/lib/response";
++import { getAccountDataExport } from "@/modules/account/lib/data-export";
++
++export const GET = withV3ApiWrapper({
++  auth: "session",
++  handler: async ({ authentication, requestId, instance }) => {
++    const userId = authentication && "user" in authentication ? authentication.user?.id : undefined;
++    if (!userId) {
++      return problemUnauthorized(requestId, "Session required", instance);
++    }
++
++    const data = await getAccountDataExport(userId);
++    if (!data) {
++      return problemNotFound(requestId, "user", userId, instance);
++    }
++
++    return successResponse(data, { requestId });
++  },
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..229c5802c 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "When your account was created and when you last signed in.",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,11 +3753,15 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Download a JSON file with your name, email, locale, notification settings and organization memberships.",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
+         "lost_access": "Lost access",
++        "never_logged_in": "Never",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+         "permanent_removal_of_all_of_your_personal_information_and_data": "Permanent removal of all of your personal information and data",
+@@ -3773,7 +3780,8 @@
+         "update_personal_info": "Update your personal information",
+         "warning_cannot_delete_account": "You are the only owner of this organization. Please transfer ownership to another member first.",
+         "warning_cannot_undo": "This cannot be undone",
+-        "wrong_password": "Wrong password"
++        "wrong_password": "Wrong password",
++        "your_data": "Your data"
+       },
+       "teams": {
+         "add_members_description": "Add members to the team and determine their role.",
+diff --git a/apps/web/modules/account/hooks/use-download-account-data.ts b/apps/web/modules/account/hooks/use-download-account-data.ts
+new file mode 100644
+index 000000000..9edac7e80
+--- /dev/null
++++ b/apps/web/modules/account/hooks/use-download-account-data.ts
+@@ -0,0 +1,29 @@
++"use client";
++
++import { useMutation } from "@tanstack/react-query";
++import { getAccountDataExport } from "@/modules/account/lib/api-client";
++
++const DOWNLOAD_FILE_NAME = "formbricks-account-data.json";
++
++/** Saves the export as a JSON file through a temporary object URL, which is released straight after the click. */
++const saveAsJsonFile = (data: unknown, fileName: string) => {
++  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
++  const url = URL.createObjectURL(blob);
++  const link = document.createElement("a");
++  link.href = url;
++  link.download = fileName;
++  document.body.appendChild(link);
++  link.click();
++  link.remove();
++  URL.revokeObjectURL(url);
++};
++
++/**
++ * Fetches the signed-in user's data and saves it as a JSON file. The fetch is a mutation rather than a
++ * query: it runs on a button press and must not be cached or refetched on focus.
++ */
++export const useDownloadAccountData = () =>
++  useMutation({
++    mutationFn: getAccountDataExport,
++    onSuccess: (data) => saveAsJsonFile(data, DOWNLOAD_FILE_NAME),
++  });
+diff --git a/apps/web/modules/account/lib/api-client.ts b/apps/web/modules/account/lib/api-client.ts
+new file mode 100644
+index 000000000..5db1330f6
+--- /dev/null
++++ b/apps/web/modules/account/lib/api-client.ts
+@@ -0,0 +1,13 @@
++import type { TAccountDataExport } from "@/modules/account/lib/data-export";
++import { parseV3ApiError } from "@/modules/api/lib/v3-client";
++
++const ACCOUNT_DATA_EXPORT_PATH = "/api/v3/account/data-export";
++
++/** Fetches the signed-in user's own data. Throws a parsed `V3ApiError` on a non-2xx response. */
++export async function getAccountDataExport(): Promise<TAccountDataExport> {
++  const response = await fetch(ACCOUNT_DATA_EXPORT_PATH, { method: "GET", cache: "no-store" });
++  if (!response.ok) {
++    throw await parseV3ApiError(response);
++  }
++  return ((await response.json()) as { data: TAccountDataExport }).data;
++}
+diff --git a/apps/web/modules/account/lib/data-export.ts b/apps/web/modules/account/lib/data-export.ts
+new file mode 100644
+index 000000000..36eeff359
+--- /dev/null
++++ b/apps/web/modules/account/lib/data-export.ts
+@@ -0,0 +1,45 @@
++import "server-only";
++import { prisma } from "@formbricks/database";
++import { getUser } from "@/lib/user/service";
++
++/**
++ * The personal data a user can download from their profile page. Built from an explicit field list so
++ * that a column added to `User` later (password hash, 2FA secret, tokens) can never leak into the export.
++ */
++export type TAccountDataExport = {
++  name: string;
++  email: string;
++  locale: string;
++  notificationSettings: unknown;
++  organizations: { name: string; role: string }[];
++};
++
++/**
++ * Returns the caller's own data. Only accepted memberships are listed: a pending invite is not yet a
++ * membership of the user, and the user cannot act in that organization until they accept it.
++ */
++export const getAccountDataExport = async (userId: string): Promise<TAccountDataExport | null> => {
++  const [user, memberships] = await Promise.all([
++    getUser(userId),
++    prisma.membership.findMany({
++      where: { userId, accepted: true },
++      select: { role: true, organization: { select: { name: true } } },
++      orderBy: { organization: { name: "asc" } },
++    }),
++  ]);
++
++  if (!user) {
++    return null;
++  }
++
++  return {
++    name: user.name,
++    email: user.email,
++    locale: user.locale,
++    notificationSettings: user.notificationSettings,
++    organizations: memberships.map((membership) => ({
++      name: membership.organization.name,
++      role: membership.role,
++    })),
++  };
++};

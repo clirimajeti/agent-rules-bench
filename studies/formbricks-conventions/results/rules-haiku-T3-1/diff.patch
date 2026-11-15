@@ -1,0 +1,240 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..77d61d773 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,4 +1,5 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
++import { AccountActivity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+@@ -108,6 +109,12 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <AccountActivity createdAt={user.createdAt} lastLoginAt={user.lastLoginAt} locale={user.locale} />
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
+new file mode 100644
+index 000000000..45b1ce536
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
+@@ -0,0 +1,96 @@
++"use client";
++
++import { useState } from "react";
++import toast from "react-hot-toast";
++import { useTranslation } from "react-i18next";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
++import { Button } from "@/modules/ui/components/button";
++
++const DATA_EXPORT_FILE_NAME = "formbricks-my-data.json";
++
++// The profile has no time zone source of truth, so dates are shown in UTC instead of the browser's zone.
++const ACTIVITY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
++  year: "numeric",
++  month: "short",
++  day: "numeric",
++  hour: "2-digit",
++  minute: "2-digit",
++  timeZone: "UTC",
++  timeZoneName: "short",
++};
++
++interface AccountActivityProps {
++  createdAt: Date;
++  lastLoginAt: Date | null;
++  locale: string;
++}
++
++const saveFile = (blob: Blob, fileName: string) => {
++  const url = URL.createObjectURL(blob);
++  const link = document.createElement("a");
++  link.href = url;
++  link.download = fileName;
++  link.style.display = "none";
++  document.body.appendChild(link);
++  try {
++    link.click();
++  } finally {
++    link.remove();
++    // Revoked on the next task: some browsers read the URL only after `click()` has returned.
++    setTimeout(() => URL.revokeObjectURL(url), 0);
++  }
++};
++
++export const AccountActivity = ({ createdAt, lastLoginAt, locale }: Readonly<AccountActivityProps>) => {
++  const { t } = useTranslation();
++  const [isDownloading, setIsDownloading] = useState(false);
++
++  const formatActivityDate = (date: Date) => formatDateTimeForDisplay(date, locale, ACTIVITY_DATE_OPTIONS);
++
++  const handleDownloadMyData = async () => {
++    setIsDownloading(true);
++    try {
++      const response = await fetch("/api/account/data-export", { method: "GET", cache: "no-store" });
++      if (!response.ok) {
++        throw new Error(`Data export failed with status ${response.status}`);
++      }
++      const blob = await response.blob();
++      saveFile(blob, DATA_EXPORT_FILE_NAME);
++    } catch {
++      toast.error(t("workspace.settings.profile.download_my_data_failed"));
++    } finally {
++      setIsDownloading(false);
++    }
++  };
++
++  return (
++    <div className="flex flex-col gap-4">
++      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
++        <div className="flex flex-col">
++          <dt className="text-sm font-semibold text-slate-800">
++            {t("workspace.settings.profile.account_created")}
++          </dt>
++          <dd className="text-sm text-slate-600">{formatActivityDate(createdAt)}</dd>
++        </div>
++        <div className="flex flex-col">
++          <dt className="text-sm font-semibold text-slate-800">{t("workspace.settings.profile.last_login")}</dt>
++          <dd className="text-sm text-slate-600">
++            {lastLoginAt ? formatActivityDate(lastLoginAt) : t("workspace.settings.profile.last_login_never")}
++          </dd>
++        </div>
++      </dl>
++
++      <div className="flex items-center justify-between gap-4 border-t border-slate-200 pt-4">
++        <p className="text-xs text-slate-600">{t("workspace.settings.profile.download_my_data_description")}</p>
++        <Button
++          type="button"
++          variant="secondary"
++          loading={isDownloading}
++          onClick={handleDownloadMyData}
++          className="shrink-0">
++          {t("workspace.settings.profile.download_my_data")}
++        </Button>
++      </div>
++    </div>
++  );
++};
+diff --git a/apps/web/app/api/(internal)/account/data-export/route.ts b/apps/web/app/api/(internal)/account/data-export/route.ts
+new file mode 100644
+index 000000000..ec5ad73b5
+--- /dev/null
++++ b/apps/web/app/api/(internal)/account/data-export/route.ts
+@@ -0,0 +1,21 @@
++import { NextResponse } from "next/server";
++import { getUserDataExport } from "@/lib/user/data-export";
++import { getSession } from "@/modules/auth/lib/session";
++
++export const GET = async () => {
++  const session = await getSession();
++  if (!session?.user) {
++    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
++  }
++
++  const data = await getUserDataExport(session.user.id);
++
++  return new NextResponse(JSON.stringify(data, null, 2), {
++    status: 200,
++    headers: {
++      "Content-Type": "application/json; charset=utf-8",
++      "Content-Disposition": 'attachment; filename="formbricks-my-data.json"',
++      "Cache-Control": "no-store",
++    },
++  });
++};
+diff --git a/apps/web/lib/user/data-export.ts b/apps/web/lib/user/data-export.ts
+new file mode 100644
+index 000000000..e4e2a791a
+--- /dev/null
++++ b/apps/web/lib/user/data-export.ts
+@@ -0,0 +1,52 @@
++import "server-only";
++import { prisma } from "@formbricks/database";
++import { ResourceNotFoundError } from "@formbricks/types/errors";
++import { TOrganizationRole } from "@formbricks/types/memberships";
++import { TUserLocale, TUserNotificationSettings } from "@formbricks/types/user";
++import { getUser } from "./service";
++
++export type TUserDataExportMembership = {
++  organizationName: string;
++  role: TOrganizationRole;
++};
++
++export type TUserDataExport = {
++  name: string;
++  email: string;
++  locale: TUserLocale;
++  notificationSettings: TUserNotificationSettings;
++  organizationMemberships: TUserDataExportMembership[];
++};
++
++/**
++ * The personal data a user can download from their profile page. Only the user's own record and their
++ * accepted organization memberships are read, so the export cannot reach another user's data.
++ */
++export const getUserDataExport = async (userId: string): Promise<TUserDataExport> => {
++  const [user, memberships] = await Promise.all([
++    getUser(userId),
++    prisma.membership.findMany({
++      where: { userId, accepted: true },
++      select: {
++        role: true,
++        organization: { select: { name: true } },
++      },
++      orderBy: { organization: { name: "asc" } },
++    }),
++  ]);
++
++  if (!user) {
++    throw new ResourceNotFoundError("User", userId);
++  }
++
++  return {
++    name: user.name,
++    email: user.email,
++    locale: user.locale,
++    notificationSettings: user.notificationSettings,
++    organizationMemberships: memberships.map((membership) => ({
++      organizationName: membership.organization.name,
++      role: membership.role,
++    })),
++  };
++};
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..6be6f6f23 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "When your account was created and when you last logged in.",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,10 +3753,15 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Download a JSON file with your name, email, language, notification settings and organization memberships.",
++        "download_my_data_failed": "Could not download your data. Please try again.",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
++        "last_login_never": "Never",
+         "lost_access": "Lost access",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",

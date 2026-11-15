@@ -1,0 +1,197 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..7fdaedcfd 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,7 +1,9 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
++import { DownloadMyDataButton } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
++import { getUserOrganizationMemberships } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/organization-memberships";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+ import {
+   EMAIL_VERIFICATION_DISABLED,
+@@ -11,6 +13,7 @@ import {
+ } from "@/lib/constants";
+ import { getOrganizationsWhereUserIsSingleOwner } from "@/lib/organization/service";
+ import { getUser } from "@/lib/user/service";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
+ import { getTranslate } from "@/lingodotdev/server";
+ import { requiresPasswordConfirmationForAccountDeletion } from "@/modules/account/lib/account-deletion-auth";
+ import { getSession } from "@/modules/auth/lib/session";
+@@ -24,6 +27,17 @@ import { PageContentWrapper } from "@/modules/ui/components/page-content-wrapper
+ import { PageHeader } from "@/modules/ui/components/page-header";
+ import { UpgradePrompt } from "@/modules/ui/components/upgrade-prompt";
+ 
++// Pinned to UTC so the shown moment does not depend on the server or browser time zone.
++const ACCOUNT_ACTIVITY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
++  year: "numeric",
++  month: "short",
++  day: "numeric",
++  hour: "2-digit",
++  minute: "2-digit",
++  timeZone: "UTC",
++  timeZoneName: "short",
++};
++
+ const Page = async () => {
+   const isTwoFactorAuthEnabled = await getIsTwoFactorAuthEnabled();
+   const isMultiOrgEnabled = await getIsMultiOrgEnabled();
+@@ -86,6 +100,15 @@ const Page = async () => {
+   const isPasswordResetEnabled = !PASSWORD_RESET_DISABLED && user.identityProvider === "email";
+   const requiresPasswordConfirmation = requiresPasswordConfirmationForAccountDeletion(user);
+ 
++  const organizationMemberships = await getUserOrganizationMemberships(user.id);
++  const dataExport = {
++    name: user.name,
++    email: user.email,
++    locale: user.locale,
++    notificationSettings: user.notificationSettings,
++    organizationMemberships,
++  };
++
+   return (
+     <PageContentWrapper>
+       <PageHeader pageTitle={t("common.profile")} />
+@@ -108,6 +131,29 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
++            <dt className="text-slate-500">{t("workspace.settings.profile.account_created")}</dt>
++            <dd className="text-slate-800">
++              {formatDateTimeForDisplay(user.createdAt, user.locale, ACCOUNT_ACTIVITY_DATE_OPTIONS)}
++            </dd>
++            <dt className="text-slate-500">{t("common.last_sign_in")}</dt>
++            <dd className="text-slate-800">
++              {user.lastLoginAt
++                ? formatDateTimeForDisplay(user.lastLoginAt, user.locale, ACCOUNT_ACTIVITY_DATE_OPTIONS)
++                : t("workspace.settings.profile.never_signed_in")}
++            </dd>
++          </dl>
++        </SettingsCard>
++
++        <SettingsCard
++          title={t("workspace.settings.profile.download_my_data")}
++          description={t("workspace.settings.profile.download_my_data_description")}>
++          <DownloadMyDataButton data={dataExport} />
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx
+new file mode 100644
+index 000000000..3cb89f076
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx
+@@ -0,0 +1,41 @@
++"use client";
++
++import { DownloadIcon } from "lucide-react";
++import { useTranslation } from "react-i18next";
++import type { TUser } from "@formbricks/types/user";
++import { Button } from "@/modules/ui/components/button";
++
++export interface TUserDataExport {
++  name: string;
++  email: string;
++  locale: string;
++  notificationSettings: TUser["notificationSettings"];
++  organizationMemberships: { organizationName: string; role: string }[];
++}
++
++interface DownloadMyDataButtonProps {
++  data: TUserDataExport;
++}
++
++export const DownloadMyDataButton = ({ data }: Readonly<DownloadMyDataButtonProps>) => {
++  const { t } = useTranslation();
++
++  const handleDownload = () => {
++    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
++    const url = URL.createObjectURL(blob);
++    const link = document.createElement("a");
++    link.href = url;
++    link.download = "formbricks-my-data.json";
++    document.body.appendChild(link);
++    link.click();
++    link.remove();
++    URL.revokeObjectURL(url);
++  };
++
++  return (
++    <Button variant="secondary" size="sm" onClick={handleDownload}>
++      <DownloadIcon className="mr-2 size-4" />
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/organization-memberships.ts b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/organization-memberships.ts
+new file mode 100644
+index 000000000..5872593f4
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/organization-memberships.ts
+@@ -0,0 +1,29 @@
++import { cache as reactCache } from "react";
++import { prisma } from "@formbricks/database";
++
++export interface TUserOrganizationMembership {
++  organizationName: string;
++  role: string;
++}
++
++/**
++ * Organizations the user has accepted membership in, with the role they hold there.
++ * Pending invites are not memberships yet, so they are left out of the export.
++ */
++export const getUserOrganizationMemberships = reactCache(
++  async (userId: string): Promise<TUserOrganizationMembership[]> => {
++    const memberships = await prisma.membership.findMany({
++      where: { userId, accepted: true },
++      select: {
++        role: true,
++        organization: { select: { name: true } },
++      },
++      orderBy: { organization: { name: "asc" } },
++    });
++
++    return memberships.map((membership) => ({
++      organizationName: membership.organization.name,
++      role: membership.role,
++    }));
++  }
++);
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..3708e1339 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "When your account was created and when you last signed in.",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,11 +3753,14 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Download a JSON file with your name, email, language, notification settings and organization memberships.",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
+         "lost_access": "Lost access",
++        "never_signed_in": "Never",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+         "permanent_removal_of_all_of_your_personal_information_and_data": "Permanent removal of all of your personal information and data",

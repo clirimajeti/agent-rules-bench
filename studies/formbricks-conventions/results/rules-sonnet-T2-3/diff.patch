@@ -1,0 +1,183 @@
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..dbcf3a871 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -264,6 +264,7 @@
+     "copy": "Copy",
+     "copy_code": "Copy code",
+     "copy_link": "Copy Link",
++    "copy_of": "Copy of",
+     "count_attributes": "{count, plural, one {{count} attribute} other {{count} attributes}}",
+     "count_contacts": "{count, plural, one {{count} contact} other {{count} contacts}}",
+     "count_members": "{count, plural, one {{count} member} other {{count} members}}",
+@@ -2913,6 +2914,7 @@
+         "webhook_created": "Webhook Created",
+         "webhook_delete_confirmation": "Are you sure you want to delete this Webhook? This will stop sending you any further notifications.",
+         "webhook_deleted_successfully": "Webhook deleted successfully",
++        "webhook_duplicated_successfully": "Webhook duplicated successfully",
+         "webhook_name_placeholder": "Optional: Label your webhook for easy identification",
+         "webhook_test_failed_due_to": "Webhook Test Failed due to",
+         "webhook_updated_successfully": "Webhook updated successfully",
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+index d11f09b77..61b9fadf7 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
+ import { Webhook } from "@formbricks/database/prisma-browser";
+ import { TSurvey } from "@formbricks/types/surveys/types";
+ import { timeSince } from "@/lib/time";
++import { formatDateForDisplay } from "@/lib/utils/datetime";
+ import { RestrictedSurveyHint } from "@/modules/survey/visibility/components/restricted-survey-hint";
+ import { hasRestrictedAttachedSurvey } from "@/modules/survey/visibility/lib/outbound";
+ import { Badge } from "@/modules/ui/components/badge";
+@@ -95,7 +96,7 @@ export const WebhookRowData = ({
+       <div className="col-span-1 my-auto text-center text-sm text-slate-800">
+         <Badge type="gray" size="tiny" text={webhook.source || t("common.user")} className="capitalize" />
+       </div>
+-      <div className="col-span-4 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
++      <div className="col-span-2 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
+         {renderSelectedSurveysText(webhook, surveys)}
+         {hasRestrictedAttachedSurvey(surveyVisibilityEnabled, webhook.surveyIds, surveys) && (
+           <RestrictedSurveyHint kind="paused" />
+@@ -104,10 +105,12 @@ export const WebhookRowData = ({
+       <div className="col-span-2 my-auto text-center text-sm text-slate-800">
+         {renderSelectedTriggersText(webhook, t)}
+       </div>
++      <div className="col-span-2 my-auto text-center text-sm whitespace-nowrap text-slate-500">
++        {formatDateForDisplay(new Date(webhook.createdAt), locale)}
++      </div>
+       <div className="col-span-2 my-auto text-center text-sm whitespace-nowrap text-slate-500">
+         {timeSince(webhook.updatedAt.toString(), locale)}
+       </div>
+-      <div className="text-center"></div>
+     </div>
+   );
+ };
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+index 0c5945508..1883afcb4 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+@@ -3,15 +3,17 @@ import { getTranslate } from "@/lingodotdev/server";
+ export const WebhookTableHeading = async () => {
+   const t = await getTranslate();
+   return (
+-    <>
+-      <div className="grid h-12 grid-cols-12 content-center rounded-lg bg-slate-100 text-left text-sm font-semibold text-slate-900">
++    <div className="flex h-12 items-center rounded-lg bg-slate-100 text-left text-sm font-semibold text-slate-900">
++      <div className="grid min-w-0 flex-1 grid-cols-12 content-center">
+         <span className="sr-only">{t("common.edit")}</span>
+         <div className="col-span-3 pl-6">{t("common.webhook")}</div>
+         <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.source")}</div>
+-        <div className="col-span-4 text-center">{t("common.surveys")}</div>
++        <div className="col-span-2 text-center">{t("common.surveys")}</div>
+         <div className="col-span-2 text-center">{t("workspace.integrations.webhooks.triggers")}</div>
++        <div className="col-span-2 text-center">{t("common.created")}</div>
+         <div className="col-span-2 text-center">{t("common.updated")}</div>
+       </div>
+-    </>
++      <div className="w-32 shrink-0" aria-hidden="true" />
++    </div>
+   );
+ };
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-table.tsx b/apps/web/modules/integrations/webhooks/components/webhook-table.tsx
+index 04cd9866d..6db69fd91 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-table.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-table.tsx
+@@ -1,10 +1,15 @@
+ "use client";
+ 
++import { useRouter } from "next/navigation";
+ import { type JSX, useState } from "react";
++import toast from "react-hot-toast";
+ import { useTranslation } from "react-i18next";
+ import { Webhook } from "@formbricks/database/prisma-browser";
+ import { TSurvey } from "@formbricks/types/surveys/types";
++import { getFormattedErrorMessage } from "@/lib/utils/error-message";
++import { createWebhookAction } from "@/modules/integrations/webhooks/actions";
+ import { WebhookModal } from "@/modules/integrations/webhooks/components/webhook-detail-modal";
++import { Button } from "@/modules/ui/components/button";
+ import { EmptyState } from "@/modules/ui/components/empty-state";
+ 
+ interface WebhookTableProps {
+@@ -28,6 +33,8 @@ export const WebhookTable = ({
+ }: Readonly<WebhookTableProps>) => {
+   const [isWebhookDetailModalOpen, setWebhookDetailModalOpen] = useState(false);
+   const { t } = useTranslation();
++  const router = useRouter();
++  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+   const [activeWebhook, setActiveWebhook] = useState<Webhook>({
+     workspaceId,
+     id: "",
+@@ -47,6 +54,33 @@ export const WebhookTable = ({
+     setWebhookDetailModalOpen(true);
+   };
+ 
++  const handleDuplicate = async (webhook: Webhook) => {
++    setDuplicatingId(webhook.id);
++    try {
++      // No webhookSecret is passed, so the copy gets its own freshly generated secret.
++      const result = await createWebhookAction({
++        workspaceId,
++        webhookInput: {
++          name: `${t("common.copy_of")} ${webhook.name ?? ""}`.trim(),
++          url: webhook.url,
++          source: webhook.source,
++          triggers: webhook.triggers,
++          surveyIds: webhook.surveyIds,
++        },
++      });
++      if (result?.data) {
++        toast.success(t("workspace.integrations.webhooks.webhook_duplicated_successfully"));
++        router.refresh();
++      } else {
++        toast.error(getFormattedErrorMessage(result));
++      }
++    } catch (e) {
++      toast.error(e instanceof Error ? e.message : t("common.something_went_wrong_please_try_again"));
++    } finally {
++      setDuplicatingId(null);
++    }
++  };
++
+   return (
+     <>
+       {webhooks.length === 0 ? (
+@@ -56,15 +90,29 @@ export const WebhookTable = ({
+           {TableHeading}
+           <div className="grid-cols-7">
+             {webhooks.map((webhook, index) => (
+-              <button
+-                type="button"
+-                onClick={(e) => {
+-                  handleOpenWebhookDetailModalClick(e, webhook);
+-                }}
+-                className="w-full"
+-                key={webhook.id}>
+-                {webhookRows[index]}
+-              </button>
++              <div className="flex items-center" key={webhook.id}>
++                <button
++                  type="button"
++                  onClick={(e) => {
++                    handleOpenWebhookDetailModalClick(e, webhook);
++                  }}
++                  className="min-w-0 flex-1">
++                  {webhookRows[index]}
++                </button>
++                <div className="flex w-32 shrink-0 justify-center">
++                  {!isReadOnly && (
++                    <Button
++                      type="button"
++                      variant="secondary"
++                      size="sm"
++                      loading={duplicatingId === webhook.id}
++                      disabled={duplicatingId !== null}
++                      onClick={() => handleDuplicate(webhook)}>
++                      {t("common.duplicate")}
++                    </Button>
++                  )}
++                </div>
++              </div>
+             ))}
+           </div>
+         </div>

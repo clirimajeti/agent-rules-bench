@@ -1,0 +1,245 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..8f2b20009 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,6 +1,7 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
++import { DownloadMyData } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+ import {
+@@ -11,6 +12,7 @@ import {
+ } from "@/lib/constants";
+ import { getOrganizationsWhereUserIsSingleOwner } from "@/lib/organization/service";
+ import { getUser } from "@/lib/user/service";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
+ import { getTranslate } from "@/lingodotdev/server";
+ import { requiresPasswordConfirmationForAccountDeletion } from "@/modules/account/lib/account-deletion-auth";
+ import { getSession } from "@/modules/auth/lib/session";
+@@ -108,6 +110,28 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <div className="space-y-4">
++            <dl className="space-y-2 text-sm">
++              <div className="flex gap-2">
++                <dt className="font-medium text-slate-900">{t("workspace.settings.profile.account_created")}:</dt>
++                <dd className="text-slate-700">{formatDateTimeForDisplay(user.createdAt, user.locale)}</dd>
++              </div>
++              <div className="flex gap-2">
++                <dt className="font-medium text-slate-900">{t("workspace.settings.profile.last_login")}:</dt>
++                <dd className="text-slate-700">
++                  {user.lastLoginAt
++                    ? formatDateTimeForDisplay(user.lastLoginAt, user.locale)
++                    : t("workspace.settings.profile.never_logged_in")}
++                </dd>
++              </div>
++            </dl>
++            <DownloadMyData />
++          </div>
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx
+new file mode 100644
+index 000000000..af45fd268
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx
+@@ -0,0 +1,45 @@
++"use client";
++
++import { QueryClient, QueryClientProvider, useMutation } from "@tanstack/react-query";
++import { DownloadIcon } from "lucide-react";
++import { useState } from "react";
++import toast from "react-hot-toast";
++import { useTranslation } from "react-i18next";
++import {
++  fetchAccountDataExport,
++  saveJsonFile,
++} from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/data-export-client";
++import { getV3ApiErrorMessage } from "@/modules/api/lib/v3-client";
++import { Button } from "@/modules/ui/components/button";
++
++const DownloadMyDataButton = () => {
++  const { t } = useTranslation();
++
++  const exportMutation = useMutation({
++    mutationFn: fetchAccountDataExport,
++    onSuccess: (data) => saveJsonFile(data, "formbricks-account-data.json"),
++    onError: (error) =>
++      toast.error(getV3ApiErrorMessage(error, t("workspace.settings.profile.download_my_data_failed"))),
++  });
++
++  return (
++    <Button
++      variant="secondary"
++      size="sm"
++      loading={exportMutation.isPending}
++      onClick={() => exportMutation.mutate()}>
++      <DownloadIcon />
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
++
++export const DownloadMyData = () => {
++  const [queryClient] = useState(() => new QueryClient());
++
++  return (
++    <QueryClientProvider client={queryClient}>
++      <DownloadMyDataButton />
++    </QueryClientProvider>
++  );
++};
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/data-export-client.ts b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/data-export-client.ts
+new file mode 100644
+index 000000000..ed02bd9d5
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/data-export-client.ts
+@@ -0,0 +1,21 @@
++import type { TV3AccountDataExport } from "@/app/api/v3/account/data-export/lib/operations";
++import { parseV3ApiError } from "@/modules/api/lib/v3-client";
++
++export async function fetchAccountDataExport(): Promise<TV3AccountDataExport> {
++  const response = await fetch("/api/v3/account/data-export", { cache: "no-store" });
++  if (!response.ok) {
++    throw await parseV3ApiError(response);
++  }
++  return ((await response.json()) as { data: TV3AccountDataExport }).data;
++}
++
++export function saveJsonFile(data: unknown, fileName: string): void {
++  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
++  const link = document.createElement("a");
++  link.href = url;
++  link.download = fileName;
++  document.body.appendChild(link);
++  link.click();
++  link.remove();
++  URL.revokeObjectURL(url);
++}
+diff --git a/apps/web/app/api/v3/account/data-export/lib/operations.ts b/apps/web/app/api/v3/account/data-export/lib/operations.ts
+new file mode 100644
+index 000000000..4644bcba2
+--- /dev/null
++++ b/apps/web/app/api/v3/account/data-export/lib/operations.ts
+@@ -0,0 +1,63 @@
++import "server-only";
++import { prisma } from "@formbricks/database";
++import { getV3SessionUserId } from "@/app/api/v3/lib/auth";
++import { problemInternalError, problemUnauthorized, successResponse } from "@/app/api/v3/lib/response";
++import type { TV3Authentication } from "@/app/api/v3/lib/types";
++
++export type TV3AccountDataExport = {
++  name: string;
++  email: string;
++  locale: string;
++  notificationSettings: unknown;
++  organizationMemberships: { organizationName: string; role: string }[];
++};
++
++/**
++ * The signed-in user's own data, and nothing else: the user id comes from the session, never from the
++ * request, so there is no identifier a caller could swap for someone else's. Secrets on the user row
++ * (password hash, 2FA secret, backup codes) are not selected.
++ */
++export async function getV3AccountDataExport(params: {
++  authentication: TV3Authentication;
++  requestId: string;
++  instance?: string;
++}): Promise<Response> {
++  const { authentication, requestId, instance } = params;
++
++  const userId = getV3SessionUserId(authentication);
++  if (!userId) {
++    return problemUnauthorized(requestId, "Session required", instance);
++  }
++
++  const user = await prisma.user.findUnique({
++    where: { id: userId },
++    select: {
++      name: true,
++      email: true,
++      locale: true,
++      notificationSettings: true,
++      memberships: {
++        where: { accepted: true },
++        select: { role: true, organization: { select: { name: true } } },
++        orderBy: { organization: { name: "asc" } },
++      },
++    },
++  });
++
++  if (!user) {
++    return problemInternalError(requestId, "Unable to load account data", instance);
++  }
++
++  const data: TV3AccountDataExport = {
++    name: user.name,
++    email: user.email,
++    locale: user.locale,
++    notificationSettings: user.notificationSettings,
++    organizationMemberships: user.memberships.map((membership) => ({
++      organizationName: membership.organization.name,
++      role: membership.role,
++    })),
++  };
++
++  return successResponse(data, { requestId });
++}
+diff --git a/apps/web/app/api/v3/account/data-export/route.ts b/apps/web/app/api/v3/account/data-export/route.ts
+new file mode 100644
+index 000000000..b97aadadc
+--- /dev/null
++++ b/apps/web/app/api/v3/account/data-export/route.ts
+@@ -0,0 +1,15 @@
++/**
++ * GET /api/v3/account/data-export - the signed-in user's name, email, locale, notification settings and
++ * organization memberships.
++ *
++ * Session-only, deliberately: it exports the personal data of the person behind the session, so an API
++ * key (which has no user) has no business here.
++ */
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { getV3AccountDataExport } from "./lib/operations";
++
++export const GET = withV3ApiWrapper({
++  auth: "session",
++  handler: async ({ authentication, requestId, instance }) =>
++    getV3AccountDataExport({ authentication, requestId, instance }),
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..bc42a5756 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "See when your account was created and when you last logged in, and download a copy of your data.",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3752,9 +3755,13 @@
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
++        "download_my_data": "Download my data",
++        "download_my_data_failed": "Could not download your data. Please try again.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
+         "lost_access": "Lost access",
++        "never_logged_in": "Never",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+         "permanent_removal_of_all_of_your_personal_information_and_data": "Permanent removal of all of your personal information and data",

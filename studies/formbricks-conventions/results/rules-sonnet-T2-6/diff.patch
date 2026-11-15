@@ -1,0 +1,639 @@
+diff --git a/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts b/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts
+new file mode 100644
+index 000000000..507bec640
+--- /dev/null
++++ b/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts
+@@ -0,0 +1,22 @@
++/**
++ * POST /api/v3/webhooks/{webhookId}/duplicate — copy a webhook (URL, triggers, surveys) under the name
++ * "Copy of <name>", with a newly generated signing secret.
++ */
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { duplicateV3Webhook } from "../../lib/operations";
++import { ZV3WebhookIdParams } from "../../lib/schemas";
++
++export const POST = withV3ApiWrapper({
++  auth: "session",
++  action: "created",
++  targetType: "webhook",
++  schemas: { params: ZV3WebhookIdParams },
++  handler: async ({ authentication, parsedInput, auditLog, requestId, instance }) =>
++    duplicateV3Webhook({
++      authentication,
++      webhookId: parsedInput.params.webhookId,
++      auditLog,
++      requestId,
++      instance,
++    }),
++});
+diff --git a/apps/web/app/api/v3/webhooks/lib/operations.ts b/apps/web/app/api/v3/webhooks/lib/operations.ts
+new file mode 100644
+index 000000000..8f919c059
+--- /dev/null
++++ b/apps/web/app/api/v3/webhooks/lib/operations.ts
+@@ -0,0 +1,49 @@
++import "server-only";
++import { requireV3WorkspaceAccess } from "@/app/api/v3/lib/auth";
++import { problemForbidden, successResponse } from "@/app/api/v3/lib/response";
++import type { TV3AuditLog, TV3Authentication } from "@/app/api/v3/lib/types";
++import { assertNewlyAttachedSurveysWorkspaceVisible } from "@/lib/survey/visibility/outbound";
++import { duplicateWebhook, getWebhookById } from "@/modules/integrations/webhooks/lib/webhook";
++import { serializeV3Webhook } from "../serializers";
++
++/**
++ * The workspace comes from the webhook itself, never from the client, so a caller cannot pair someone
++ * else's webhook id with a workspace they can write to. An unknown webhook answers 403, not 404, like
++ * `/api/v3/tags/{tagId}`, so webhook ids cannot be probed across the instance.
++ */
++export async function duplicateV3Webhook(params: {
++  authentication: TV3Authentication;
++  webhookId: string;
++  auditLog?: TV3AuditLog;
++  requestId: string;
++  instance?: string;
++}): Promise<Response> {
++  const { authentication, webhookId, auditLog, requestId, instance } = params;
++
++  const webhook = await getWebhookById(webhookId);
++  if (!webhook) {
++    return problemForbidden(requestId, "You are not authorized to access this resource", instance);
++  }
++
++  const access = await requireV3WorkspaceAccess(
++    authentication,
++    webhook.workspaceId,
++    "readWrite",
++    requestId,
++    instance
++  );
++  if (access instanceof Response) return access;
++
++  // The copy attaches every survey the original did, so the caller must be allowed to see them all.
++  await assertNewlyAttachedSurveysWorkspaceVisible(webhook.surveyIds);
++
++  const copy = await duplicateWebhook(webhook);
++
++  if (auditLog) {
++    auditLog.organizationId = access.organizationId;
++    auditLog.targetId = copy.id;
++    auditLog.newObject = serializeV3Webhook(copy);
++  }
++
++  return successResponse(serializeV3Webhook(copy), { requestId, status: 201 });
++}
+diff --git a/apps/web/app/api/v3/webhooks/lib/schemas.ts b/apps/web/app/api/v3/webhooks/lib/schemas.ts
+new file mode 100644
+index 000000000..9ea11f8fc
+--- /dev/null
++++ b/apps/web/app/api/v3/webhooks/lib/schemas.ts
+@@ -0,0 +1,5 @@
++import { z } from "zod";
++
++export const ZV3WebhookIdParams = z.object({ webhookId: z.cuid2() }).strict();
++
++export type TV3WebhookIdParams = z.infer<typeof ZV3WebhookIdParams>;
+diff --git a/apps/web/app/api/v3/webhooks/serializers.ts b/apps/web/app/api/v3/webhooks/serializers.ts
+new file mode 100644
+index 000000000..46fef0b15
+--- /dev/null
++++ b/apps/web/app/api/v3/webhooks/serializers.ts
+@@ -0,0 +1,26 @@
++import type { Webhook } from "@formbricks/database/prisma";
++
++export type TV3Webhook = {
++  id: string;
++  name: string | null;
++  url: string;
++  source: string;
++  triggers: string[];
++  surveyIds: string[];
++  workspaceId: string;
++  createdAt: string;
++  updatedAt: string;
++};
++
++/** Deliberately leaves out `secret`: a signing secret is shown in the webhook's own detail view only. */
++export const serializeV3Webhook = (webhook: Webhook): TV3Webhook => ({
++  id: webhook.id,
++  name: webhook.name,
++  url: webhook.url,
++  source: webhook.source,
++  triggers: webhook.triggers,
++  surveyIds: webhook.surveyIds,
++  workspaceId: webhook.workspaceId,
++  createdAt: webhook.createdAt.toISOString(),
++  updatedAt: webhook.updatedAt.toISOString(),
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..0b874a717 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -2913,6 +2913,7 @@
+         "webhook_created": "Webhook Created",
+         "webhook_delete_confirmation": "Are you sure you want to delete this Webhook? This will stop sending you any further notifications.",
+         "webhook_deleted_successfully": "Webhook deleted successfully",
++        "webhook_duplicated_successfully": "Webhook duplicated successfully",
+         "webhook_name_placeholder": "Optional: Label your webhook for easy identification",
+         "webhook_test_failed_due_to": "Webhook Test Failed due to",
+         "webhook_updated_successfully": "Webhook updated successfully",
+diff --git a/apps/web/modules/integrations/webhooks/components/duplicate-webhook-button.tsx b/apps/web/modules/integrations/webhooks/components/duplicate-webhook-button.tsx
+new file mode 100644
+index 000000000..70e3e59fc
+--- /dev/null
++++ b/apps/web/modules/integrations/webhooks/components/duplicate-webhook-button.tsx
+@@ -0,0 +1,33 @@
++"use client";
++
++import { CopyIcon } from "lucide-react";
++import { toast } from "react-hot-toast";
++import { useTranslation } from "react-i18next";
++import { V3ApiError } from "@/modules/api/lib/v3-client";
++import { Button } from "@/modules/ui/components/button";
++import { useDuplicateWebhook } from "../hooks/use-duplicate-webhook";
++
++export const DuplicateWebhookButton = ({ webhookId }: Readonly<{ webhookId: string }>) => {
++  const { t } = useTranslation();
++  const { mutate, isPending } = useDuplicateWebhook();
++
++  const handleDuplicate = () => {
++    mutate(
++      { webhookId },
++      {
++        onSuccess: () => toast.success(t("workspace.integrations.webhooks.webhook_duplicated_successfully")),
++        onError: (error) =>
++          toast.error(
++            error instanceof V3ApiError ? error.message : t("common.something_went_wrong_please_try_again")
++          ),
++      }
++    );
++  };
++
++  return (
++    <Button type="button" variant="secondary" size="sm" loading={isPending} onClick={handleDuplicate}>
++      <CopyIcon />
++      {t("common.duplicate")}
++    </Button>
++  );
++};
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+index d11f09b77..01e4aeb9e 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
+ import { Webhook } from "@formbricks/database/prisma-browser";
+ import { TSurvey } from "@formbricks/types/surveys/types";
+ import { timeSince } from "@/lib/time";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
+ import { RestrictedSurveyHint } from "@/modules/survey/visibility/components/restricted-survey-hint";
+ import { hasRestrictedAttachedSurvey } from "@/modules/survey/visibility/lib/outbound";
+ import { Badge } from "@/modules/ui/components/badge";
+@@ -95,7 +96,7 @@ export const WebhookRowData = ({
+       <div className="col-span-1 my-auto text-center text-sm text-slate-800">
+         <Badge type="gray" size="tiny" text={webhook.source || t("common.user")} className="capitalize" />
+       </div>
+-      <div className="col-span-4 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
++      <div className="col-span-2 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
+         {renderSelectedSurveysText(webhook, surveys)}
+         {hasRestrictedAttachedSurvey(surveyVisibilityEnabled, webhook.surveyIds, surveys) && (
+           <RestrictedSurveyHint kind="paused" />
+@@ -104,10 +105,14 @@ export const WebhookRowData = ({
+       <div className="col-span-2 my-auto text-center text-sm text-slate-800">
+         {renderSelectedTriggersText(webhook, t)}
+       </div>
++      <div
++        className="col-span-2 my-auto text-center text-sm whitespace-nowrap text-slate-500"
++        title={formatDateTimeForDisplay(new Date(webhook.createdAt), locale)}>
++        {timeSince(webhook.createdAt.toString(), locale)}
++      </div>
+       <div className="col-span-2 my-auto text-center text-sm whitespace-nowrap text-slate-500">
+         {timeSince(webhook.updatedAt.toString(), locale)}
+       </div>
+-      <div className="text-center"></div>
+     </div>
+   );
+ };
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+index 0c5945508..0f8da2bea 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+@@ -1,17 +1,19 @@
+ import { getTranslate } from "@/lingodotdev/server";
+ 
+-export const WebhookTableHeading = async () => {
++export const WebhookTableHeading = async ({ showActions }: Readonly<{ showActions: boolean }>) => {
+   const t = await getTranslate();
+   return (
+-    <>
+-      <div className="grid h-12 grid-cols-12 content-center rounded-lg bg-slate-100 text-left text-sm font-semibold text-slate-900">
++    <div className="flex h-12 items-center rounded-lg bg-slate-100 text-left text-sm font-semibold text-slate-900">
++      <div className="grid min-w-0 flex-1 grid-cols-12 content-center">
+         <span className="sr-only">{t("common.edit")}</span>
+         <div className="col-span-3 pl-6">{t("common.webhook")}</div>
+         <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.source")}</div>
+-        <div className="col-span-4 text-center">{t("common.surveys")}</div>
++        <div className="col-span-2 text-center">{t("common.surveys")}</div>
+         <div className="col-span-2 text-center">{t("workspace.integrations.webhooks.triggers")}</div>
++        <div className="col-span-2 text-center">{t("common.created_at")}</div>
+         <div className="col-span-2 text-center">{t("common.updated")}</div>
+       </div>
+-    </>
++      {showActions && <div className="w-32 shrink-0" aria-hidden="true" />}
++    </div>
+   );
+ };
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-table.tsx b/apps/web/modules/integrations/webhooks/components/webhook-table.tsx
+index 04cd9866d..d15a7c32a 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-table.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-table.tsx
+@@ -4,6 +4,7 @@ import { type JSX, useState } from "react";
+ import { useTranslation } from "react-i18next";
+ import { Webhook } from "@formbricks/database/prisma-browser";
+ import { TSurvey } from "@formbricks/types/surveys/types";
++import { DuplicateWebhookButton } from "@/modules/integrations/webhooks/components/duplicate-webhook-button";
+ import { WebhookModal } from "@/modules/integrations/webhooks/components/webhook-detail-modal";
+ import { EmptyState } from "@/modules/ui/components/empty-state";
+ 
+@@ -56,15 +57,21 @@ export const WebhookTable = ({
+           {TableHeading}
+           <div className="grid-cols-7">
+             {webhooks.map((webhook, index) => (
+-              <button
+-                type="button"
+-                onClick={(e) => {
+-                  handleOpenWebhookDetailModalClick(e, webhook);
+-                }}
+-                className="w-full"
+-                key={webhook.id}>
+-                {webhookRows[index]}
+-              </button>
++              <div className="flex items-center" key={webhook.id}>
++                <button
++                  type="button"
++                  onClick={(e) => {
++                    handleOpenWebhookDetailModalClick(e, webhook);
++                  }}
++                  className="min-w-0 flex-1">
++                  {webhookRows[index]}
++                </button>
++                {!isReadOnly && (
++                  <div className="flex w-32 shrink-0 justify-center">
++                    <DuplicateWebhookButton webhookId={webhook.id} />
++                  </div>
++                )}
++              </div>
+             ))}
+           </div>
+         </div>
+diff --git a/apps/web/modules/integrations/webhooks/components/webhooks-query-client-provider.tsx b/apps/web/modules/integrations/webhooks/components/webhooks-query-client-provider.tsx
+new file mode 100644
+index 000000000..cb6977758
+--- /dev/null
++++ b/apps/web/modules/integrations/webhooks/components/webhooks-query-client-provider.tsx
+@@ -0,0 +1,10 @@
++"use client";
++
++import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
++import { type ReactNode, useState } from "react";
++
++export const WebhooksQueryClientProvider = ({ children }: Readonly<{ children: ReactNode }>) => {
++  const [queryClient] = useState(() => new QueryClient());
++
++  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
++};
+diff --git a/apps/web/modules/integrations/webhooks/hooks/use-duplicate-webhook.ts b/apps/web/modules/integrations/webhooks/hooks/use-duplicate-webhook.ts
+new file mode 100644
+index 000000000..df811d4cc
+--- /dev/null
++++ b/apps/web/modules/integrations/webhooks/hooks/use-duplicate-webhook.ts
+@@ -0,0 +1,18 @@
++"use client";
++
++import { useMutation } from "@tanstack/react-query";
++import { useRouter } from "next/navigation";
++import { duplicateWebhook } from "../lib/api-client";
++
++/**
++ * Duplicate a webhook, then refresh the page. The webhook list is rendered by the server, so a router
++ * refresh is what makes the copy appear in it.
++ */
++export const useDuplicateWebhook = () => {
++  const router = useRouter();
++
++  return useMutation({
++    mutationFn: (variables: { webhookId: string }) => duplicateWebhook(variables),
++    onSuccess: () => router.refresh(),
++  });
++};
+diff --git a/apps/web/modules/integrations/webhooks/lib/api-client.ts b/apps/web/modules/integrations/webhooks/lib/api-client.ts
+new file mode 100644
+index 000000000..83019bedf
+--- /dev/null
++++ b/apps/web/modules/integrations/webhooks/lib/api-client.ts
+@@ -0,0 +1,14 @@
++import type { TV3Webhook } from "@/app/api/v3/webhooks/serializers";
++import { parseV3ApiError } from "@/modules/api/lib/v3-client";
++
++/** Client fetcher for the webhooks v3 route. Throws a parsed `V3ApiError` on a non-2xx response. */
++export async function duplicateWebhook(params: { webhookId: string }): Promise<TV3Webhook> {
++  const response = await fetch(`/api/v3/webhooks/${params.webhookId}/duplicate`, {
++    method: "POST",
++    cache: "no-store",
++  });
++  if (!response.ok) {
++    throw await parseV3ApiError(response);
++  }
++  return ((await response.json()) as { data: TV3Webhook }).data;
++}
+diff --git a/apps/web/modules/integrations/webhooks/lib/webhook.ts b/apps/web/modules/integrations/webhooks/lib/webhook.ts
+index 57c157d26..cdafebe05 100644
+--- a/apps/web/modules/integrations/webhooks/lib/webhook.ts
++++ b/apps/web/modules/integrations/webhooks/lib/webhook.ts
+@@ -143,6 +143,34 @@ export const createWebhook = async (
+   }
+ };
+ 
++export const getWebhookById = async (webhookId: string): Promise<Webhook | null> => {
++  validateInputs([webhookId, ZId]);
++
++  try {
++    return await prisma.webhook.findUnique({ where: { id: webhookId } });
++  } catch (error) {
++    if (error instanceof Prisma.PrismaClientKnownRequestError) {
++      throw new DatabaseError(error.message);
++    }
++
++    throw error;
++  }
++};
++
++/**
++ * Creates a copy of `webhook` in the same workspace with the same URL, source, triggers and surveys. The
++ * copy is named "Copy of <name>" (the URL stands in for an unnamed webhook) and gets its own signing
++ * secret: `createWebhook` generates one when none is passed, so the original's secret is never reused.
++ */
++export const duplicateWebhook = async (webhook: Webhook): Promise<Webhook> =>
++  createWebhook(webhook.workspaceId, {
++    name: `Copy of ${webhook.name || webhook.url}`,
++    url: webhook.url,
++    source: webhook.source,
++    triggers: webhook.triggers,
++    surveyIds: webhook.surveyIds,
++  });
++
+ export const getWebhooks = async (workspaceId: string): Promise<Webhook[]> => {
+   validateInputs([workspaceId, ZId]);
+ 
+diff --git a/apps/web/modules/integrations/webhooks/page.tsx b/apps/web/modules/integrations/webhooks/page.tsx
+index 8e3f1a92b..1fe082c98 100644
+--- a/apps/web/modules/integrations/webhooks/page.tsx
++++ b/apps/web/modules/integrations/webhooks/page.tsx
+@@ -2,6 +2,7 @@ import { DANGEROUSLY_ALLOW_WEBHOOK_INTERNAL_URLS } from "@/lib/constants";
+ import { getTranslate } from "@/lingodotdev/server";
+ import { AddWebhookButton } from "@/modules/integrations/webhooks/components/add-webhook-button";
+ import { WebhookRowData } from "@/modules/integrations/webhooks/components/webhook-row-data";
++import { WebhooksQueryClientProvider } from "@/modules/integrations/webhooks/components/webhooks-query-client-provider";
+ import { WebhookTable } from "@/modules/integrations/webhooks/components/webhook-table";
+ import { WebhookTableHeading } from "@/modules/integrations/webhooks/components/webhook-table-heading";
+ import { getWebhookSurveys } from "@/modules/integrations/webhooks/lib/surveys";
+@@ -37,23 +38,25 @@ export const WebhooksPage = async (props: { params: Promise<{ workspaceId: strin
+     <PageContentWrapper>
+       <GoBackButton />
+       <PageHeader pageTitle={t("common.webhooks")} cta={!isReadOnly ? renderAddWebhookButton() : <></>} />
+-      <WebhookTable
+-        workspaceId={workspace.id}
+-        webhooks={webhooks}
+-        surveys={surveys}
+-        isReadOnly={isReadOnly}
+-        allowInternalUrls={DANGEROUSLY_ALLOW_WEBHOOK_INTERNAL_URLS}
+-        surveyVisibilityEnabled={surveyVisibilityEnabled}>
+-        <WebhookTableHeading />
+-        {webhooks.map((webhook) => (
+-          <WebhookRowData
+-            key={webhook.id}
+-            webhook={webhook}
+-            surveys={surveys}
+-            surveyVisibilityEnabled={surveyVisibilityEnabled}
+-          />
+-        ))}
+-      </WebhookTable>
++      <WebhooksQueryClientProvider>
++        <WebhookTable
++          workspaceId={workspace.id}
++          webhooks={webhooks}
++          surveys={surveys}
++          isReadOnly={isReadOnly}
++          allowInternalUrls={DANGEROUSLY_ALLOW_WEBHOOK_INTERNAL_URLS}
++          surveyVisibilityEnabled={surveyVisibilityEnabled}>
++          <WebhookTableHeading showActions={!isReadOnly} />
++          {webhooks.map((webhook) => (
++            <WebhookRowData
++              key={webhook.id}
++              webhook={webhook}
++              surveys={surveys}
++              surveyVisibilityEnabled={surveyVisibilityEnabled}
++            />
++          ))}
++        </WebhookTable>
++      </WebhooksQueryClientProvider>
+     </PageContentWrapper>
+   );
+ };
+diff --git a/docs/api-v3-reference/openapi.yml b/docs/api-v3-reference/openapi.yml
+index cb966a8da..3efa9d625 100644
+--- a/docs/api-v3-reference/openapi.yml
++++ b/docs/api-v3-reference/openapi.yml
+@@ -6745,6 +6745,90 @@ paths:
+           $ref: '#/components/responses/V3InternalServerError'
+       security:
+         - sessionAuth: []
++  /api/v3/webhooks/{webhookId}/duplicate:
++    post:
++      operationId: duplicateWebhookV3
++      x-excluded: true
++      summary: Duplicate a webhook
++      description: |
++        Creates a copy of the webhook in the same workspace with the same URL, source, triggers and surveys.
++        The copy is named `Copy of <name>` (the URL stands in for an unnamed webhook) and gets its own newly
++        generated signing secret. The response never includes a secret.
++
++        An unknown `webhookId` answers `403`, not `404`, so webhook ids cannot be probed for existence.
++      tags:
++        - V3 Webhooks
++      parameters:
++        - in: path
++          name: webhookId
++          required: true
++          schema:
++            type: string
++            format: cuid2
++          description: The webhook to copy.
++      responses:
++        '201':
++          description: Webhook duplicated successfully
++          content:
++            application/json:
++              schema:
++                type: object
++                required:
++                  - data
++                properties:
++                  data:
++                    type: object
++                    required:
++                      - id
++                      - name
++                      - url
++                      - source
++                      - triggers
++                      - surveyIds
++                      - workspaceId
++                      - createdAt
++                      - updatedAt
++                    properties:
++                      id:
++                        type: string
++                        format: cuid2
++                      name:
++                        type: string
++                        nullable: true
++                      url:
++                        type: string
++                      source:
++                        type: string
++                      triggers:
++                        type: array
++                        items:
++                          type: string
++                      surveyIds:
++                        type: array
++                        items:
++                          type: string
++                          format: cuid2
++                      workspaceId:
++                        type: string
++                        format: cuid2
++                      createdAt:
++                        type: string
++                        format: date-time
++                      updatedAt:
++                        type: string
++                        format: date-time
++        '400':
++          $ref: '#/components/responses/V3BadRequest'
++        '401':
++          $ref: '#/components/responses/V3UnauthorizedSession'
++        '403':
++          $ref: '#/components/responses/V3Forbidden'
++        '429':
++          $ref: '#/components/responses/V3TooManyRequests'
++        '500':
++          $ref: '#/components/responses/V3InternalServerError'
++      security:
++        - sessionAuth: []
+   /api/v3/workspaces/{workspaceId}/custom-css:
+     get:
+       operationId: getWorkspaceCustomCssV3
+diff --git a/docs/api-v3-reference/src/openapi.yml b/docs/api-v3-reference/src/openapi.yml
+index 22d57e490..ebd4fbe1a 100644
+--- a/docs/api-v3-reference/src/openapi.yml
++++ b/docs/api-v3-reference/src/openapi.yml
+@@ -486,6 +486,8 @@ paths:
+     $ref: paths/api_v3_tags_{tagId}.yml
+   /api/v3/tags/{tagId}/merge:
+     $ref: paths/api_v3_tags_{tagId}_merge.yml
++  /api/v3/webhooks/{webhookId}/duplicate:
++    $ref: paths/api_v3_webhooks_{webhookId}_duplicate.yml
+   /api/v3/workspaces/{workspaceId}/custom-css:
+     $ref: paths/api_v3_workspaces_{workspaceId}_custom-css.yml
+   /api/v3/feedbackRecords:
+diff --git a/docs/api-v3-reference/src/paths/api_v3_webhooks_{webhookId}_duplicate.yml b/docs/api-v3-reference/src/paths/api_v3_webhooks_{webhookId}_duplicate.yml
+new file mode 100644
+index 000000000..71fd680eb
+--- /dev/null
++++ b/docs/api-v3-reference/src/paths/api_v3_webhooks_{webhookId}_duplicate.yml
+@@ -0,0 +1,85 @@
++post:
++  operationId: duplicateWebhookV3
++  # Session-only, like the tags operations: the settings page is the only caller. Kept out of the
++  # generated docs pages; the operation stays in the bundle for the contract tests.
++  x-excluded: true
++  summary: Duplicate a webhook
++  description: |
++    Creates a copy of the webhook in the same workspace with the same URL, source, triggers and surveys.
++    The copy is named `Copy of <name>` (the URL stands in for an unnamed webhook) and gets its own newly
++    generated signing secret. The response never includes a secret.
++
++    An unknown `webhookId` answers `403`, not `404`, so webhook ids cannot be probed for existence.
++  tags:
++    - V3 Webhooks
++  parameters:
++    - in: path
++      name: webhookId
++      required: true
++      schema:
++        type: string
++        format: cuid2
++      description: The webhook to copy.
++  responses:
++    "201":
++      description: Webhook duplicated successfully
++      content:
++        application/json:
++          schema:
++            type: object
++            required:
++              - data
++            properties:
++              data:
++                type: object
++                required:
++                  - id
++                  - name
++                  - url
++                  - source
++                  - triggers
++                  - surveyIds
++                  - workspaceId
++                  - createdAt
++                  - updatedAt
++                properties:
++                  id:
++                    type: string
++                    format: cuid2
++                  name:
++                    type: string
++                    nullable: true
++                  url:
++                    type: string
++                  source:
++                    type: string
++                  triggers:
++                    type: array
++                    items:
++                      type: string
++                  surveyIds:
++                    type: array
++                    items:
++                      type: string
++                      format: cuid2
++                  workspaceId:
++                    type: string
++                    format: cuid2
++                  createdAt:
++                    type: string
++                    format: date-time
++                  updatedAt:
++                    type: string
++                    format: date-time
++    "400":
++      $ref: ../components/responses/V3BadRequest.yml
++    "401":
++      $ref: ../components/responses/V3UnauthorizedSession.yml
++    "403":
++      $ref: ../components/responses/V3Forbidden.yml
++    "429":
++      $ref: ../components/responses/V3TooManyRequests.yml
++    "500":
++      $ref: ../components/responses/V3InternalServerError.yml
++  security:
++    - sessionAuth: []

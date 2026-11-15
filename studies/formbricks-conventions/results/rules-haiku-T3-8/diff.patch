@@ -1,0 +1,233 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..0f37f9f67 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,6 +1,7 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
++import { DownloadMyDataButton } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+ import {
+@@ -10,6 +11,7 @@ import {
+   PASSWORD_RESET_DISABLED,
+ } from "@/lib/constants";
+ import { getOrganizationsWhereUserIsSingleOwner } from "@/lib/organization/service";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
+ import { getUser } from "@/lib/user/service";
+ import { getTranslate } from "@/lingodotdev/server";
+ import { requiresPasswordConfirmationForAccountDeletion } from "@/modules/account/lib/account-deletion-auth";
+@@ -99,6 +101,22 @@ const Page = async () => {
+             isPasswordResetEnabled={isPasswordResetEnabled}
+           />
+         </SettingsCard>
++
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 pb-4 text-sm">
++            <dt className="text-slate-500">{t("workspace.settings.profile.account_created")}</dt>
++            <dd className="text-slate-900">{formatDateTimeForDisplay(user.createdAt, user.locale)}</dd>
++            <dt className="text-slate-500">{t("workspace.settings.profile.last_login")}</dt>
++            <dd className="text-slate-900">
++              {user.lastLoginAt
++                ? formatDateTimeForDisplay(user.lastLoginAt, user.locale)
++                : t("workspace.settings.profile.never_logged_in")}
++            </dd>
++          </dl>
++        </SettingsCard>
++
+         {user.identityProvider === "email" && (
+           <SettingsCard
+             title={t("common.security")}
+@@ -108,6 +126,12 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.download_my_data")}
++          description={t("workspace.settings.profile.download_my_data_description")}>
++          <DownloadMyDataButton />
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx
+new file mode 100644
+index 000000000..e0f2b7ac1
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx
+@@ -0,0 +1,44 @@
++"use client";
++
++import { useState } from "react";
++import toast from "react-hot-toast";
++import { useTranslation } from "react-i18next";
++import { getContentDispositionFileName, saveBlobAsFile } from "@/modules/ee/data-retention/lib/file-download";
++import { Button } from "@/modules/ui/components/button";
++
++const DOWNLOAD_URL = "/api/internal/user-data-export";
++const FALLBACK_FILE_NAME = "formbricks-account-data.json";
++
++export const DownloadMyDataButton = () => {
++  const { t } = useTranslation();
++  const [isDownloading, setIsDownloading] = useState(false);
++
++  const handleDownload = async () => {
++    setIsDownloading(true);
++    try {
++      const response = await fetch(DOWNLOAD_URL, { method: "GET", cache: "no-store" });
++      if (!response.ok) {
++        throw new Error(`Download failed with status ${response.status}`);
++      }
++      const fileName =
++        getContentDispositionFileName(response.headers.get("Content-Disposition")) ?? FALLBACK_FILE_NAME;
++      saveBlobAsFile(await response.blob(), fileName);
++    } catch {
++      toast.error(t("workspace.settings.profile.download_my_data_failed"));
++    } finally {
++      setIsDownloading(false);
++    }
++  };
++
++  return (
++    <Button
++      type="button"
++      variant="secondary"
++      size="sm"
++      onClick={handleDownload}
++      loading={isDownloading}
++      disabled={isDownloading}>
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
+diff --git a/apps/web/app/api/internal/user-data-export/route.ts b/apps/web/app/api/internal/user-data-export/route.ts
+new file mode 100644
+index 000000000..4267c0eca
+--- /dev/null
++++ b/apps/web/app/api/internal/user-data-export/route.ts
+@@ -0,0 +1,30 @@
++import { AuthenticationError } from "@formbricks/types/errors";
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { getUserDataExport } from "@/modules/account/lib/user-data-export";
++
++export const runtime = "nodejs";
++export const dynamic = "force-dynamic";
++
++/**
++ * `GET /api/internal/user-data-export`: the signed-in user's own profile data as a JSON file.
++ * Internal (session-only, no OpenAPI entry). It only ever reads the caller's own account.
++ */
++export const GET = withV3ApiWrapper({
++  auth: "session",
++  handler: async ({ authentication }) => {
++    if (!authentication || !("user" in authentication) || !authentication.user?.id) {
++      throw new AuthenticationError("Session required");
++    }
++    const data = await getUserDataExport(authentication.user.id);
++    const fileName = `formbricks-account-data-${data.exportedAt.slice(0, 10)}.json`;
++
++    return new Response(JSON.stringify(data, null, 2), {
++      status: 200,
++      headers: {
++        "Content-Type": "application/json",
++        "Content-Disposition": `attachment; filename="${fileName}"`,
++        "Cache-Control": "no-store",
++      },
++    });
++  },
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..5e818011f 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "When your account was created and when you last signed in.",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,11 +3753,16 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Download a JSON file with your name, email, language, notification settings and organization memberships.",
++        "download_my_data_failed": "Your data could not be downloaded. Please try again.",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
+         "lost_access": "Lost access",
++        "never_logged_in": "Never",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+         "permanent_removal_of_all_of_your_personal_information_and_data": "Permanent removal of all of your personal information and data",
+diff --git a/apps/web/modules/account/lib/user-data-export.ts b/apps/web/modules/account/lib/user-data-export.ts
+new file mode 100644
+index 000000000..18a1668e0
+--- /dev/null
++++ b/apps/web/modules/account/lib/user-data-export.ts
+@@ -0,0 +1,54 @@
++import "server-only";
++import { prisma } from "@formbricks/database";
++import { Prisma } from "@formbricks/database/prisma";
++import { DatabaseError, ResourceNotFoundError } from "@formbricks/types/errors";
++import { getUser } from "@/lib/user/service";
++
++export type TUserDataExport = {
++  exportedAt: string;
++  name: string;
++  email: string;
++  locale: string;
++  notificationSettings: unknown;
++  organizations: { name: string; role: string }[];
++};
++
++/**
++ * The profile data a user may download about themselves: identity, locale, notification settings and
++ * the organizations they belong to, with their role there. Only accepted memberships count as
++ * organizations the user belongs to; pending invitations are not part of their account yet.
++ */
++export const getUserDataExport = async (userId: string): Promise<TUserDataExport> => {
++  const user = await getUser(userId);
++  if (!user) {
++    throw new ResourceNotFoundError("User", userId);
++  }
++
++  try {
++    const memberships = await prisma.membership.findMany({
++      where: { userId, accepted: true },
++      select: {
++        role: true,
++        organization: { select: { name: true } },
++      },
++      orderBy: { organization: { name: "asc" } },
++    });
++
++    return {
++      exportedAt: new Date().toISOString(),
++      name: user.name,
++      email: user.email,
++      locale: user.locale,
++      notificationSettings: user.notificationSettings,
++      organizations: memberships.map((membership) => ({
++        name: membership.organization.name,
++        role: membership.role,
++      })),
++    };
++  } catch (error) {
++    if (error instanceof Prisma.PrismaClientKnownRequestError) {
++      throw new DatabaseError(error.message);
++    }
++    throw error;
++  }
++};
