@@ -1,7 +1,8 @@
-# Analysis plan 6 (DRAFT, not registered): conventions as always-loaded prose vs lint rules, two projects, two model families
+# Analysis plan 6: conventions as always-loaded prose vs lint rules, two projects, two model families
 
-Status: draft for review.
-It becomes binding when it is committed and registered on OSF (embargoed) before the first run; every later change goes under Deviations with its date.
+Status: final, for registration on OSF (embargoed) before the first run.
+It is binding from its registration; every later change goes under Deviations with its date and reason.
+The pilots (1 run per arm, model and task) ran before this plan was final and are not analysed.
 
 ## Question
 
@@ -18,11 +19,12 @@ This plan tests that pooled result as a confirmatory hypothesis, on two projects
 
 | Id | Kind | Text (source) | Existing code that violates it |
 |---|---|---|---|
-| F1 | design-shaping | "Server actions are legacy — do not add new ones. New backend work belongs in an `/api/v3` route consumed from the client with TanStack Query, ..." (AGENTS.md) | 57 files with `"use server"` (checker), 110 client components that call actions |
+| F1 | design-shaping | "Server actions are legacy - do not add new ones. New backend work belongs in an `/api/v3` route consumed from the client with TanStack Query, ..." (AGENTS.md) | 57 files with `"use server"` (checker), 110 client components that call actions |
 | F2 | mechanical | "React component props use `Readonly<>`." (CODING_STANDARDS.md, "Conventions Awaiting Automated Enforcement") | 383 components without (checker), 640 with |
 | F3 | mechanical | "All user-facing dates and times must use shared formatting helpers instead of ad hoc `date-fns`, `Intl`, or `toLocale*` calls in components." (CODING_STANDARDS.md) | 1 component (checker); the other grep hits are numbers (`toLocaleString`) or type names |
 | F4 | mechanical | "Only ever add or edit strings in `en-US.json`." (AGENTS.md) | none (a pure instruction) |
 
+In F1 the original has an em dash where this table has " - "; the study uses the original line unchanged.
 The checkers are in `formbricks-conventions/` (ESLint 9.17.0, one local rule per convention, examples tested); the counts above are their findings on the pinned commit.
 A hand check of 8 evenly spaced `readonly-props` findings found 8 true positives; the full precision check is part of the measurement checks below.
 `toLocaleString` is not checked, because on numbers it is not a date.
@@ -39,7 +41,7 @@ This keeps the question of the paper, "where should the rule live", and keeps th
 ## Design
 
 - Models, primary: Claude Code with `sonnet` and `haiku`; the resolved model ids are recorded per run.
-- Model, secondary: `qwen3.6:35b-a3b` in Codex with the same loop (second model family; violations and turns only, no cost).
+- Model, secondary: `qwen3.6:35b-a3b-coding` (Ollama) in Codex with the same loop (second model family; violations and turns only, no cost).
 - Tasks: 4 feature tasks per project; prompts describe only the feature and never mention conventions.
   Formbricks (prompts in `formbricks-conventions/study.json`): T1 API keys (last used, rotate), T2 webhooks (created date, duplicate), T3 profile (account activity, download my data), T4 tags (created date, delete unused tags).
   T1 to T3 sit next to legacy server actions; T4 sits next to the new API v3 pattern, as a contrast.
@@ -49,6 +51,7 @@ This keeps the question of the paper, "where should the rule live", and keeps th
 - Order: `"seed": 20261114` in each study.json, so the arms interleave in time; `run --dry-run` prints the order.
 - Turn cap: 30 (bulletproof, as before); formbricks: 60. Each project had a pilot of 1 run per arm, model and task, which is not analysed (`results-pilot/`).
   The local model gets 60 on both projects: in the bulletproof pilot it reached 30 turns in 5 of 8 runs.
+  The local model has no Formbricks pilot yet; it runs before any of its Formbricks runs, and if it changes the local model's turn cap or time limit, the change is listed under Deviations before those runs start.
 - Local model runs are a separate batch (`run --models qwen36codex`), run overnight after the Claude runs of the same project, with nothing else running on the machine (no Claude runs, no verify, no other study), so that load from other work cannot slow the model into its time limit.
   Machine: Apple M5 Max, 64 GB; Ollama 0.40.16, Codex CLI 0.166.0 (each run also records its versions).
   The `startedAt` time of each run shows that the batches did not overlap.
@@ -65,10 +68,11 @@ The rate of 8% is below the pooled 7 of 64 (11%) of Plans 4 and 5, to allow for 
 
 ## Outcomes
 
-- Primary 1: violating run (at least one checker finding on an added line in production code after the task session, before any review fix).
+- Primary 1: violating run (at least one checker finding on an added line in production code after the task session, before any review fix). Production code is every file the checker config covers; tests, stories and mocks are left out except for the conventions about them, as in `eslint.config.mjs` of each study.
 - Primary 2: total cost per run (task plus review fix), from Claude Code.
 - Secondary: violations per run, loop catches, turns, tokens, verify outcome, violations left at the end.
 - Secondary (`rules` arm): ignored catches, the violations left after the task session whose rule and file the loop had reported during that session (`ignoredCatches` in each result). It separates "the loop did not see it" from "the agent saw it and left it". Reported per model with exact 95% intervals, no test. In the bulletproof pilot all 4 `rules` runs with a violation after the task were of this kind.
+
 ## Hypotheses and tests
 
 - H12: `prose` has more violating runs than `rules`.
@@ -84,7 +88,7 @@ The rate of 8% is below the pooled 7 of 64 (11%) of Plans 4 and 5, to allow for 
 
 - A random sample of 40 diffs per project, drawn with a fixed seed and shown without the arm, is labelled by hand for each convention; the checkers' precision and recall are reported.
 - Every loop finding (`failures.log`) in the `rules` arm is labelled as correct or false; the false-positive rate is reported.
-- The time to write and test each lint rule is recorded.
+- The effort of the lint rules is reported per convention: lines of rule code and number of test cases.
 
 ## Reporting
 

@@ -1,6 +1,6 @@
 # bulletproof-conventions: the bulletproof-react half of Plan 6
 
-Draft, Plan 6 in [plan-6-draft.md](../plan-6-draft.md); not registered yet, no runs analysed.
+Plan 6, [plan-6.md](../plan-6.md) (final; registered on OSF before the real runs). Only the pilot has run; it is not analysed.
 The Formbricks half is [formbricks-conventions](../formbricks-conventions/README.md).
 
 ## What is reused and what is new

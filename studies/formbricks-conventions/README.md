@@ -1,6 +1,6 @@
 # formbricks-conventions
 
-Plan 6 (draft, see [../plan-6-draft.md](../plan-6-draft.md)).
+Plan 6, [plan-6.md](../plan-6.md) (final; registered on OSF before the real runs). Only the pilot has run; it is not analysed.
 Four conventions that the Formbricks maintainers wrote and do not lint, at commit `fa28916` (31 Oct 2026, before the wfx-loot wave):
 
 | Rule | Kind | Source |
