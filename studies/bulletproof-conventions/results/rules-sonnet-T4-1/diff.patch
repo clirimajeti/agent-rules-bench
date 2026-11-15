@@ -1,0 +1,152 @@
+diff --git a/apps/react-vite/src/features/users/api/get-users.ts b/apps/react-vite/src/features/users/api/get-users.ts
+index e13d106..8977d1e 100644
+--- a/apps/react-vite/src/features/users/api/get-users.ts
++++ b/apps/react-vite/src/features/users/api/get-users.ts
+@@ -1,10 +1,18 @@
+ import { queryOptions, useQuery } from '@tanstack/react-query';
+ 
++import { z } from 'zod';
++
+ import { api } from '@/lib/api-client';
+ import { QueryConfig } from '@/lib/react-query';
+ import { User } from '@/types/api';
+ 
+-export const getUsers = (): Promise<{ data: User[] }> => {
++export const usersFilterSchema = z.object({
++  search: z.string(),
++});
++
++export type UsersFilter = z.infer<typeof usersFilterSchema>;
++
++export const getUsers = ():Promise<{ data: User[] }> => {
+   return api.get(`/users`);
+ };
+ 
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..fd8bc1e 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,8 +1,13 @@
++import { Button } from '@/components/ui/button';
++import { Form, Input } from '@/components/ui/form';
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
++import { User } from '@/types/api';
+ import { formatDate } from '@/utils/format';
+ 
+-import { useUsers } from '../api/get-users';
++import { useUsers, usersFilterSchema } from '../api/get-users';
++import { downloadUsersCsv } from '../utils/export-users-csv';
++import { filterUsers } from '../utils/users-filter';
+ 
+ import { DeleteUser } from './delete-user';
+ 
+@@ -21,6 +26,44 @@ export const UsersList = () => {
+ 
+   if (!users) return null;
+ 
++  return (
++    <Form
++      schema={usersFilterSchema}
++      onSubmit={() => {}}
++      options={{ defaultValues: { search: '' } }}
++    >
++      {({ register, watch }) => {
++        const filteredUsers = filterUsers(users, {
++          search: watch('search') ?? '',
++        });
++
++        return (
++          <div className="space-y-4">
++            <div className="flex flex-wrap items-end gap-4">
++              <Input
++                label="Search"
++                type="search"
++                placeholder="Name or email"
++                registration={register('search')}
++              />
++              <Button
++                type="button"
++                variant="outline"
++                disabled={filteredUsers.length === 0}
++                onClick={() => downloadUsersCsv(filteredUsers)}
++              >
++                Export CSV
++              </Button>
++            </div>
++            <UsersTable users={filteredUsers} />
++          </div>
++        );
++      }}
++    </Form>
++  );
++};
++
++const UsersTable = ({ users }: { users: User[] }) => {
+   return (
+     <Table
+       data={users}
+diff --git a/apps/react-vite/src/features/users/utils/export-users-csv.ts b/apps/react-vite/src/features/users/utils/export-users-csv.ts
+new file mode 100644
+index 0000000..09ac345
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/export-users-csv.ts
+@@ -0,0 +1,38 @@
++import { User } from '@/types/api';
++import { formatDate } from '@/utils/format';
++
++const FORMULA_PREFIX = /^[=+\-@\t\r]/;
++
++const escapeCell = (value: string) => {
++  // Prevent spreadsheet formula injection from user-controlled values.
++  const safe = FORMULA_PREFIX.test(value) ? `'${value}` : value;
++  return `"${safe.replace(/"/g, '""')}"`;
++};
++
++export const usersToCsv = (users: User[]) => {
++  const header = ['Name', 'Email', 'Role', 'Joined'];
++  const rows = users.map((user) => [
++    `${user.firstName} ${user.lastName}`,
++    user.email,
++    user.role,
++    formatDate(user.createdAt),
++  ]);
++
++  return [header, ...rows]
++    .map((row) => row.map(escapeCell).join(','))
++    .join('\r\n');
++};
++
++export const downloadUsersCsv = (users: User[]) => {
++  const blob = new Blob([usersToCsv(users)], {
++    type: 'text/csv;charset=utf-8;',
++  });
++  const url = URL.createObjectURL(blob);
++  const link = document.createElement('a');
++  link.href = url;
++  link.download = 'users.csv';
++  document.body.appendChild(link);
++  link.click();
++  link.remove();
++  URL.revokeObjectURL(url);
++};
+diff --git a/apps/react-vite/src/features/users/utils/users-filter.ts b/apps/react-vite/src/features/users/utils/users-filter.ts
+new file mode 100644
+index 0000000..dea1e83
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/users-filter.ts
+@@ -0,0 +1,14 @@
++import { User } from '@/types/api';
++
++import { UsersFilter } from '../api/get-users';
++
++export const filterUsers = (users: User[], { search }: UsersFilter) => {
++  const query = search.trim().toLowerCase();
++
++  return users.filter((user) => {
++    if (!query) return true;
++
++    const name = `${user.firstName} ${user.lastName}`.toLowerCase();
++    return name.includes(query) || user.email.toLowerCase().includes(query);
++  });
++};

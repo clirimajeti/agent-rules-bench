@@ -1,0 +1,101 @@
+diff --git a/apps/react-vite/src/features/discussions/api/get-discussions.ts b/apps/react-vite/src/features/discussions/api/get-discussions.ts
+index fd92874..3f2f6d4 100644
+--- a/apps/react-vite/src/features/discussions/api/get-discussions.ts
++++ b/apps/react-vite/src/features/discussions/api/get-discussions.ts
+@@ -2,12 +2,12 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
+ 
+ import { api } from '@/lib/api-client';
+ import { QueryConfig } from '@/lib/react-query';
+-import { Discussion, Meta } from '@/types/api';
++import { DiscussionListItem, Meta } from '@/types/api';
+ 
+ export const getDiscussions = (
+   page = 1,
+ ): Promise<{
+-  data: Discussion[];
++  data: DiscussionListItem[];
+   meta: Meta;
+ }> => {
+   return api.get(`/discussions`, {
+diff --git a/apps/react-vite/src/features/discussions/components/discussions-list.tsx b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+index 9aa5fba..281c76b 100644
+--- a/apps/react-vite/src/features/discussions/components/discussions-list.tsx
++++ b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+@@ -54,6 +54,20 @@ export const DiscussionsList = ({
+             return <span>{formatDate(createdAt)}</span>;
+           },
+         },
++        {
++          title: 'Comments',
++          field: 'commentsCount',
++        },
++        {
++          title: 'Last Comment',
++          field: 'lastCommentAt',
++          Cell({ entry: { lastCommentAt } }) {
++            if (lastCommentAt === null) {
++              return <span>No comments yet</span>;
++            }
++            return <span>{formatDate(lastCommentAt)}</span>;
++          },
++        },
+         {
+           title: '',
+           field: 'id',
+diff --git a/apps/react-vite/src/testing/mocks/handlers/discussions.ts b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+index 37c0797..92e4e76 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/discussions.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+@@ -49,7 +49,7 @@ export const discussionsHandlers = [
+           take: 10,
+           skip: 10 * (page - 1),
+         })
+-        .map(({ authorId, ...discussion }) => {
++        .map(({ authorId, id, ...discussion }) => {
+           const author = db.user.findFirst({
+             where: {
+               id: {
+@@ -57,9 +57,26 @@ export const discussionsHandlers = [
+               },
+             },
+           });
++
++          const comments = db.comment.findMany({
++            where: {
++              discussionId: {
++                equals: id,
++              },
++            },
++          });
++          const lastCommentAt = comments.reduce<number | null>(
++            (latest, { createdAt }) =>
++              latest === null || createdAt > latest ? createdAt : latest,
++            null,
++          );
++
+           return {
++            id,
+             ...discussion,
+             author: author ? sanitizeUser(author) : {},
++            commentsCount: comments.length,
++            lastCommentAt,
+           };
+         });
+       return HttpResponse.json({
+diff --git a/apps/react-vite/src/types/api.ts b/apps/react-vite/src/types/api.ts
+index dbdf434..a60f3a6 100644
+--- a/apps/react-vite/src/types/api.ts
++++ b/apps/react-vite/src/types/api.ts
+@@ -43,6 +43,12 @@ export type Discussion = Entity<{
+   author: User;
+ }>;
+ 
++export type DiscussionListItem = Discussion & {
++  commentsCount: number;
++  // Creation time of the most recent comment, or null when there are no comments
++  lastCommentAt: number | null;
++};
++
+ export type Comment = Entity<{
+   body: string;
+   discussionId: string;

@@ -1,0 +1,57 @@
+{
+  "id": "rules-sonnet-T4-7",
+  "arm": "rules",
+  "model": "sonnet",
+  "agent": "claude",
+  "task": "T4",
+  "rep": 7,
+  "ok": true,
+  "capped": false,
+  "timedOut": false,
+  "turns": 22,
+  "taskCost": 0.19630140000000004,
+  "fixCost": 0.0365681,
+  "usage": {
+    "input": 24,
+    "cacheWrite": 19392,
+    "cacheRead": 359854,
+    "output": 8270
+  },
+  "fixUsage": {
+    "input": 6,
+    "cacheWrite": 5213,
+    "cacheRead": 56441,
+    "output": 1006
+  },
+  "seconds": 69,
+  "fixed": true,
+  "breaksAfterTask": 1,
+  "breaksFinal": 1,
+  "byRule": {
+    "local/role-checks-through-authorization": 1
+  },
+  "breaksAfterTaskAt": [
+    {
+      "ruleId": "local/role-checks-through-authorization",
+      "file": "apps/react-vite/src/features/users/utils/filter-users.ts",
+      "line": 17
+    }
+  ],
+  "evalNotes": [],
+  "changedFiles": 3,
+  "hookCatches": 5,
+  "ignoredCatches": 1,
+  "build": null,
+  "startedAt": "2026-11-15T11:56:52.374Z",
+  "modelIds": [
+    "claude-sonnet-5-5"
+  ],
+  "versions": {
+    "harness": "f30502f21fb0bda68ba8b06bef14138107add302",
+    "node": "v24.14.1",
+    "platform": "darwin-arm64",
+    "agent": {
+      "claude": "2.1.325 (Claude Code)"
+    }
+  }
+}

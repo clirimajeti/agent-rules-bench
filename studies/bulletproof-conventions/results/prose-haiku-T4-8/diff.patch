@@ -1,0 +1,272 @@
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..85febed 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,13 +1,36 @@
++import { Download } from 'lucide-react';
++import { useMemo, useState } from 'react';
++
++import { Button } from '@/components/ui/button';
++import { Input, Select } from '@/components/ui/form';
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
++import { ROLES } from '@/lib/authorization';
+ import { formatDate } from '@/utils/format';
+ 
+ import { useUsers } from '../api/get-users';
++import { exportUsersCsv } from '../utils/export-users-csv';
++import { RoleFilter, filterUsers, isRoleFilter } from '../utils/filter-users';
+ 
+ import { DeleteUser } from './delete-user';
+ 
++const roleFilterOptions = [
++  { label: 'All roles', value: 'ALL' },
++  { label: 'Admin', value: ROLES.ADMIN },
++  { label: 'User', value: ROLES.USER },
++];
++
+ export const UsersList = () => {
+   const usersQuery = useUsers();
++  const [search, setSearch] = useState('');
++  const [role, setRole] = useState<RoleFilter>('ALL');
++
++  const users = usersQuery.data?.data;
++
++  const filteredUsers = useMemo(
++    () => filterUsers(users ?? [], { search, role }),
++    [users, search, role],
++  );
+ 
+   if (usersQuery.isLoading) {
+     return (
+@@ -17,45 +40,81 @@ export const UsersList = () => {
+     );
+   }
+ 
+-  const users = usersQuery.data?.data;
+-
+   if (!users) return null;
+ 
+   return (
+-    <Table
+-      data={users}
+-      columns={[
+-        {
+-          title: 'First Name',
+-          field: 'firstName',
+-        },
+-        {
+-          title: 'Last Name',
+-          field: 'lastName',
+-        },
+-        {
+-          title: 'Email',
+-          field: 'email',
+-        },
+-        {
+-          title: 'Role',
+-          field: 'role',
+-        },
+-        {
+-          title: 'Created At',
+-          field: 'createdAt',
+-          Cell({ entry: { createdAt } }) {
+-            return <span>{formatDate(createdAt)}</span>;
++    <div className="space-y-4">
++      <div className="flex flex-wrap items-end justify-between gap-4">
++        <div className="flex flex-wrap items-end gap-4">
++          <div className="w-full sm:w-72">
++            <Input
++              label="Search"
++              type="search"
++              placeholder="Name or email"
++              value={search}
++              onChange={(event) => setSearch(event.target.value)}
++              registration={{}}
++            />
++          </div>
++          <div className="w-full sm:w-44">
++            <Select
++              label="Role"
++              options={roleFilterOptions}
++              defaultValue="ALL"
++              registration={{
++                onChange: (event) => {
++                  const value: string = event.target.value;
++                  if (isRoleFilter(value)) setRole(value);
++                },
++              }}
++            />
++          </div>
++        </div>
++        <Button
++          variant="outline"
++          icon={<Download className="size-4" />}
++          disabled={filteredUsers.length === 0}
++          onClick={() => exportUsersCsv(filteredUsers)}
++        >
++          Export CSV
++        </Button>
++      </div>
++
++      <Table
++        data={filteredUsers}
++        columns={[
++          {
++            title: 'First Name',
++            field: 'firstName',
++          },
++          {
++            title: 'Last Name',
++            field: 'lastName',
++          },
++          {
++            title: 'Email',
++            field: 'email',
++          },
++          {
++            title: 'Role',
++            field: 'role',
++          },
++          {
++            title: 'Created At',
++            field: 'createdAt',
++            Cell({ entry: { createdAt } }) {
++              return <span>{formatDate(createdAt)}</span>;
++            },
+           },
+-        },
+-        {
+-          title: '',
+-          field: 'id',
+-          Cell({ entry: { id } }) {
+-            return <DeleteUser id={id} />;
++          {
++            title: '',
++            field: 'id',
++            Cell({ entry: { id } }) {
++              return <DeleteUser id={id} />;
++            },
+           },
+-        },
+-      ]}
+-    />
++        ]}
++      />
++    </div>
+   );
+ };
+diff --git a/apps/react-vite/src/features/users/utils/export-users-csv.ts b/apps/react-vite/src/features/users/utils/export-users-csv.ts
+new file mode 100644
+index 0000000..19211ba
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/export-users-csv.ts
+@@ -0,0 +1,18 @@
++import { User } from '@/types/api';
++import { downloadCsv, toCsv } from '@/utils/csv';
++import { formatDate } from '@/utils/format';
++
++export const exportUsersCsv = (users: User[]) => {
++  const csv = toCsv(
++    ['Name', 'Email', 'Role', 'Joined'],
++    users.map((user) => [
++      `${user.firstName} ${user.lastName}`,
++      user.email,
++      user.role,
++      formatDate(user.createdAt),
++    ]),
++  );
++
++  const date = new Date().toISOString().slice(0, 10);
++  downloadCsv(`users-${date}.csv`, csv);
++};
+diff --git a/apps/react-vite/src/features/users/utils/filter-users.ts b/apps/react-vite/src/features/users/utils/filter-users.ts
+new file mode 100644
+index 0000000..313dee6
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/filter-users.ts
+@@ -0,0 +1,43 @@
++import { ROLES } from '@/lib/authorization';
++import { User } from '@/types/api';
++
++export type RoleFilter = 'ALL' | keyof typeof ROLES;
++
++export const isRoleFilter = (value: string): value is RoleFilter => {
++  return value === 'ALL' || value in ROLES;
++};
++
++type UserFilters = {
++  search: string;
++  role: RoleFilter;
++};
++
++const groupUsersByRole = (users: User[]) => {
++  const groups = new Map<string, User[]>();
++
++  for (const user of users) {
++    const group = groups.get(user.role) ?? [];
++    group.push(user);
++    groups.set(user.role, group);
++  }
++
++  return groups;
++};
++
++export const filterUsers = (users: User[], { search, role }: UserFilters) => {
++  const term = search.trim().toLowerCase();
++  const roleUsers =
++    role === 'ALL' ? users : (groupUsersByRole(users).get(role) ?? []);
++
++  if (!term) {
++    return roleUsers;
++  }
++
++  return roleUsers.filter((user) => {
++    const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
++
++    return (
++      fullName.includes(term) || user.email.toLowerCase().includes(term)
++    );
++  });
++};
+diff --git a/apps/react-vite/src/utils/csv.ts b/apps/react-vite/src/utils/csv.ts
+new file mode 100644
+index 0000000..be3afea
+--- /dev/null
++++ b/apps/react-vite/src/utils/csv.ts
+@@ -0,0 +1,35 @@
++// Cells starting with these characters are interpreted as formulas by
++// spreadsheet applications, so they are prefixed with a single quote.
++const FORMULA_PREFIX_PATTERN = /^[=+\-@\t\r]/;
++const CELL_NEEDS_QUOTES_PATTERN = /[",\r\n]/;
++
++const escapeCell = (value: string) => {
++  const safeValue = FORMULA_PREFIX_PATTERN.test(value) ? `'${value}` : value;
++
++  if (!CELL_NEEDS_QUOTES_PATTERN.test(safeValue)) {
++    return safeValue;
++  }
++
++  return `"${safeValue.replace(/"/g, '""')}"`;
++};
++
++export const toCsv = (headers: string[], rows: string[][]) => {
++  return [headers, ...rows]
++    .map((row) => row.map(escapeCell).join(','))
++    .join('\r\n');
++};
++
++export const downloadCsv = (filename: string, csv: string) => {
++  // The byte order mark tells spreadsheet applications that the file is UTF-8.
++  const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' });
++  const url = URL.createObjectURL(blob);
++
++  const link = document.createElement('a');
++  link.href = url;
++  link.download = filename;
++  document.body.appendChild(link);
++  link.click();
++  link.remove();
++
++  setTimeout(() => URL.revokeObjectURL(url), 0);
++};
