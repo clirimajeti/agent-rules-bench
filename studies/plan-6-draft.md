@@ -49,6 +49,9 @@ This keeps the question of the paper, "where should the rule live", and keeps th
 - Order: `"seed": 20261114` in each study.json, so the arms interleave in time; `run --dry-run` prints the order.
 - Turn cap: 30 (bulletproof, as before); formbricks: 60. Each project had a pilot of 1 run per arm, model and task, which is not analysed (`results-pilot/`).
   The local model gets 60 on both projects: in the bulletproof pilot it reached 30 turns in 5 of 8 runs.
+- Local model runs are a separate batch (`run --models qwen36codex`), run overnight after the Claude runs of the same project, with nothing else running on the machine (no Claude runs, no verify, no other study), so that load from other work cannot slow the model into its time limit.
+  Machine: Apple M5 Max, 64 GB; Ollama 0.40.16, Codex CLI 0.166.0 (each run also records its versions).
+  The `startedAt` time of each run shows that the batches did not overlap.
 - Time limit per session of the local model: 30 minutes (bulletproof) and 60 minutes (formbricks); a normal session takes a few minutes. A session that reaches it (a runaway reply; seen once in the bulletproof pilot: 86,000 tokens in one reply) is killed and counts as capped, like a session that runs out of turns: it is a result, and it is not run again.
 - Sessions that fail (usage limit, crash) are run again by the harness; no other run is excluded or repeated.
 - Safety: install, build and verify run in a container (`node:24-bookworm`) without the user's credentials; install uses the frozen lockfile and `--ignore-scripts`.
