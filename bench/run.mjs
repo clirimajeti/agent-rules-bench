@@ -77,8 +77,8 @@ function session(study, copy, spec, prompt, outBase, cmds) {
   const start = Date.now();
   return new Promise((resolve) => {
     const child = spawn(p.cmd, p.args, { cwd: copy, stdio: ['ignore', 'pipe', 'pipe'], env: p.env });
-    let out = '', err = '', finished = false;
-    const timer = p.timeoutSec ? setTimeout(() => { err += `\nagent-rules-bench: session killed after ${p.timeoutSec}s\n`; child.kill('SIGTERM'); }, p.timeoutSec * 1000) : null;
+    let out = '', err = '', finished = false, timedOut = false;
+    const timer = p.timeoutSec ? setTimeout(() => { timedOut = true; err += `\nagent-rules-bench: session killed after ${p.timeoutSec}s\n`; child.kill('SIGTERM'); }, p.timeoutSec * 1000) : null;
     child.stdout.on('data', (d) => { out += d; });
     child.stderr.on('data', (d) => { err += d; });
     const done = (code) => {
@@ -89,7 +89,7 @@ function session(study, copy, spec, prompt, outBase, cmds) {
       try { json = p.parse(out); } catch { /* recorded as failed below */ }
       fs.writeFileSync(`${outBase}.json`, spec.agent === 'claude' ? out : JSON.stringify(json, null, 2) + '\n');
       fs.writeFileSync(`${outBase}.stderr`, err);
-      resolve({ json, code, seconds: Math.round((Date.now() - start) / 1000) });
+      resolve({ json, code, timedOut, seconds: Math.round((Date.now() - start) / 1000) });
     };
     child.on('error', (e) => { err += String(e.message); done(-1); });
     child.on('close', done);
@@ -104,6 +104,13 @@ export function evaluate(study, copy) {
   const byRule = {};
   for (const b of breaks) byRule[b.ruleId] = (byRule[b.ruleId] ?? 0) + 1;
   return { changedFiles: files.length, breaks: breaks.length, byRule, notes, findings: breaks };
+}
+
+// Breaks left after the task that the loop had reported during the session (its failures.log), matched by rule
+// and file, since the agent's edits move lines: how often the agent saw a break and left it.
+export function ignoredCatches(log, left) {
+  const seen = new Set(log.split('\n').filter(Boolean).map((l) => { const e = JSON.parse(l); return `${e.ruleId}|${e.file}`; }));
+  return left.filter((b) => seen.has(`${b.ruleId}|${b.file}`)).length;
 }
 
 const usageOf = (j) => {
@@ -157,7 +164,10 @@ export async function fixPrompt(study, findings) {
   return study.fix.prompt.replace('{broken}', lines.join('\n'));
 }
 
-const sessionOk = (s) => s.json?.is_error === false || s.json?.subtype === 'error_max_turns';
+// A session that ran out of turns, or was killed at its time limit (a runaway reply), is a result, not a
+// failure: rerunning it would resample until one finishes. Both count as capped.
+const sessionCapped = (s) => s.json?.subtype === 'error_max_turns' || s.timedOut;
+const sessionOk = (s) => s.json?.is_error === false || sessionCapped(s);
 
 async function runOne(study, run, cmds, log, { first = true, versions = null } = {}) {
   const copy = run.copy;
@@ -172,7 +182,8 @@ async function runOne(study, run, cmds, log, { first = true, versions = null } =
   git(copy, 'add', '-N', '.');
   fs.writeFileSync(path.join(run.dir, 'diff.patch'), git(copy, 'diff', 'bench-base').stdout);
   const log_ = path.join(copy, LOOP_DIR, 'failures.log');
-  const hookCatches = fs.existsSync(log_) ? fs.readFileSync(log_, 'utf8').split('\n').filter(Boolean).length : 0;
+  const loopLog = fs.existsSync(log_) ? fs.readFileSync(log_, 'utf8') : '';
+  const hookCatches = loopLog.split('\n').filter(Boolean).length;
   if (hookCatches) fs.copyFileSync(log_, path.join(run.dir, 'failures.log'));
   if (hookCatches) fs.rmSync(log_); // each run counts its own catches
   let build = null;
@@ -187,7 +198,8 @@ async function runOne(study, run, cmds, log, { first = true, versions = null } =
     // A session that ran out of turns is a result, not a failure: rerunning it would resample until one finishes.
     // A review fix that failed (for example on a usage limit) fails the run, so it is run again.
     ok: sessionOk(task) && (!fix || sessionOk(fix)),
-    capped: task.json?.subtype === 'error_max_turns',
+    capped: sessionCapped(task),
+    timedOut: task.timedOut || Boolean(fix?.timedOut),
     turns: (task.json?.num_turns ?? 0) + (fix?.json?.num_turns ?? 0),
     taskCost: costOf(task.json, run.spec),
     fixCost: costOf(fix?.json, run.spec),
@@ -202,12 +214,16 @@ async function runOne(study, run, cmds, log, { first = true, versions = null } =
     evalNotes: [...new Set([...afterTask.notes, ...final.notes])],
     changedFiles: final.changedFiles,
     hookCatches,
+    ignoredCatches: ignoredCatches(loopLog, afterTask.findings),
     build,
     startedAt,
     modelIds: modelIdsOf(task.json, run.spec),
     versions,
   };
+  // A checker that failed after the session leaves the run unmeasured: it is not ok, and the study stops.
+  if (result.evalNotes.length) result.ok = false;
   fs.writeFileSync(path.join(run.dir, 'result.json'), JSON.stringify(result, null, 2) + '\n');
+  if (result.evalNotes.length) throw new Error(`${run.id}: checker failed: ${result.evalNotes[0]}`);
   if (study.sequence) {
     git(copy, 'add', '-A');
     git(copy, '-c', 'user.email=bench@local', '-c', 'user.name=bench', 'commit', '-q', '--allow-empty', '--no-verify', '-m', `bench: after ${run.id}`);
@@ -246,6 +262,16 @@ export async function runStudy(study, { arms: onlyArms, models: onlyModels, dryR
   if (todo.length) assertNoClaudeMemoryAbove(study.workdir);
   for (const copy of new Set(todo.map((r) => r.copy))) {
     if (git(copy, 'rev-parse', '-q', '--verify', 'bench-base').status !== 0) throw new Error(`${copy} is not prepared; run "prepare" first`);
+    // Every checker, and the lint loop of a rules copy, must run before any session does: a checker that fails
+    // would count every run as unbroken, and a loop that fails would make the rules arm a no-loop arm.
+    const tracked = git(copy, 'ls-files').stdout.split('\n');
+    const loopFile = path.join(copy, LOOP_DIR, 'loop.json');
+    const loop = fs.existsSync(loopFile) ? JSON.parse(fs.readFileSync(loopFile, 'utf8')).linters ?? [] : [];
+    for (const l of [...(study.eval ?? []), ...loop]) {
+      const file = tracked.find((f) => l.extensions.includes(path.extname(f)));
+      const { notes } = file ? runLinters(copy, [l], [file], { full: 120000, fast: 120000 }) : { notes: [] };
+      if (notes.length) throw new Error(`checker failed in ${copy}: ${notes[0]}`);
+    }
   }
   const versions = versionsOf(cmds, [...new Set(todo.map((r) => r.spec.agent))]);
   const busy = new Set();

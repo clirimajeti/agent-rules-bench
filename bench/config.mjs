@@ -54,6 +54,7 @@ export function validateStudy(s, studyDir) {
           if (typeof m.model !== 'string' || !m.model) errs.push(`models[${i}].model must name the agent's model, for example "ollama/qwen3.6:35b-a3b-coding"`);
           if (m.baseUrl !== undefined && typeof m.baseUrl !== 'string') errs.push(`models[${i}].baseUrl must be a URL`);
           if (m.maxTurns !== undefined && !(Number.isInteger(m.maxTurns) && m.maxTurns > 0)) errs.push(`models[${i}].maxTurns must be a positive integer`);
+          if (m.timeoutSec !== undefined && !(Number.isInteger(m.timeoutSec) && m.timeoutSec > 0)) errs.push(`models[${i}].timeoutSec must be a positive integer`);
           // USD per million tokens, for agents that report tokens but no cost (codex)
           if (m.price !== undefined && !(m.price && ['input', 'cacheWrite', 'cacheRead', 'output'].every((k) => typeof m.price[k] === 'number' && m.price[k] >= 0))) errs.push(`models[${i}].price must give input, cacheWrite, cacheRead and output in USD per million tokens`);
         }
