@@ -1,6 +1,6 @@
 # bulletproof-conventions: the bulletproof-react half of Plan 6
 
-Plan 6, [plan-6.md](../plan-6.md) (final; registered on OSF on 2026-11-15 before any real run: https://osf.io/9hdjs, embargoed). Only the pilot has run; it is not analysed.
+Plan 6, [plan-6.md](../plan-6.md) (final; registered on OSF on 2026-11-15 before any real run: https://osf.io/9hdjs, embargoed). Changes since then: [plan-6-deviations.md](../plan-6-deviations.md). Only the pilot has run; it is not analysed.
 The Formbricks half is [formbricks-conventions](../formbricks-conventions/README.md).
 
 ## What is reused and what is new
