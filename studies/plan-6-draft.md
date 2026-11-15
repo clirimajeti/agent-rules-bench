@@ -69,8 +69,6 @@ The rate of 8% is below the pooled 7 of 64 (11%) of Plans 4 and 5, to allow for 
 - Primary 2: total cost per run (task plus review fix), from Claude Code.
 - Secondary: violations per run, loop catches, turns, tokens, verify outcome, violations left at the end.
 - Secondary (`rules` arm): ignored catches, the violations left after the task session whose rule and file the loop had reported during that session (`ignoredCatches` in each result). It separates "the loop did not see it" from "the agent saw it and left it". Reported per model with exact 95% intervals, no test. In the bulletproof pilot all 4 `rules` runs with a violation after the task were of this kind.
-- Secondary (verify): a failing test file that the run changed nothing in, while the run changed the code it tests, is reported as "existing test not updated" (3 of 16 runs in the Formbricks pilot; T2 of bulletproof changes the rows that `discussions.test.tsx` finds by their full text).
-
 ## Hypotheses and tests
 
 - H12: `prose` has more violating runs than `rules`.
@@ -80,6 +78,7 @@ The rate of 8% is below the pooled 7 of 64 (11%) of Plans 4 and 5, to allow for 
 - H12 and H13 are corrected with Holm's method at a family-wise alpha of 0.05.
 - H14 (secondary): the same comparison as H12 for the local model in Codex, exact Fisher test, reported separately and not part of the family.
 - H15 (descriptive): verify pass rate per arm with exact 95% intervals, no test.
+  Verify is a guard, not a research question: it checks that the lint rules did not buy compliance with code that no longer type-checks or passes the project's own tests. Only the difference between the arms matters; a test that every arm breaks the same way (for example `discussions.test.tsx` in bulletproof T2, which finds rows by their full text) affects both arms alike.
 
 ## Measurement checks
 
