@@ -43,12 +43,16 @@ This keeps the question of the paper, "where should the rule live", and keeps th
 - Tasks: 4 feature tasks per project; prompts describe only the feature and never mention conventions.
   Formbricks (prompts in `formbricks-conventions/study.json`): T1 API keys (last used, rotate), T2 webhooks (created date, duplicate), T3 profile (account activity, download my data), T4 tags (created date, delete unused tags).
   T1 to T3 sit next to legacy server actions; T4 sits next to the new API v3 pattern, as a contrast.
+  bulletproof-react (prompts in `bulletproof-conventions/study.json`, none used in Plans 4 and 5): T1 admins pin discussions, T2 comment count and last comment date in the discussions list, T3 change password on the profile page, T4 admins filter, search and export the users list as CSV.
 - Runs, primary: 2 projects x 2 models x 4 tasks x 8 repeats = 64 per arm per project, 128 per arm, 256 in all.
 - Runs, secondary: 2 projects x 4 tasks x 8 repeats = 64 per arm, 128 in all (the local model costs nothing, only time).
 - Order: `"seed": 20261114` in each study.json, so the arms interleave in time; `run --dry-run` prints the order.
-- Turn cap: 30 (bulletproof, as before); formbricks: 60, fixed after a pilot of 4 runs per arm that is not analysed.
+- Turn cap: 30 (bulletproof, as before); formbricks: 60. Each project had a pilot of 1 run per arm, model and task, which is not analysed (`results-pilot/`).
+  The local model gets 60 on both projects: in the bulletproof pilot it reached 30 turns in 5 of 8 runs.
+- Time limit per session of the local model: 30 minutes (bulletproof) and 60 minutes (formbricks); a normal session takes a few minutes. A session that reaches it (a runaway reply; seen once in the bulletproof pilot: 86,000 tokens in one reply) is killed and counts as capped, like a session that runs out of turns: it is a result, and it is not run again.
 - Sessions that fail (usage limit, crash) are run again by the harness; no other run is excluded or repeated.
 - Safety: install, build and verify run in a container (`node:24-bookworm`) without the user's credentials; install uses the frozen lockfile and `--ignore-scripts`.
+- Verify (bulletproof): type check of `apps/react-vite` and the full Vitest suite (all 21 tests pass on the unchanged commit).
 - Verify (formbricks): type check of `apps/web` and the unit tests related to the changed files (`vitest related`); the test files that fail on the unchanged commit are excluded and listed in `formbricks-conventions/baseline-failing-tests.txt`.
 
 ## Sample size
@@ -61,6 +65,8 @@ The rate of 8% is below the pooled 7 of 64 (11%) of Plans 4 and 5, to allow for 
 - Primary 1: violating run (at least one checker finding on an added line in production code after the task session, before any review fix).
 - Primary 2: total cost per run (task plus review fix), from Claude Code.
 - Secondary: violations per run, loop catches, turns, tokens, verify outcome, violations left at the end.
+- Secondary (`rules` arm): ignored catches, the violations left after the task session whose rule and file the loop had reported during that session (`ignoredCatches` in each result). It separates "the loop did not see it" from "the agent saw it and left it". Reported per model with exact 95% intervals, no test. In the bulletproof pilot all 4 `rules` runs with a violation after the task were of this kind.
+- Secondary (verify): a failing test file that the run changed nothing in, while the run changed the code it tests, is reported as "existing test not updated" (3 of 16 runs in the Formbricks pilot; T2 of bulletproof changes the rows that `discussions.test.tsx` finds by their full text).
 
 ## Hypotheses and tests
 

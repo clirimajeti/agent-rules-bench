@@ -1,0 +1,240 @@
+diff --git a/apps/react-vite/src/features/users/api/users-filter.ts b/apps/react-vite/src/features/users/api/users-filter.ts
+new file mode 100644
+index 0000000..469d10c
+--- /dev/null
++++ b/apps/react-vite/src/features/users/api/users-filter.ts
+@@ -0,0 +1,10 @@
++import { z } from 'zod';
++
++import { ROLES } from '@/lib/authorization';
++
++export const usersFilterSchema = z.object({
++  search: z.string().trim(),
++  role: z.union([z.literal(''), z.nativeEnum(ROLES)]),
++});
++
++export type UsersFilter = z.infer<typeof usersFilterSchema>;
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..63b0a6e 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,13 +1,31 @@
++import * as React from 'react';
++
++import { Button } from '@/components/ui/button';
++import { Form, Input, Select } from '@/components/ui/form';
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
++import { ROLES } from '@/lib/authorization';
+ import { formatDate } from '@/utils/format';
+ 
+ import { useUsers } from '../api/get-users';
++import { UsersFilter, usersFilterSchema } from '../api/users-filter';
++import { downloadUsersCsv } from '../utils/export-users-csv';
++import { filterUsers } from '../utils/filter-users';
+ 
+ import { DeleteUser } from './delete-user';
+ 
++const roleOptions = [
++  { label: 'All roles', value: '' },
++  { label: ROLES.ADMIN, value: ROLES.ADMIN },
++  { label: ROLES.USER, value: ROLES.USER },
++];
++
+ export const UsersList = () => {
+   const usersQuery = useUsers();
++  const [filter, setFilter] = React.useState<UsersFilter>({
++    search: '',
++    role: '',
++  });
+ 
+   if (usersQuery.isLoading) {
+     return (
+@@ -21,41 +39,79 @@ export const UsersList = () => {
+ 
+   if (!users) return null;
+ 
++  const filteredUsers = filterUsers(users, filter);
++
+   return (
+-    <Table
+-      data={users}
+-      columns={[
+-        {
+-          title: 'First Name',
+-          field: 'firstName',
+-        },
+-        {
+-          title: 'Last Name',
+-          field: 'lastName',
+-        },
+-        {
+-          title: 'Email',
+-          field: 'email',
+-        },
+-        {
+-          title: 'Role',
+-          field: 'role',
+-        },
+-        {
+-          title: 'Created At',
+-          field: 'createdAt',
+-          Cell({ entry: { createdAt } }) {
+-            return <span>{formatDate(createdAt)}</span>;
++    <div className="space-y-4">
++      <div className="flex flex-wrap items-end justify-between gap-4">
++        <Form
++          className="flex flex-wrap items-end gap-4 space-y-0"
++          schema={usersFilterSchema}
++          options={{ defaultValues: filter }}
++          onSubmit={(values) => setFilter(values)}
++        >
++          {({ register, formState }) => (
++            <>
++              <Input
++                type="search"
++                label="Search by name or email"
++                error={formState.errors['search']}
++                registration={register('search')}
++              />
++              <Select
++                label="Role"
++                options={roleOptions}
++                error={formState.errors['role']}
++                registration={register('role')}
++              />
++              <Button type="submit">Apply</Button>
++            </>
++          )}
++        </Form>
++        <Button
++          type="button"
++          variant="outline"
++          disabled={filteredUsers.length === 0}
++          onClick={() => downloadUsersCsv(filteredUsers)}
++        >
++          Export CSV
++        </Button>
++      </div>
++      <Table
++        data={filteredUsers}
++        columns={[
++          {
++            title: 'First Name',
++            field: 'firstName',
++          },
++          {
++            title: 'Last Name',
++            field: 'lastName',
++          },
++          {
++            title: 'Email',
++            field: 'email',
++          },
++          {
++            title: 'Role',
++            field: 'role',
++          },
++          {
++            title: 'Created At',
++            field: 'createdAt',
++            Cell({ entry: { createdAt } }) {
++              return <span>{formatDate(createdAt)}</span>;
++            },
+           },
+-        },
+-        {
+-          title: '',
+-          field: 'id',
+-          Cell({ entry: { id } }) {
+-            return <DeleteUser id={id} />;
++          {
++            title: '',
++            field: 'id',
++            Cell({ entry: { id } }) {
++              return <DeleteUser id={id} />;
++            },
+           },
+-        },
+-      ]}
+-    />
++        ]}
++      />
++    </div>
+   );
+ };
+diff --git a/apps/react-vite/src/features/users/utils/export-users-csv.ts b/apps/react-vite/src/features/users/utils/export-users-csv.ts
+new file mode 100644
+index 0000000..a870e25
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/export-users-csv.ts
+@@ -0,0 +1,38 @@
++import { User } from '@/types/api';
++import { formatIsoDate } from '@/utils/format';
++
++const FORMULA_PREFIX = /^[=+\-@\t\r]/;
++
++// Quotes the value and neutralizes spreadsheet formula injection.
++const escapeCell = (value: string) => {
++  const safe = FORMULA_PREFIX.test(value) ? `'${value}` : value;
++  return `"${safe.replace(/"/g, '""')}"`;
++};
++
++export const usersToCsv = (users: User[]) => {
++  const header = ['Name', 'Email', 'Role', 'Joined'];
++  const rows = users.map((user) => [
++    `${user.firstName} ${user.lastName}`.trim(),
++    user.email,
++    user.role,
++    formatIsoDate(user.createdAt),
++  ]);
++
++  return [header, ...rows]
++    .map((row) => row.map(escapeCell).join(','))
++    .join('\r\n');
++};
++
++export const downloadUsersCsv = (users: User[], filename = 'users.csv') => {
++  const blob = new Blob(['﻿', usersToCsv(users)], {
++    type: 'text/csv;charset=utf-8;',
++  });
++  const url = URL.createObjectURL(blob);
++  const link = document.createElement('a');
++  link.href = url;
++  link.download = filename;
++  document.body.appendChild(link);
++  link.click();
++  document.body.removeChild(link);
++  URL.revokeObjectURL(url);
++};
+diff --git a/apps/react-vite/src/features/users/utils/filter-users.ts b/apps/react-vite/src/features/users/utils/filter-users.ts
+new file mode 100644
+index 0000000..f87cc39
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/filter-users.ts
+@@ -0,0 +1,15 @@
++import { User } from '@/types/api';
++
++import { UsersFilter } from '../api/users-filter';
++
++export const filterUsers = (users: User[], { search, role }: UsersFilter) => {
++  const query = search.trim().toLowerCase();
++
++  return users.filter((user) => {
++    if (role && user.role !== role) return false;
++    if (!query) return true;
++
++    const name = `${user.firstName} ${user.lastName}`.toLowerCase();
++    return name.includes(query) || user.email.toLowerCase().includes(query);
++  });
++};
+diff --git a/apps/react-vite/src/utils/format.ts b/apps/react-vite/src/utils/format.ts
+index 9012923..d2ba8ef 100644
+--- a/apps/react-vite/src/utils/format.ts
++++ b/apps/react-vite/src/utils/format.ts
+@@ -2,3 +2,5 @@ import { default as dayjs } from 'dayjs';
+ 
+ export const formatDate = (date: number) =>
+   dayjs(date).format('MMMM D, YYYY h:mm A');
++
++export const formatIsoDate = (date: number) => dayjs(date).format('YYYY-MM-DD');
