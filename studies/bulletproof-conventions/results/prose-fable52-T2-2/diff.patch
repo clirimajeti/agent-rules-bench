@@ -1,0 +1,262 @@
+diff --git a/apps/react-vite/src/app/routes/app/discussions/discussion.tsx b/apps/react-vite/src/app/routes/app/discussions/discussion.tsx
+index 035afd0..8a12065 100644
+--- a/apps/react-vite/src/app/routes/app/discussions/discussion.tsx
++++ b/apps/react-vite/src/app/routes/app/discussions/discussion.tsx
+@@ -10,6 +10,7 @@ import {
+   useDiscussion,
+   getDiscussionQueryOptions,
+ } from '@/features/discussions/api/get-discussion';
++import { useInvalidateDiscussions } from '@/features/discussions/api/get-discussions';
+ import { DiscussionView } from '@/features/discussions/components/discussion-view';
+ 
+ export const clientLoader =
+@@ -41,6 +42,7 @@ const DiscussionRoute = () => {
+   const discussionQuery = useDiscussion({
+     discussionId,
+   });
++  const invalidateDiscussions = useInvalidateDiscussions();
+ 
+   if (discussionQuery.isLoading) {
+     return (
+@@ -64,7 +66,10 @@ const DiscussionRoute = () => {
+               <div>Failed to load comments. Try to refresh the page.</div>
+             }
+           >
+-            <Comments discussionId={discussionId} />
++            <Comments
++              discussionId={discussionId}
++              onCommentsChange={invalidateDiscussions}
++            />
+           </ErrorBoundary>
+         </div>
+       </ContentLayout>
+diff --git a/apps/react-vite/src/features/comments/components/comments-list.tsx b/apps/react-vite/src/features/comments/components/comments-list.tsx
+index ee30725..bbf6bdd 100644
+--- a/apps/react-vite/src/features/comments/components/comments-list.tsx
++++ b/apps/react-vite/src/features/comments/components/comments-list.tsx
+@@ -14,9 +14,13 @@ import { DeleteComment } from './delete-comment';
+ 
+ type CommentsListProps = {
+   discussionId: string;
++  onCommentDeleted?: () => void;
+ };
+ 
+-export const CommentsList = ({ discussionId }: CommentsListProps) => {
++export const CommentsList = ({
++  discussionId,
++  onCommentDeleted,
++}: CommentsListProps) => {
+   const user = useUser();
+   const commentsQuery = useInfiniteComments({ discussionId });
+ 
+@@ -69,7 +73,11 @@ export const CommentsList = ({ discussionId }: CommentsListProps) => {
+                     </span>
+                   )}
+                 </div>
+-                <DeleteComment discussionId={discussionId} id={comment.id} />
++                <DeleteComment
++                  discussionId={discussionId}
++                  id={comment.id}
++                  onCommentDeleted={onCommentDeleted}
++                />
+               </div>
+             </Authorization>
+ 
+diff --git a/apps/react-vite/src/features/comments/components/comments.tsx b/apps/react-vite/src/features/comments/components/comments.tsx
+index 19146aa..3fe2007 100644
+--- a/apps/react-vite/src/features/comments/components/comments.tsx
++++ b/apps/react-vite/src/features/comments/components/comments.tsx
+@@ -3,16 +3,23 @@ import { CreateComment } from './create-comment';
+ 
+ type CommentsProps = {
+   discussionId: string;
++  onCommentsChange?: () => void;
+ };
+ 
+-export const Comments = ({ discussionId }: CommentsProps) => {
++export const Comments = ({ discussionId, onCommentsChange }: CommentsProps) => {
+   return (
+     <div>
+       <div className="mb-4 flex items-center justify-between">
+         <h3 className="text-xl font-bold">Comments:</h3>
+-        <CreateComment discussionId={discussionId} />
++        <CreateComment
++          discussionId={discussionId}
++          onCommentCreated={onCommentsChange}
++        />
+       </div>
+-      <CommentsList discussionId={discussionId} />
++      <CommentsList
++        discussionId={discussionId}
++        onCommentDeleted={onCommentsChange}
++      />
+     </div>
+   );
+ };
+diff --git a/apps/react-vite/src/features/comments/components/create-comment.tsx b/apps/react-vite/src/features/comments/components/create-comment.tsx
+index cb8d797..96e7024 100644
+--- a/apps/react-vite/src/features/comments/components/create-comment.tsx
++++ b/apps/react-vite/src/features/comments/components/create-comment.tsx
+@@ -11,9 +11,13 @@ import {
+ 
+ type CreateCommentProps = {
+   discussionId: string;
++  onCommentCreated?: () => void;
+ };
+ 
+-export const CreateComment = ({ discussionId }: CreateCommentProps) => {
++export const CreateComment = ({
++  discussionId,
++  onCommentCreated,
++}: CreateCommentProps) => {
+   const { addNotification } = useNotifications();
+   const createCommentMutation = useCreateComment({
+     discussionId,
+@@ -23,6 +27,7 @@ export const CreateComment = ({ discussionId }: CreateCommentProps) => {
+           type: 'success',
+           title: 'Comment Created',
+         });
++        onCommentCreated?.();
+       },
+     },
+   });
+diff --git a/apps/react-vite/src/features/comments/components/delete-comment.tsx b/apps/react-vite/src/features/comments/components/delete-comment.tsx
+index ac9b396..93945a7 100644
+--- a/apps/react-vite/src/features/comments/components/delete-comment.tsx
++++ b/apps/react-vite/src/features/comments/components/delete-comment.tsx
+@@ -9,9 +9,14 @@ import { useDeleteComment } from '../api/delete-comment';
+ type DeleteCommentProps = {
+   id: string;
+   discussionId: string;
++  onCommentDeleted?: () => void;
+ };
+ 
+-export const DeleteComment = ({ id, discussionId }: DeleteCommentProps) => {
++export const DeleteComment = ({
++  id,
++  discussionId,
++  onCommentDeleted,
++}: DeleteCommentProps) => {
+   const { addNotification } = useNotifications();
+   const deleteCommentMutation = useDeleteComment({
+     discussionId,
+@@ -21,6 +26,7 @@ export const DeleteComment = ({ id, discussionId }: DeleteCommentProps) => {
+           type: 'success',
+           title: 'Comment Deleted',
+         });
++        onCommentDeleted?.();
+       },
+     },
+   });
+diff --git a/apps/react-vite/src/features/discussions/api/get-discussions.ts b/apps/react-vite/src/features/discussions/api/get-discussions.ts
+index fd92874..71e167e 100644
+--- a/apps/react-vite/src/features/discussions/api/get-discussions.ts
++++ b/apps/react-vite/src/features/discussions/api/get-discussions.ts
+@@ -1,4 +1,5 @@
+-import { queryOptions, useQuery } from '@tanstack/react-query';
++import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
++import { useCallback } from 'react';
+ 
+ import { api } from '@/lib/api-client';
+ import { QueryConfig } from '@/lib/react-query';
+@@ -40,3 +41,15 @@ export const useDiscussions = ({
+     ...queryConfig,
+   });
+ };
++
++// Discussions carry comment statistics, so changes made outside of this
++// feature (for example to comments) must be able to refresh them.
++export const useInvalidateDiscussions = () => {
++  const queryClient = useQueryClient();
++
++  return useCallback(() => {
++    return queryClient.invalidateQueries({
++      queryKey: getDiscussionsQueryOptions().queryKey,
++    });
++  }, [queryClient]);
++};
+diff --git a/apps/react-vite/src/features/discussions/components/discussions-list.tsx b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+index 9aa5fba..1b38f9a 100644
+--- a/apps/react-vite/src/features/discussions/components/discussions-list.tsx
++++ b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+@@ -54,6 +54,23 @@ export const DiscussionsList = ({
+             return <span>{formatDate(createdAt)}</span>;
+           },
+         },
++        {
++          title: 'Comments',
++          field: 'commentsCount',
++        },
++        {
++          title: 'Last Comment',
++          field: 'lastCommentAt',
++          Cell({ entry: { lastCommentAt } }) {
++            return (
++              <span>
++                {lastCommentAt === null
++                  ? 'No comments yet'
++                  : formatDate(lastCommentAt)}
++              </span>
++            );
++          },
++        },
+         {
+           title: '',
+           field: 'id',
+diff --git a/apps/react-vite/src/testing/mocks/handlers/discussions.ts b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+index 37c0797..20291b4 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/discussions.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+@@ -15,6 +15,23 @@ type DiscussionBody = {
+   body: string;
+ };
+ 
++const getCommentStats = (discussionId: string) => {
++  const comments = db.comment.findMany({
++    where: {
++      discussionId: {
++        equals: discussionId,
++      },
++    },
++  });
++
++  return {
++    commentsCount: comments.length,
++    lastCommentAt: comments.length
++      ? Math.max(...comments.map((comment) => comment.createdAt))
++      : null,
++  };
++};
++
+ export const discussionsHandlers = [
+   http.get(`${env.API_URL}/discussions`, async ({ cookies, request }) => {
+     await networkDelay();
+@@ -60,6 +77,7 @@ export const discussionsHandlers = [
+           return {
+             ...discussion,
+             author: author ? sanitizeUser(author) : {},
++            ...getCommentStats(discussion.id),
+           };
+         });
+       return HttpResponse.json({
+@@ -118,6 +136,7 @@ export const discussionsHandlers = [
+         const result = {
+           ...discussion,
+           author: author ? sanitizeUser(author) : {},
++          ...getCommentStats(discussion.id),
+         };
+ 
+         return HttpResponse.json({ data: result });
+diff --git a/apps/react-vite/src/types/api.ts b/apps/react-vite/src/types/api.ts
+index dbdf434..9b1095a 100644
+--- a/apps/react-vite/src/types/api.ts
++++ b/apps/react-vite/src/types/api.ts
+@@ -41,6 +41,8 @@ export type Discussion = Entity<{
+   body: string;
+   teamId: string;
+   author: User;
++  commentsCount: number;
++  lastCommentAt: number | null;
+ }>;
+ 
+ export type Comment = Entity<{

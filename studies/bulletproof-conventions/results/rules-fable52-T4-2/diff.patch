@@ -1,0 +1,552 @@
+diff --git a/apps/react-vite/src/app/routes/app/__tests__/users.test.tsx b/apps/react-vite/src/app/routes/app/__tests__/users.test.tsx
+new file mode 100644
+index 0000000..10ac2f4
+--- /dev/null
++++ b/apps/react-vite/src/app/routes/app/__tests__/users.test.tsx
+@@ -0,0 +1,105 @@
++import { ROLES } from '@/lib/authorization';
++import {
++  createUser,
++  renderApp,
++  screen,
++  userEvent,
++  waitFor,
++} from '@/testing/test-utils';
++
++import { default as UsersRoute } from '../users';
++
++const teamId = 'team-1';
++
++const renderUsers = async () => {
++  const admin = await createUser({
++    teamId,
++    role: ROLES.ADMIN,
++    firstName: 'Alice',
++    lastName: 'Anderson',
++    email: 'alice@example.com',
++  });
++  await createUser({
++    teamId,
++    role: ROLES.USER,
++    firstName: 'Bob',
++    lastName: 'Brown',
++    email: 'bob@example.com',
++  });
++  await createUser({
++    teamId,
++    role: ROLES.USER,
++    firstName: 'Carol',
++    lastName: 'Clark',
++    email: 'carol@sample.org',
++  });
++
++  await renderApp(<UsersRoute />, { user: admin });
++
++  expect(
++    await screen.findByRole('cell', { name: 'alice@example.com' }),
++  ).toBeInTheDocument();
++};
++
++const queryEmailCell = (email: string) =>
++  screen.queryByRole('cell', { name: email });
++
++test('should search users by name or email', async () => {
++  await renderUsers();
++
++  const search = screen.getByLabelText(/search/i);
++
++  await userEvent.type(search, 'bob br');
++
++  expect(queryEmailCell('bob@example.com')).toBeInTheDocument();
++  expect(queryEmailCell('alice@example.com')).not.toBeInTheDocument();
++  expect(queryEmailCell('carol@sample.org')).not.toBeInTheDocument();
++
++  await userEvent.clear(search);
++  await userEvent.type(search, 'SAMPLE.ORG');
++
++  expect(queryEmailCell('carol@sample.org')).toBeInTheDocument();
++  expect(queryEmailCell('bob@example.com')).not.toBeInTheDocument();
++
++  await userEvent.clear(search);
++  await userEvent.type(search, 'nobody');
++
++  expect(screen.getByText(/no entries/i)).toBeInTheDocument();
++  expect(screen.getByRole('button', { name: /export csv/i })).toBeDisabled();
++});
++
++test('should filter users by role', async () => {
++  await renderUsers();
++
++  await userEvent.selectOptions(screen.getByLabelText(/role/i), ROLES.USER);
++
++  await waitFor(() =>
++    expect(queryEmailCell('alice@example.com')).not.toBeInTheDocument(),
++  );
++  expect(queryEmailCell('bob@example.com')).toBeInTheDocument();
++  expect(queryEmailCell('carol@sample.org')).toBeInTheDocument();
++});
++
++test('should export the users currently shown as CSV', async () => {
++  // jsdom does not implement object URLs.
++  const createObjectURL = vi.fn((blob: Blob) => `blob:${blob.size}`);
++  Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
++  const click = vi
++    .spyOn(HTMLAnchorElement.prototype, 'click')
++    .mockImplementation(() => {});
++
++  try {
++    await renderUsers();
++
++    await userEvent.type(screen.getByLabelText(/search/i), 'bob');
++    await userEvent.click(screen.getByRole('button', { name: /export csv/i }));
++
++    expect(click).toHaveBeenCalledTimes(1);
++    expect(createObjectURL).toHaveBeenCalledTimes(1);
++    expect(createObjectURL.mock.calls[0][0].type).toBe(
++      'text/csv;charset=utf-8',
++    );
++  } finally {
++    click.mockRestore();
++  }
++});
+diff --git a/apps/react-vite/src/features/users/api/get-users.ts b/apps/react-vite/src/features/users/api/get-users.ts
+index e13d106..455ef15 100644
+--- a/apps/react-vite/src/features/users/api/get-users.ts
++++ b/apps/react-vite/src/features/users/api/get-users.ts
+@@ -1,27 +1,43 @@
+-import { queryOptions, useQuery } from '@tanstack/react-query';
++import {
++  keepPreviousData,
++  queryOptions,
++  useQuery,
++} from '@tanstack/react-query';
+ 
+ import { api } from '@/lib/api-client';
+ import { QueryConfig } from '@/lib/react-query';
+ import { User } from '@/types/api';
+ 
+-export const getUsers = (): Promise<{ data: User[] }> => {
+-  return api.get(`/users`);
++export type GetUsersParams = {
++  role?: User['role'];
+ };
+ 
+-export const getUsersQueryOptions = () => {
++export const getUsers = ({ role }: GetUsersParams = {}): Promise<{
++  data: User[];
++}> => {
++  return api.get(`/users`, {
++    params: {
++      role,
++    },
++  });
++};
++
++export const getUsersQueryOptions = ({ role }: GetUsersParams = {}) => {
+   return queryOptions({
+-    queryKey: ['users'],
+-    queryFn: getUsers,
++    queryKey: role ? ['users', { role }] : ['users'],
++    queryFn: () => getUsers({ role }),
+   });
+ };
+ 
+-type UseUsersOptions = {
++type UseUsersOptions = GetUsersParams & {
+   queryConfig?: QueryConfig<typeof getUsersQueryOptions>;
+ };
+ 
+-export const useUsers = ({ queryConfig }: UseUsersOptions = {}) => {
++export const useUsers = ({ queryConfig, role }: UseUsersOptions = {}) => {
+   return useQuery({
+-    ...getUsersQueryOptions(),
++    ...getUsersQueryOptions({ role }),
++    // Keep the current list on screen while another role loads.
++    placeholderData: keepPreviousData,
+     ...queryConfig,
+   });
+ };
+diff --git a/apps/react-vite/src/features/users/components/users-filters.tsx b/apps/react-vite/src/features/users/components/users-filters.tsx
+new file mode 100644
+index 0000000..48a365c
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/users-filters.tsx
+@@ -0,0 +1,62 @@
++import { Input, Select } from '@/components/ui/form';
++import { ROLES } from '@/lib/authorization';
++
++import { GetUsersParams } from '../api/get-users';
++
++export type UsersFiltersValue = {
++  search: string;
++  // No role means all roles.
++  role: GetUsersParams['role'];
++};
++
++const ALL_ROLES = '';
++
++const roleOptions: {
++  label: string;
++  value: string;
++  role: UsersFiltersValue['role'];
++}[] = [
++  { label: 'All roles', value: ALL_ROLES, role: undefined },
++  { label: 'Admin', value: ROLES.ADMIN, role: ROLES.ADMIN },
++  { label: 'User', value: ROLES.USER, role: ROLES.USER },
++];
++
++type UsersFiltersProps = {
++  filters: UsersFiltersValue;
++  onChange: (filters: UsersFiltersValue) => void;
++};
++
++export const UsersFilters = ({ filters, onChange }: UsersFiltersProps) => {
++  return (
++    <div className="flex flex-wrap items-end gap-4">
++      <div className="w-full sm:w-72">
++        <Input
++          type="search"
++          label="Search"
++          placeholder="Name or email"
++          value={filters.search}
++          onChange={(event) =>
++            onChange({ ...filters, search: event.target.value })
++          }
++          registration={{}}
++        />
++      </div>
++      <div className="w-full sm:w-48">
++        <Select
++          label="Role"
++          options={roleOptions.map(({ label, value }) => ({ label, value }))}
++          defaultValue={filters.role ?? ALL_ROLES}
++          registration={{
++            name: 'role',
++            onChange: async (event) => {
++              const selected = roleOptions.find(
++                ({ value }) => value === event.target.value,
++              );
++              onChange({ ...filters, role: selected?.role });
++            },
++          }}
++        />
++      </div>
++    </div>
++  );
++};
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..4faa261 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,13 +1,32 @@
++import { Download } from 'lucide-react';
++import * as React from 'react';
++
++import { Button } from '@/components/ui/button';
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
++import { downloadCsv } from '@/utils/csv';
+ import { formatDate } from '@/utils/format';
+ 
+ import { useUsers } from '../api/get-users';
++import { searchUsers } from '../utils/filter-users';
++import { usersToCsv } from '../utils/users-csv';
+ 
+ import { DeleteUser } from './delete-user';
++import { UsersFilters, UsersFiltersValue } from './users-filters';
+ 
+ export const UsersList = () => {
+-  const usersQuery = useUsers();
++  const [filters, setFilters] = React.useState<UsersFiltersValue>({
++    search: '',
++    role: undefined,
++  });
++  const usersQuery = useUsers({ role: filters.role });
++
++  const users = usersQuery.data?.data;
++
++  const shownUsers = React.useMemo(
++    () => (users ? searchUsers(users, filters.search) : []),
++    [users, filters.search],
++  );
+ 
+   if (usersQuery.isLoading) {
+     return (
+@@ -17,45 +36,57 @@ export const UsersList = () => {
+     );
+   }
+ 
+-  const users = usersQuery.data?.data;
+-
+   if (!users) return null;
+ 
+   return (
+-    <Table
+-      data={users}
+-      columns={[
+-        {
+-          title: 'First Name',
+-          field: 'firstName',
+-        },
+-        {
+-          title: 'Last Name',
+-          field: 'lastName',
+-        },
+-        {
+-          title: 'Email',
+-          field: 'email',
+-        },
+-        {
+-          title: 'Role',
+-          field: 'role',
+-        },
+-        {
+-          title: 'Created At',
+-          field: 'createdAt',
+-          Cell({ entry: { createdAt } }) {
+-            return <span>{formatDate(createdAt)}</span>;
++    <div className="space-y-4">
++      <div className="flex flex-wrap items-end justify-between gap-4">
++        <UsersFilters filters={filters} onChange={setFilters} />
++        <Button
++          variant="outline"
++          icon={<Download className="size-4" />}
++          // Placeholder data is the list for the previous role.
++          disabled={!shownUsers.length || usersQuery.isPlaceholderData}
++          onClick={() => downloadCsv('users.csv', usersToCsv(shownUsers))}
++        >
++          Export CSV
++        </Button>
++      </div>
++      <Table
++        data={shownUsers}
++        columns={[
++          {
++            title: 'First Name',
++            field: 'firstName',
++          },
++          {
++            title: 'Last Name',
++            field: 'lastName',
++          },
++          {
++            title: 'Email',
++            field: 'email',
++          },
++          {
++            title: 'Role',
++            field: 'role',
++          },
++          {
++            title: 'Created At',
++            field: 'createdAt',
++            Cell({ entry: { createdAt } }) {
++              return <span>{formatDate(createdAt)}</span>;
++            },
+           },
+-        },
+-        {
+-          title: '',
+-          field: 'id',
+-          Cell({ entry: { id } }) {
+-            return <DeleteUser id={id} />;
++          {
++            title: '',
++            field: 'id',
++            Cell({ entry: { id } }) {
++              return <DeleteUser id={id} />;
++            },
+           },
+-        },
+-      ]}
+-    />
++        ]}
++      />
++    </div>
+   );
+ };
+diff --git a/apps/react-vite/src/features/users/utils/__tests__/users-csv.test.ts b/apps/react-vite/src/features/users/utils/__tests__/users-csv.test.ts
+new file mode 100644
+index 0000000..8f2520e
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/__tests__/users-csv.test.ts
+@@ -0,0 +1,25 @@
++import { ROLES } from '@/lib/authorization';
++import { User } from '@/types/api';
++import { formatDate } from '@/utils/format';
++
++import { usersToCsv } from '../users-csv';
++
++test('should export name, email, role and join date for each user', () => {
++  const user: User = {
++    id: '1',
++    firstName: 'Jane',
++    lastName: 'Doe',
++    email: 'jane@example.com',
++    role: ROLES.ADMIN,
++    teamId: 'team-1',
++    bio: '',
++    createdAt: new Date(2024, 0, 15, 9, 30).getTime(),
++  };
++
++  expect(usersToCsv([user])).toBe(
++    [
++      'Name,Email,Role,Joined',
++      `Jane Doe,jane@example.com,ADMIN,"${formatDate(user.createdAt)}"`,
++    ].join('\r\n'),
++  );
++});
+diff --git a/apps/react-vite/src/features/users/utils/filter-users.ts b/apps/react-vite/src/features/users/utils/filter-users.ts
+new file mode 100644
+index 0000000..640c71c
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/filter-users.ts
+@@ -0,0 +1,13 @@
++import { User } from '@/types/api';
++
++export const searchUsers = (users: User[], search: string) => {
++  const term = search.trim().toLowerCase();
++
++  if (!term) return users;
++
++  return users.filter(({ firstName, lastName, email }) =>
++    [`${firstName} ${lastName}`, email].some((value) =>
++      value.toLowerCase().includes(term),
++    ),
++  );
++};
+diff --git a/apps/react-vite/src/features/users/utils/users-csv.ts b/apps/react-vite/src/features/users/utils/users-csv.ts
+new file mode 100644
+index 0000000..0d63ad1
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/users-csv.ts
+@@ -0,0 +1,12 @@
++import { User } from '@/types/api';
++import { CsvColumn, toCsv } from '@/utils/csv';
++import { formatDate } from '@/utils/format';
++
++const columns: CsvColumn<User>[] = [
++  { header: 'Name', value: (user) => `${user.firstName} ${user.lastName}` },
++  { header: 'Email', value: (user) => user.email },
++  { header: 'Role', value: (user) => user.role },
++  { header: 'Joined', value: (user) => formatDate(user.createdAt) },
++];
++
++export const usersToCsv = (users: User[]) => toCsv(users, columns);
+diff --git a/apps/react-vite/src/testing/mocks/handlers/users.ts b/apps/react-vite/src/testing/mocks/handlers/users.ts
+index 444b918..ababa09 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/users.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/users.ts
+@@ -18,7 +18,7 @@ type ProfileBody = {
+ };
+ 
+ export const usersHandlers = [
+-  http.get(`${env.API_URL}/users`, async ({ cookies }) => {
++  http.get(`${env.API_URL}/users`, async ({ cookies, request }) => {
+     await networkDelay();
+ 
+     try {
+@@ -26,12 +26,18 @@ export const usersHandlers = [
+       if (error) {
+         return HttpResponse.json({ message: error }, { status: 401 });
+       }
++      const role = new URL(request.url).searchParams.get('role');
+       const result = db.user
+         .findMany({
+           where: {
+             teamId: {
+               equals: user?.teamId,
+             },
++            ...(role && {
++              role: {
++                equals: role,
++              },
++            }),
+           },
+         })
+         .map(sanitizeUser);
+diff --git a/apps/react-vite/src/utils/__tests__/csv.test.ts b/apps/react-vite/src/utils/__tests__/csv.test.ts
+new file mode 100644
+index 0000000..24b683f
+--- /dev/null
++++ b/apps/react-vite/src/utils/__tests__/csv.test.ts
+@@ -0,0 +1,36 @@
++import { toCsv } from '../csv';
++
++type Row = { name: string; note: string };
++
++const columns = [
++  { header: 'Name', value: (row: Row) => row.name },
++  { header: 'Note', value: (row: Row) => row.note },
++];
++
++test('should render a header line and one line per row', () => {
++  const csv = toCsv(
++    [
++      { name: 'Jane', note: 'first' },
++      { name: 'John', note: 'second' },
++    ],
++    columns,
++  );
++
++  expect(csv).toBe('Name,Note\r\nJane,first\r\nJohn,second');
++});
++
++test('should render only the header line when there are no rows', () => {
++  expect(toCsv([], columns)).toBe('Name,Note');
++});
++
++test('should quote cells that contain commas, quotes or line breaks', () => {
++  const csv = toCsv([{ name: 'Doe, Jane', note: 'said "hi"\nbye' }], columns);
++
++  expect(csv).toBe('Name,Note\r\n"Doe, Jane","said ""hi""\nbye"');
++});
++
++test('should neutralize cells that a spreadsheet would run as a formula', () => {
++  const csv = toCsv([{ name: '=SUM(A1:A2)', note: '-1+2' }], columns);
++
++  expect(csv).toBe("Name,Note\r\n'=SUM(A1:A2),'-1+2");
++});
+diff --git a/apps/react-vite/src/utils/csv.ts b/apps/react-vite/src/utils/csv.ts
+new file mode 100644
+index 0000000..6f2c305
+--- /dev/null
++++ b/apps/react-vite/src/utils/csv.ts
+@@ -0,0 +1,37 @@
++export type CsvColumn<Row> = {
++  header: string;
++  value: (row: Row) => string;
++};
++
++// Spreadsheet apps run cells that start with these characters as formulas.
++const FORMULA_PREFIX = /^[=+@\t\r-]/;
++const NEEDS_QUOTES = /[",\r\n]/;
++
++const escapeCell = (value: string) => {
++  const safe = FORMULA_PREFIX.test(value) ? `'${value}` : value;
++  return NEEDS_QUOTES.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
++};
++
++export const toCsv = <Row>(rows: Row[], columns: CsvColumn<Row>[]) => {
++  const lines = [
++    columns.map((column) => column.header),
++    ...rows.map((row) => columns.map((column) => column.value(row))),
++  ];
++
++  return lines.map((cells) => cells.map(escapeCell).join(',')).join('\r\n');
++};
++
++export const downloadCsv = (filename: string, csv: string) => {
++  // The BOM makes Excel read the file as UTF-8.
++  const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' });
++  const url = URL.createObjectURL(blob);
++
++  const link = document.createElement('a');
++  link.href = url;
++  link.download = filename;
++  document.body.appendChild(link);
++  link.click();
++  link.remove();
++
++  URL.revokeObjectURL(url);
++};
