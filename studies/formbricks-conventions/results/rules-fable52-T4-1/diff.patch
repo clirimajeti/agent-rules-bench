@@ -1,0 +1,322 @@
+diff --git a/apps/web/app/api/v3/tags/delete-unused/route.ts b/apps/web/app/api/v3/tags/delete-unused/route.ts
+new file mode 100644
+index 000000000..219bc3c23
+--- /dev/null
++++ b/apps/web/app/api/v3/tags/delete-unused/route.ts
+@@ -0,0 +1,25 @@
++/**
++ * POST /api/v3/tags/delete-unused - delete every tag of a workspace that no response carries.
++ *
++ * A POST custom method rather than a `DELETE` on the collection, for the reason
++ * `/api/v3/responses/batch-delete` gives: a distinct path cannot be reached by accident.
++ * Session-only like the other tag routes.
++ */
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { deleteUnusedV3Tags } from "../lib/operations";
++import { ZV3DeleteUnusedTagsQuery } from "../lib/schemas";
++
++export const POST = withV3ApiWrapper({
++  auth: "session",
++  action: "deleted",
++  targetType: "tag",
++  schemas: { query: ZV3DeleteUnusedTagsQuery },
++  handler: async ({ authentication, parsedInput, auditLog, requestId, instance }) =>
++    deleteUnusedV3Tags({
++      authentication,
++      workspaceId: parsedInput.query.workspaceId,
++      auditLog,
++      requestId,
++      instance,
++    }),
++});
+diff --git a/apps/web/app/api/v3/tags/lib/operations.test.ts b/apps/web/app/api/v3/tags/lib/operations.test.ts
+index 3519da76b..2c349c156 100644
+--- a/apps/web/app/api/v3/tags/lib/operations.test.ts
++++ b/apps/web/app/api/v3/tags/lib/operations.test.ts
+@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
+ import { requireV3WorkspaceAccess } from "@/app/api/v3/lib/auth";
+ import { getTag, getTagsByWorkspaceId } from "@/lib/tag/service";
+ import { getTagsOnResponsesCount } from "@/lib/tagOnResponse/service";
+-import { deleteTag, mergeTags, updateTagName } from "@/modules/workspaces/settings/lib/tag";
+-import { deleteV3Tag, listV3Tags, mergeV3Tags, renameV3Tag } from "./operations";
++import { deleteTag, deleteUnusedTags, mergeTags, updateTagName } from "@/modules/workspaces/settings/lib/tag";
++import { deleteUnusedV3Tags, deleteV3Tag, listV3Tags, mergeV3Tags, renameV3Tag } from "./operations";
+ 
+ vi.mock("server-only", () => ({}));
+ 
+@@ -16,6 +16,7 @@ vi.mock("@/app/api/v3/responses/lib/visibility", () => ({
+ }));
+ vi.mock("@/modules/workspaces/settings/lib/tag", () => ({
+   deleteTag: vi.fn(),
++  deleteUnusedTags: vi.fn(),
+   mergeTags: vi.fn(),
+   updateTagName: vi.fn(),
+ }));
+@@ -228,6 +229,76 @@ describe("deleteV3Tag", () => {
+   });
+ });
+ 
++describe("deleteUnusedV3Tags", () => {
++  test("deletes the workspace's unused tags and reports how many", async () => {
++    grantAccess();
++    vi.mocked(deleteUnusedTags).mockResolvedValue({ ok: true, data: { deleted: 3 } } as Awaited<
++      ReturnType<typeof deleteUnusedTags>
++    >);
++
++    const response = await deleteUnusedV3Tags({ ...base, workspaceId });
++    const body = await response.json();
++
++    expect(response.status).toBe(200);
++    expect(body.data).toEqual({ deleted: 3 });
++    expect(deleteUnusedTags).toHaveBeenCalledWith(workspaceId);
++  });
++
++  test("requires write access to the workspace it deletes from", async () => {
++    grantAccess();
++    vi.mocked(deleteUnusedTags).mockResolvedValue({ ok: true, data: { deleted: 0 } } as Awaited<
++      ReturnType<typeof deleteUnusedTags>
++    >);
++
++    await deleteUnusedV3Tags({ ...base, workspaceId });
++
++    expect(requireV3WorkspaceAccess).toHaveBeenCalledWith(
++      null,
++      workspaceId,
++      "readWrite",
++      "req_1",
++      "/api/v3/tags"
++    );
++  });
++
++  test("does not delete when authorization fails", async () => {
++    vi.mocked(requireV3WorkspaceAccess).mockResolvedValue(new Response(null, { status: 403 }));
++
++    const response = await deleteUnusedV3Tags({ ...base, workspaceId });
++
++    expect(response.status).toBe(403);
++    expect(deleteUnusedTags).not.toHaveBeenCalled();
++  });
++
++  test("records the workspace and the count for the audit log", async () => {
++    grantAccess();
++    vi.mocked(deleteUnusedTags).mockResolvedValue({ ok: true, data: { deleted: 2 } } as Awaited<
++      ReturnType<typeof deleteUnusedTags>
++    >);
++    const auditLog = {} as Parameters<typeof deleteUnusedV3Tags>[0]["auditLog"];
++
++    await deleteUnusedV3Tags({ ...base, workspaceId, auditLog });
++
++    expect(auditLog).toMatchObject({
++      organizationId,
++      targetId: workspaceId,
++      oldObject: { workspaceId, deleted: 2 },
++    });
++  });
++
++  test("reports a failed delete as a server fault, not a success", async () => {
++    grantAccess();
++    vi.mocked(deleteUnusedTags).mockResolvedValue({
++      ok: false,
++      error: { code: "unexpected_error" },
++    } as unknown as Awaited<ReturnType<typeof deleteUnusedTags>>);
++
++    const response = await deleteUnusedV3Tags({ ...base, workspaceId });
++
++    expect(response.status).toBe(500);
++  });
++});
++
+ describe("mergeV3Tags", () => {
+   test("merges two tags in the same workspace", async () => {
+     vi.mocked(getTag).mockImplementation(async (id: string) =>
+diff --git a/apps/web/app/api/v3/tags/lib/operations.ts b/apps/web/app/api/v3/tags/lib/operations.ts
+index 7b7785cdf..558578fa8 100644
+--- a/apps/web/app/api/v3/tags/lib/operations.ts
++++ b/apps/web/app/api/v3/tags/lib/operations.ts
+@@ -12,7 +12,7 @@ import { resolveV3ResponsesActorContext } from "@/app/api/v3/responses/lib/visib
+ import { buildVisibleSurveyWhere } from "@/lib/survey/visibility/predicate";
+ import { getTag, getTagsByWorkspaceId } from "@/lib/tag/service";
+ import { getTagsOnResponsesCount } from "@/lib/tagOnResponse/service";
+-import { deleteTag, mergeTags, updateTagName } from "@/modules/workspaces/settings/lib/tag";
++import { deleteTag, deleteUnusedTags, mergeTags, updateTagName } from "@/modules/workspaces/settings/lib/tag";
+ import { serializeV3Tag } from "../serializers";
+ 
+ type TBaseParams = {
+@@ -145,6 +145,41 @@ export async function deleteV3Tag(
+   return successResponse({ id: tagId }, { requestId });
+ }
+ 
++/**
++ * Unlike the single-tag mutations there is no tag to resolve the workspace from, so `workspaceId` comes
++ * from the caller. That is safe for the same reason as the responses batch delete: the value authorized
++ * against and the value the delete is filtered by are the same, so they cannot diverge.
++ */
++export async function deleteUnusedV3Tags(
++  params: TBaseParams & { workspaceId: string; auditLog?: TV3AuditLog }
++): Promise<Response> {
++  const { authentication, workspaceId, auditLog, requestId, instance } = params;
++
++  const access = await requireV3WorkspaceAccess(
++    authentication,
++    workspaceId,
++    "readWrite",
++    requestId,
++    instance
++  );
++  if (access instanceof Response) return access;
++
++  if (auditLog) {
++    auditLog.organizationId = access.organizationId;
++    auditLog.targetId = access.workspaceId;
++  }
++
++  const result = await deleteUnusedTags(access.workspaceId);
++  if (!result.ok) {
++    return problemInternalError(requestId, "Unable to delete unused tags", instance);
++  }
++
++  // The count only: the tags are removed in one statement, and a workspace can hold any number of them.
++  if (auditLog) auditLog.oldObject = { workspaceId: access.workspaceId, deleted: result.data.deleted };
++
++  return successResponse({ deleted: result.data.deleted }, { requestId });
++}
++
+ export async function mergeV3Tags(
+   params: TBaseParams & { tagId: string; newTagId: string; auditLog?: TV3AuditLog }
+ ): Promise<Response> {
+diff --git a/apps/web/app/api/v3/tags/lib/schemas.test.ts b/apps/web/app/api/v3/tags/lib/schemas.test.ts
+index 1fbb03827..963dd26bb 100644
+--- a/apps/web/app/api/v3/tags/lib/schemas.test.ts
++++ b/apps/web/app/api/v3/tags/lib/schemas.test.ts
+@@ -1,5 +1,11 @@
+ import { describe, expect, test } from "vitest";
+-import { ZV3MergeTagBody, ZV3RenameTagBody, ZV3TagIdParams, ZV3TagListQuery } from "./schemas";
++import {
++  ZV3DeleteUnusedTagsQuery,
++  ZV3MergeTagBody,
++  ZV3RenameTagBody,
++  ZV3TagIdParams,
++  ZV3TagListQuery,
++} from "./schemas";
+ 
+ describe("ZV3RenameTagBody", () => {
+   test("trims the name, so a padded rename does not store its whitespace", () => {
+@@ -30,6 +36,12 @@ describe("id schemas", () => {
+     expect(ZV3TagIdParams.parse({ tagId: id })).toEqual({ tagId: id });
+     expect(ZV3TagListQuery.parse({ workspaceId: id })).toEqual({ workspaceId: id });
+     expect(ZV3MergeTagBody.parse({ newTagId: id })).toEqual({ newTagId: id });
++    expect(ZV3DeleteUnusedTagsQuery.parse({ workspaceId: id })).toEqual({ workspaceId: id });
++  });
++
++  test("the delete-unused query needs a workspace and takes nothing else", () => {
++    expect(ZV3DeleteUnusedTagsQuery.safeParse({}).success).toBe(false);
++    expect(ZV3DeleteUnusedTagsQuery.safeParse({ workspaceId: id, tagId: id }).success).toBe(false);
+   });
+ 
+   test("reject an id that is not a cuid", () => {
+diff --git a/apps/web/app/api/v3/tags/lib/schemas.ts b/apps/web/app/api/v3/tags/lib/schemas.ts
+index f4e17388c..f02ac1350 100644
+--- a/apps/web/app/api/v3/tags/lib/schemas.ts
++++ b/apps/web/app/api/v3/tags/lib/schemas.ts
+@@ -4,6 +4,8 @@ export const ZV3TagIdParams = z.object({ tagId: z.cuid2() }).strict();
+ 
+ export const ZV3TagListQuery = z.object({ workspaceId: z.cuid2() }).strict();
+ 
++export const ZV3DeleteUnusedTagsQuery = z.object({ workspaceId: z.cuid2() }).strict();
++
+ /**
+  * The old `updateTagNameAction` accepted a bare `z.string()` and the component trimmed before calling.
+  * Trimming and rejecting empty here instead means a blank rename is a 422 rather than a tag silently
+diff --git a/apps/web/modules/workspaces/settings/lib/tag.test.ts b/apps/web/modules/workspaces/settings/lib/tag.test.ts
+index 9c96ae06b..5a1dc2759 100644
+--- a/apps/web/modules/workspaces/settings/lib/tag.test.ts
++++ b/apps/web/modules/workspaces/settings/lib/tag.test.ts
+@@ -5,7 +5,7 @@ import { PrismaErrorType } from "@formbricks/database/types/error";
+ import { ok } from "@formbricks/types/error-handlers";
+ import { TTag } from "@formbricks/types/tags";
+ import { TagError } from "@/modules/workspaces/settings/types/tag";
+-import { deleteTag, mergeTags, updateTagName } from "./tag";
++import { deleteTag, deleteUnusedTags, mergeTags, updateTagName } from "./tag";
+ 
+ const baseTag: TTag = {
+   id: "cltag1234567890",
+@@ -25,6 +25,7 @@ vi.mock("@formbricks/database", () => ({
+   prisma: {
+     tag: {
+       delete: vi.fn(),
++      deleteMany: vi.fn(),
+       update: vi.fn(),
+       findUnique: vi.fn(),
+     },
+@@ -96,6 +97,32 @@ describe("tag lib", () => {
+     });
+   });
+ 
++  describe("deleteUnusedTags", () => {
++    test("deletes only this workspace's tags that no response carries, and reports how many", async () => {
++      vi.mocked(prisma.tag.deleteMany).mockResolvedValueOnce({ count: 3 });
++
++      const result = await deleteUnusedTags(baseTag.workspaceId);
++
++      expect(result).toEqual(ok({ deleted: 3 }));
++      // Both halves of the filter matter: without `workspaceId` it crosses tenants, without
++      // `responses: none` it deletes tags that are in use.
++      expect(prisma.tag.deleteMany).toHaveBeenCalledWith({
++        where: { workspaceId: baseTag.workspaceId, responses: { none: {} } },
++      });
++    });
++
++    test("returns unexpected_error on prisma error", async () => {
++      vi.mocked(prisma.tag.deleteMany).mockRejectedValueOnce(new Error("fail"));
++
++      const result = await deleteUnusedTags(baseTag.workspaceId);
++
++      expect(result.ok).toBe(false);
++      if (!result.ok) {
++        expect(result.error).toStrictEqual({ code: "unexpected_error", message: "fail" });
++      }
++    });
++  });
++
+   describe("updateTagName", () => {
+     test("returns ok on successful update", async () => {
+       vi.mocked(prisma.tag.update).mockResolvedValueOnce(baseTag);
+diff --git a/apps/web/modules/workspaces/settings/lib/tag.ts b/apps/web/modules/workspaces/settings/lib/tag.ts
+index 5ff09f3ac..9a10a0bf1 100644
+--- a/apps/web/modules/workspaces/settings/lib/tag.ts
++++ b/apps/web/modules/workspaces/settings/lib/tag.ts
+@@ -36,6 +36,34 @@ export const deleteTag = async (
+   }
+ };
+ 
++/**
++ * Deletes every tag of the workspace that no response carries, in one statement.
++ *
++ * "Unused" is decided inside the `deleteMany` itself, against every response and not only the ones the
++ * caller may see. The count the tags table shows is visibility-filtered (ENG-3282), so a tag that reads
++ * `0` there can still sit on a response of a restricted survey; deleting by that number would strip
++ * tags from responses the caller cannot read. One statement also means a tag applied between a read
++ * and the delete cannot be removed by mistake.
++ */
++export const deleteUnusedTags = async (
++  workspaceId: string
++): Promise<Result<{ deleted: number }, { code: TagError; message: string }>> => {
++  validateInputs([workspaceId, ZId]);
++
++  try {
++    const { count } = await prisma.tag.deleteMany({
++      where: { workspaceId, responses: { none: {} } },
++    });
++
++    return ok({ deleted: count });
++  } catch (error) {
++    return err({
++      code: TagError.UNEXPECTED_ERROR,
++      message: error instanceof Error ? error.message : "Unknown error occurred",
++    });
++  }
++};
++
+ export const updateTagName = async (
+   id: string,
+   name: string
