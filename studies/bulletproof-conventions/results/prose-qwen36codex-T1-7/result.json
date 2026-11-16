@@ -1,0 +1,65 @@
+{
+  "id": "prose-qwen36codex-T1-7",
+  "arm": "prose",
+  "model": "qwen36codex",
+  "agent": "codex",
+  "task": "T1",
+  "rep": 7,
+  "ok": true,
+  "capped": false,
+  "timedOut": false,
+  "turns": 57,
+  "taskCost": 0,
+  "fixCost": 0,
+  "usage": {
+    "input": 24080,
+    "cacheWrite": 0,
+    "cacheRead": 310480,
+    "output": 6441
+  },
+  "fixUsage": {
+    "input": 9491,
+    "cacheWrite": 0,
+    "cacheRead": 281016,
+    "output": 7168
+  },
+  "seconds": 272,
+  "fixed": true,
+  "breaksAfterTask": 3,
+  "breaksFinal": 0,
+  "byRule": {},
+  "breaksAfterTaskAt": [
+    {
+      "ruleId": "local/query-key-from-options",
+      "file": "apps/react-vite/src/features/discussions/api/pin-discussion.ts",
+      "line": 34
+    },
+    {
+      "ruleId": "local/notifications-in-mutation-hook",
+      "file": "apps/react-vite/src/features/discussions/components/discussion-view.tsx",
+      "line": 12
+    },
+    {
+      "ruleId": "local/classnames-with-cn",
+      "file": "apps/react-vite/src/features/discussions/components/discussion-view.tsx",
+      "line": 62
+    }
+  ],
+  "evalNotes": [],
+  "changedFiles": 6,
+  "hookCatches": 0,
+  "ignoredCatches": 0,
+  "build": null,
+  "startedAt": "2026-11-16T03:10:56.779Z",
+  "modelIds": [
+    "ollama/qwen3.6:35b-a3b-coding"
+  ],
+  "versions": {
+    "harness": "a0f65a83ede46ad1596b7fb75ce410b7ab66bc1d",
+    "node": "v24.14.1",
+    "platform": "darwin-arm64",
+    "agent": {
+      "codex": "codex-cli 0.166.0"
+    }
+  }
+}

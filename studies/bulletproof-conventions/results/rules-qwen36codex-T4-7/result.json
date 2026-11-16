@@ -1,0 +1,87 @@
+{
+  "id": "rules-qwen36codex-T4-7",
+  "arm": "rules",
+  "model": "qwen36codex",
+  "agent": "codex",
+  "task": "T4",
+  "rep": 7,
+  "ok": true,
+  "capped": true,
+  "timedOut": true,
+  "turns": 73,
+  "taskCost": 0,
+  "fixCost": 0,
+  "usage": {
+    "input": 0,
+    "cacheWrite": 0,
+    "cacheRead": 0,
+    "output": 0
+  },
+  "fixUsage": {
+    "input": 18678,
+    "cacheWrite": 0,
+    "cacheRead": 164912,
+    "output": 11191
+  },
+  "seconds": 2029,
+  "fixed": true,
+  "breaksAfterTask": 7,
+  "breaksFinal": 1,
+  "byRule": {
+    "local/role-checks-through-authorization": 1
+  },
+  "breaksAfterTaskAt": [
+    {
+      "ruleId": "local/roles-from-enum",
+      "file": "apps/react-vite/src/features/users/api/get-users.ts",
+      "line": 8
+    },
+    {
+      "ruleId": "local/roles-from-enum",
+      "file": "apps/react-vite/src/features/users/api/get-users.ts",
+      "line": 8
+    },
+    {
+      "ruleId": "local/roles-from-enum",
+      "file": "apps/react-vite/src/features/users/components/users-list.tsx",
+      "line": 24
+    },
+    {
+      "ruleId": "local/roles-from-enum",
+      "file": "apps/react-vite/src/features/users/components/users-list.tsx",
+      "line": 24
+    },
+    {
+      "ruleId": "local/roles-from-enum",
+      "file": "apps/react-vite/src/features/users/components/users-list.tsx",
+      "line": 31
+    },
+    {
+      "ruleId": "local/roles-from-enum",
+      "file": "apps/react-vite/src/features/users/components/users-list.tsx",
+      "line": 32
+    },
+    {
+      "ruleId": "local/role-checks-through-authorization",
+      "file": "apps/react-vite/src/features/users/components/users-list.tsx",
+      "line": 75
+    }
+  ],
+  "evalNotes": [],
+  "changedFiles": 2,
+  "hookCatches": 23,
+  "ignoredCatches": 7,
+  "build": null,
+  "startedAt": "2026-11-16T01:44:05.195Z",
+  "modelIds": [
+    "ollama/qwen3.6:35b-a3b-coding"
+  ],
+  "versions": {
+    "harness": "a0f65a83ede46ad1596b7fb75ce410b7ab66bc1d",
+    "node": "v24.14.1",
+    "platform": "darwin-arm64",
+    "agent": {
+      "codex": "codex-cli 0.166.0"
+    }
+  }
+}
