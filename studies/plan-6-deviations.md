@@ -11,6 +11,13 @@ That file stays as registered; every change is listed here, with its date, its r
 - Known when added: all 256 primary Claude runs were done, and a first descriptive look at them had been made.
 - Cost estimate (from the Sonnet 5.5 runs and the price per token: Opus 5.5 about 2 times, Fable 5.2 about 4 times Sonnet 5.5): Opus 5.5 about $27, Fable 5.2 about $55, both projects.
 
+## D4 (2026-11-16): turn cap of the local model on Formbricks raised from 60 to 120
+
+- What: `maxTurns` of `qwen36codex` in `formbricks-conventions/study.json` is 120 instead of 60; the 60-minute time limit is unchanged.
+- Why: in the Formbricks Qwen pilot (8 runs, 15 to 16 Nov, in `results-pilot/`) 6 of 8 task sessions reached 60 turns; Codex counts each tool call as a turn, and the prose runs that were not capped needed about 110. With 60, most results would measure the cap.
+- When: after that pilot and before any Formbricks Qwen run of the main study, as `plan-6.md` allows ("if it changes the local model's turn cap or time limit, the change is listed under Deviations before those runs start").
+- Known when changed: the pilot, the 64 bulletproof Qwen runs (cap 60, 1 capped), and the Claude runs. Bulletproof keeps 60 for the local model.
+
 ## D2 (found 2026-11-15, decision pending): a checker false positive in bulletproof T4
 
 - Found: after the 128 bulletproof Claude runs, before any Formbricks or local model run.
