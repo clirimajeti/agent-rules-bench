@@ -29,6 +29,6 @@ After the fix (`verify-tests.mjs`), the 8 failed runs were verified again:
 ## Qwen pilot (added 2026-11-16, never analysed)
 
 8 runs, Qwen 3.6 in Codex, 1 per arm and task, with maxTurns 60 and a 60-minute time limit.
-- 6 of 8 sessions reached the 60-turn cap (prose 3 of 4, rules 4 of 4 counting the time-out below); Codex counts each tool call as a turn here, and Formbricks tasks need many.
+- 6 of 8 task sessions reached the 60-turn cap (prose 3 of 4, rules 3 of 4); Codex counts each tool call as a turn here, and Formbricks tasks need many.
 - rules-qwen36codex-T1-1: the review fix session reached the 60-minute limit and was killed (counted as capped).
 - Breaks after the task: prose 6 in 3 runs, rules 1 in 1 run; loop catches in rules: 8.
