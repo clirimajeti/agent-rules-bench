@@ -1,0 +1,590 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/layout.tsx b/apps/web/app/(app)/account/settings/profile/layout.tsx
+new file mode 100644
+index 000000000..9269cc5e8
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/layout.tsx
+@@ -0,0 +1,8 @@
++import { type ReactNode } from "react";
++import { ProfileQueryClientProvider } from "./query-client-provider";
++
++const ProfileSettingsLayout = ({ children }: Readonly<{ children: ReactNode }>) => {
++  return <ProfileQueryClientProvider>{children}</ProfileQueryClientProvider>;
++};
++
++export default ProfileSettingsLayout;
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..d98183a52 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,6 +1,8 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
++import { AccountActivity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
++import { DownloadAccountData } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadAccountData";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+ import {
+@@ -99,6 +101,13 @@ const Page = async () => {
+             isPasswordResetEnabled={isPasswordResetEnabled}
+           />
+         </SettingsCard>
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <AccountActivity user={user} />
++          <hr className="my-6 border-slate-200" />
++          <DownloadAccountData />
++        </SettingsCard>
+         {user.identityProvider === "email" && (
+           <SettingsCard
+             title={t("common.security")}
+diff --git a/apps/web/app/(app)/account/settings/profile/query-client-provider.tsx b/apps/web/app/(app)/account/settings/profile/query-client-provider.tsx
+new file mode 100644
+index 000000000..57c035bdf
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/query-client-provider.tsx
+@@ -0,0 +1,14 @@
++"use client";
++
++import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
++import { type ReactNode, useState } from "react";
++
++/**
++ * There is no app-wide `QueryClientProvider`; each route segment that uses TanStack Query mounts its own.
++ * The profile page needs one for the "Download my data" mutation.
++ */
++export const ProfileQueryClientProvider = ({ children }: Readonly<{ children: ReactNode }>) => {
++  const [queryClient] = useState(() => new QueryClient());
++
++  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
++};
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
+new file mode 100644
+index 000000000..7954b73fb
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
+@@ -0,0 +1,44 @@
++import type { TUser } from "@formbricks/types/user";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
++import { getTranslate } from "@/lingodotdev/server";
++
++// A user has no time zone of their own and the account spans organizations, so there is no product-level
++// zone to read in. Times are shown in UTC and say so, rather than in whatever zone the server runs in.
++const ACTIVITY_DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
++  year: "numeric",
++  month: "long",
++  day: "numeric",
++  hour: "numeric",
++  minute: "2-digit",
++  timeZone: "UTC",
++  timeZoneName: "short",
++};
++
++interface AccountActivityProps {
++  user: Pick<TUser, "createdAt" | "lastLoginAt" | "locale">;
++}
++
++export const AccountActivity = async ({ user }: Readonly<AccountActivityProps>) => {
++  const t = await getTranslate();
++  const formatDateTime = (date: Date) =>
++    formatDateTimeForDisplay(date, user.locale, ACTIVITY_DATE_TIME_OPTIONS);
++
++  return (
++    <dl className="grid gap-4 text-sm sm:grid-cols-2">
++      <div>
++        <dt className="font-medium text-slate-900">{t("workspace.settings.profile.account_created")}</dt>
++        <dd className="mt-1 text-slate-700">{formatDateTime(user.createdAt)}</dd>
++      </div>
++      <div>
++        <dt className="font-medium text-slate-900">{t("workspace.settings.profile.last_login")}</dt>
++        <dd className="mt-1 text-slate-700">
++          {user.lastLoginAt ? (
++            formatDateTime(user.lastLoginAt)
++          ) : (
++            <span className="text-slate-500">{t("common.no_sign_in_recorded")}</span>
++          )}
++        </dd>
++      </div>
++    </dl>
++  );
++};
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadAccountData.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadAccountData.tsx
+new file mode 100644
+index 000000000..cda342b20
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadAccountData.tsx
+@@ -0,0 +1,29 @@
++"use client";
++
++import { DownloadIcon } from "lucide-react";
++import toast from "react-hot-toast";
++import { useTranslation } from "react-i18next";
++import { useDownloadAccountData } from "@/modules/account/data-export/hooks/use-download-account-data";
++import { getV3ApiErrorMessage } from "@/modules/api/lib/v3-client";
++import { Button } from "@/modules/ui/components/button";
++
++export const DownloadAccountData = () => {
++  const { t } = useTranslation();
++  const { mutate, isPending } = useDownloadAccountData();
++
++  const handleDownload = () =>
++    mutate(undefined, {
++      onError: (error) =>
++        toast.error(getV3ApiErrorMessage(error, t("workspace.settings.profile.download_my_data_error"))),
++    });
++
++  return (
++    <div>
++      <p className="text-sm text-slate-700">{t("workspace.settings.profile.download_my_data_description")}</p>
++      <Button className="mt-4" variant="secondary" size="sm" onClick={handleDownload} loading={isPending}>
++        <DownloadIcon />
++        {t("workspace.settings.profile.download_my_data")}
++      </Button>
++    </div>
++  );
++};
+diff --git a/apps/web/app/api/v3/me/data-export/lib/operations.test.ts b/apps/web/app/api/v3/me/data-export/lib/operations.test.ts
+new file mode 100644
+index 000000000..89db8daba
+--- /dev/null
++++ b/apps/web/app/api/v3/me/data-export/lib/operations.test.ts
+@@ -0,0 +1,69 @@
++import { beforeEach, describe, expect, test, vi } from "vitest";
++import type { TV3Authentication } from "@/app/api/v3/lib/types";
++import { getV3AccountDataExport } from "./operations";
++import { getAccountDataExportSource } from "./service";
++
++vi.mock("server-only", () => ({}));
++vi.mock("./service", () => ({ getAccountDataExportSource: vi.fn() }));
++
++const userId = "clus1234567890123456789012";
++const session = { user: { id: userId } } as unknown as TV3Authentication;
++const base = { requestId: "req_1", instance: "/api/v3/me/data-export" };
++
++const source = {
++  name: "Ada Lovelace",
++  email: "ada@example.com",
++  locale: "en-US" as const,
++  notificationSettings: {
++    alert: { survey1: true },
++    unsubscribedOrganizationIds: ["org1"],
++    // A key the app no longer reads must not reach the export.
++    weeklySummary: { workspace1: true },
++  },
++  memberships: [
++    { role: "owner" as const, organization: { name: "Acme" } },
++    { role: "member" as const, organization: { name: "Globex" } },
++  ],
++};
++
++beforeEach(() => {
++  vi.resetAllMocks();
++});
++
++describe("getV3AccountDataExport", () => {
++  test("exports the session user's profile, notification settings and memberships", async () => {
++    vi.mocked(getAccountDataExportSource).mockResolvedValue(source);
++
++    const response = await getV3AccountDataExport({ ...base, authentication: session });
++
++    expect(response.status).toBe(200);
++    expect(getAccountDataExportSource).toHaveBeenCalledWith(userId);
++    expect((await response.json()).data).toEqual({
++      name: "Ada Lovelace",
++      email: "ada@example.com",
++      locale: "en-US",
++      notificationSettings: { alert: { survey1: true }, unsubscribedOrganizationIds: ["org1"] },
++      organizationMemberships: [
++        { organizationName: "Acme", role: "owner" },
++        { organizationName: "Globex", role: "member" },
++      ],
++    });
++  });
++
++  test("answers 401 to an API key without reading any user", async () => {
++    const apiKey = { apiKeyId: "key_1" } as unknown as TV3Authentication;
++
++    const response = await getV3AccountDataExport({ ...base, authentication: apiKey });
++
++    expect(response.status).toBe(401);
++    expect(getAccountDataExportSource).not.toHaveBeenCalled();
++  });
++
++  test("answers 401 when the session's user no longer exists", async () => {
++    vi.mocked(getAccountDataExportSource).mockResolvedValue(null);
++
++    const response = await getV3AccountDataExport({ ...base, authentication: session });
++
++    expect(response.status).toBe(401);
++  });
++});
+diff --git a/apps/web/app/api/v3/me/data-export/lib/operations.ts b/apps/web/app/api/v3/me/data-export/lib/operations.ts
+new file mode 100644
+index 000000000..e0ebc4a31
+--- /dev/null
++++ b/apps/web/app/api/v3/me/data-export/lib/operations.ts
+@@ -0,0 +1,31 @@
++import "server-only";
++import { getV3SessionUserId } from "@/app/api/v3/lib/auth";
++import { problemUnauthorized, successResponse } from "@/app/api/v3/lib/response";
++import type { TV3Authentication } from "@/app/api/v3/lib/types";
++import { serializeV3AccountDataExport } from "../serializers";
++import { getAccountDataExportSource } from "./service";
++
++/**
++ * The signed-in user's own account data. The user id comes from the session alone and the route takes
++ * no identifier, so a caller can only ever export themselves.
++ */
++export async function getV3AccountDataExport(params: {
++  authentication: TV3Authentication;
++  requestId: string;
++  instance?: string;
++}): Promise<Response> {
++  const { authentication, requestId, instance } = params;
++
++  const userId = getV3SessionUserId(authentication);
++  if (!userId) {
++    return problemUnauthorized(requestId, "Session required", instance);
++  }
++
++  const source = await getAccountDataExportSource(userId);
++  // A session whose user has since been deleted is no longer an authenticated caller.
++  if (!source) {
++    return problemUnauthorized(requestId, "Not authenticated", instance);
++  }
++
++  return successResponse(serializeV3AccountDataExport(source), { requestId });
++}
+diff --git a/apps/web/app/api/v3/me/data-export/lib/service.ts b/apps/web/app/api/v3/me/data-export/lib/service.ts
+new file mode 100644
+index 000000000..ee959064f
+--- /dev/null
++++ b/apps/web/app/api/v3/me/data-export/lib/service.ts
+@@ -0,0 +1,26 @@
++import "server-only";
++import { prisma } from "@formbricks/database";
++
++/**
++ * Everything the account data export carries, read in one query. A user belongs to a handful of
++ * organizations at most, so the nested membership list needs no pagination.
++ */
++export const getAccountDataExportSource = (userId: string) =>
++  prisma.user.findUnique({
++    where: { id: userId },
++    select: {
++      name: true,
++      email: true,
++      locale: true,
++      notificationSettings: true,
++      memberships: {
++        select: {
++          role: true,
++          organization: { select: { name: true } },
++        },
++        orderBy: { organization: { name: "asc" } },
++      },
++    },
++  });
++
++export type TAccountDataExportSource = NonNullable<Awaited<ReturnType<typeof getAccountDataExportSource>>>;
+diff --git a/apps/web/app/api/v3/me/data-export/route.ts b/apps/web/app/api/v3/me/data-export/route.ts
+new file mode 100644
+index 000000000..b252106a5
+--- /dev/null
++++ b/apps/web/app/api/v3/me/data-export/route.ts
+@@ -0,0 +1,18 @@
++/**
++ * GET /api/v3/me/data-export - the signed-in user's account data, for the "Download my data" button on
++ * the profile settings page.
++ *
++ * Session-only, deliberately: the export is personal data about the person signed in, and an API key
++ * belongs to an organization, not to a person.
++ */
++import { z } from "zod";
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { getV3AccountDataExport } from "./lib/operations";
++
++export const GET = withV3ApiWrapper({
++  auth: "session",
++  // No query parameters: an unknown one answers 400 rather than being silently ignored.
++  schemas: { query: z.object({}).strict() },
++  handler: async ({ authentication, requestId, instance }) =>
++    getV3AccountDataExport({ authentication, requestId, instance }),
++});
+diff --git a/apps/web/app/api/v3/me/data-export/serializers.ts b/apps/web/app/api/v3/me/data-export/serializers.ts
+new file mode 100644
+index 000000000..2e6f25abf
+--- /dev/null
++++ b/apps/web/app/api/v3/me/data-export/serializers.ts
+@@ -0,0 +1,39 @@
++import type { TOrganizationRole } from "@formbricks/types/memberships";
++import {
++  type TUserLocale,
++  type TUserNotificationSettings,
++  ZUserNotificationSettings,
++} from "@formbricks/types/user";
++import type { TAccountDataExportSource } from "./lib/service";
++
++export type TV3AccountDataExport = {
++  name: string;
++  email: string;
++  locale: TUserLocale;
++  notificationSettings: TUserNotificationSettings;
++  organizationMemberships: {
++    organizationName: string;
++    role: TOrganizationRole;
++  }[];
++};
++
++/**
++ * `notificationSettings` is an untyped JSON column. Parsing it keeps the export to the documented shape:
++ * keys the app no longer reads are dropped, and a row that predates the current shape exports as "no
++ * alerts" rather than leaking whatever the column happens to hold.
++ */
++const toNotificationSettings = (value: unknown): TUserNotificationSettings => {
++  const parsed = ZUserNotificationSettings.safeParse(value);
++  return parsed.success ? parsed.data : { alert: {} };
++};
++
++export const serializeV3AccountDataExport = (source: TAccountDataExportSource): TV3AccountDataExport => ({
++  name: source.name,
++  email: source.email,
++  locale: source.locale,
++  notificationSettings: toNotificationSettings(source.notificationSettings),
++  organizationMemberships: source.memberships.map((membership) => ({
++    organizationName: membership.organization.name,
++    role: membership.role,
++  })),
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..14468f908 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "See when your account was created and when you last logged in, and download your data",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,10 +3753,14 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Download a JSON file with your name, email, language, notification settings and organization memberships.",
++        "download_my_data_error": "Could not download your data. Please try again.",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
+         "lost_access": "Lost access",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+diff --git a/apps/web/modules/account/data-export/hooks/use-download-account-data.ts b/apps/web/modules/account/data-export/hooks/use-download-account-data.ts
+new file mode 100644
+index 000000000..897859ae0
+--- /dev/null
++++ b/apps/web/modules/account/data-export/hooks/use-download-account-data.ts
+@@ -0,0 +1,18 @@
++"use client";
++
++import { useMutation } from "@tanstack/react-query";
++import { saveBlobAsFile } from "@/modules/ee/data-retention/lib/file-download";
++import { getAccountDataExport, getAccountDataExportFileName } from "../lib/api-client";
++
++/**
++ * Fetch the account data and hand it to the browser as a JSON file. A mutation rather than a query:
++ * the export is a one-off download the user asks for, not server state the page reads or caches.
++ */
++export const useDownloadAccountData = () =>
++  useMutation({
++    mutationFn: getAccountDataExport,
++    onSuccess: (data) => {
++      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
++      saveBlobAsFile(blob, getAccountDataExportFileName(new Date()));
++    },
++  });
+diff --git a/apps/web/modules/account/data-export/lib/api-client.ts b/apps/web/modules/account/data-export/lib/api-client.ts
+new file mode 100644
+index 000000000..db9c24613
+--- /dev/null
++++ b/apps/web/modules/account/data-export/lib/api-client.ts
+@@ -0,0 +1,15 @@
++import type { TV3AccountDataExport } from "@/app/api/v3/me/data-export/serializers";
++import { parseV3ApiError } from "@/modules/api/lib/v3-client";
++
++/** Fetch the signed-in user's account data. Throws a parsed `V3ApiError` on a non-2xx response. */
++export async function getAccountDataExport(): Promise<TV3AccountDataExport> {
++  const response = await fetch("/api/v3/me/data-export", { method: "GET", cache: "no-store" });
++  if (!response.ok) {
++    throw await parseV3ApiError(response);
++  }
++  return ((await response.json()) as { data: TV3AccountDataExport }).data;
++}
++
++/** The download's file name, dated in UTC so it does not depend on the browser's time zone. */
++export const getAccountDataExportFileName = (now: Date): string =>
++  `formbricks-account-data-${now.toISOString().slice(0, 10)}.json`;
+diff --git a/docs/api-v3-reference/contract-tests/README.md b/docs/api-v3-reference/contract-tests/README.md
+index af16f7434..5ec8caecd 100644
+--- a/docs/api-v3-reference/contract-tests/README.md
++++ b/docs/api-v3-reference/contract-tests/README.md
+@@ -13,7 +13,7 @@ document is well-formed and current; this proves the running API still matches i
+ 
+ | File                | Purpose                                                                                                                                                                                                                                                                  |
+ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+-| `schemathesis.toml` | Phase/timeout config. `[phases.examples] fill-missing` is what makes all 55 in-scope operations run instead of only the few that carry explicit examples. The `[[operations]]` table below it excludes the eight gateway-served Feedback Records operations (see below). |
++| `schemathesis.toml` | Phase/timeout config. `[phases.examples] fill-missing` is what makes all 56 in-scope operations run instead of only the few that carry explicit examples. The `[[operations]]` table below it excludes the eight gateway-served Feedback Records operations (see below). |
+ | `hooks.py`          | Registers the `cuid2` and `web-url` formats and substitutes seeded identifiers, keyed by parameter name and operationId.                                                                                                                                                 |
+ | `fixtures.json`     | Generated by `db:seed:contract`, gitignored. The id map `hooks.py` reads.                                                                                                                                                                                                |
+ 
+@@ -74,14 +74,16 @@ Three things to know before reading the result:
+   `sessionAuth`), so an API key gets a documented 401 before any handler runs. They are checked
+   against that 401, which is a real assertion that they stay session-only — but no tag fixtures
+   exist, because nothing an API key sends can reach them.
++  `GET /api/v3/me/data-export` is session-only for the same reason and is checked the same way: it
++  exports the signed-in user's own data, so it takes no identifier and needs no fixture.
+ - **The eight `/feedbackRecords` operations are not exercised.** They are served by the API gateway
+   (Envoy in Cloud, Traefik in the Docker install) straight to the Hub; the Next.js route under
+   `/api/v3/feedbackRecords` is a local-dev proxy that needs a running Hub and answers 404 in
+   production builds. CI has no Hub, so `schemathesis.toml` disables the `V3 Feedback Records` tag
+   rather than test a proxy without an upstream. Their contract is checked by the Hub's own suite and
+-  the live smoke recorded in ENG-1259. The bundle therefore documents 63 operations and this job
+-  exercises 55 — the four `/tags` operations carry `x-excluded` (no docs page, ENG-2533) but are
+-  still tested.
++  the live smoke recorded in ENG-1259. The bundle therefore documents 64 operations and this job
++  exercises 56 - the four `/tags` operations and `GET /api/v3/me/data-export` carry `x-excluded`
++  (no docs page, ENG-2533) but are still tested.
+ - **The two survey visibility operations answer 403 to every API key** (ENG-3282, K-4), and this
+   harness authenticates with one, so `GET`/`POST /api/v3/surveys/{surveyId}/visibility` are checked
+   against their documented 403 on a real, readable fixture survey. Their 200/409/422/503 shapes are
+diff --git a/docs/api-v3-reference/src/components/schemas/AccountDataExport.yml b/docs/api-v3-reference/src/components/schemas/AccountDataExport.yml
+new file mode 100644
+index 000000000..6fec61876
+--- /dev/null
++++ b/docs/api-v3-reference/src/components/schemas/AccountDataExport.yml
+@@ -0,0 +1,52 @@
++type: object
++additionalProperties: false
++required:
++  - name
++  - email
++  - locale
++  - notificationSettings
++  - organizationMemberships
++properties:
++  name:
++    type: string
++  email:
++    type: string
++    format: email
++  locale:
++    type: string
++    description: The language the app is shown in, as a BCP 47 tag such as `en-US`.
++  notificationSettings:
++    type: object
++    additionalProperties: false
++    required:
++      - alert
++    properties:
++      alert:
++        type: object
++        description: Whether a response alert email is sent, keyed by survey id.
++        additionalProperties:
++          type: boolean
++      unsubscribedOrganizationIds:
++        type: array
++        description: Organizations whose new surveys the user is not auto-subscribed to.
++        items:
++          type: string
++  organizationMemberships:
++    type: array
++    description: Every organization the user belongs to, sorted by organization name.
++    items:
++      type: object
++      additionalProperties: false
++      required:
++        - organizationName
++        - role
++      properties:
++        organizationName:
++          type: string
++        role:
++          type: string
++          enum:
++            - owner
++            - manager
++            - member
++            - billing
+diff --git a/docs/api-v3-reference/src/openapi.yml b/docs/api-v3-reference/src/openapi.yml
+index 22d57e490..fa244ef2e 100644
+--- a/docs/api-v3-reference/src/openapi.yml
++++ b/docs/api-v3-reference/src/openapi.yml
+@@ -488,6 +488,8 @@ paths:
+     $ref: paths/api_v3_tags_{tagId}_merge.yml
+   /api/v3/workspaces/{workspaceId}/custom-css:
+     $ref: paths/api_v3_workspaces_{workspaceId}_custom-css.yml
++  /api/v3/me/data-export:
++    $ref: paths/api_v3_me_data-export.yml
+   /api/v3/feedbackRecords:
+     $ref: paths/api_v3_feedbackRecords.yml
+   /api/v3/feedbackRecords/search/semantic:
+diff --git a/docs/api-v3-reference/src/paths/api_v3_me_data-export.yml b/docs/api-v3-reference/src/paths/api_v3_me_data-export.yml
+new file mode 100644
+index 000000000..154459a83
+--- /dev/null
++++ b/docs/api-v3-reference/src/paths/api_v3_me_data-export.yml
+@@ -0,0 +1,47 @@
++get:
++  operationId: getAccountDataExportV3
++  # Session-only by design, so an API-key caller reading the published reference would only ever get a
++  # 401. Excluded from the generated docs pages like the session-only tag operations (ENG-2533); the
++  # operation stays in the bundle for the contract tests.
++  x-excluded: true
++  summary: Export my account data
++  description: |
++    Returns the signed-in user's own account data: name, email, locale, notification settings and
++    organization memberships (organization name and role).
++
++    Session cookie only. The export backs the "Download my data" button on the profile settings page
++    and always describes the user behind the session, so it takes no identifier and does not accept
++    `x-api-key`.
++  tags:
++    - V3 Account
++  responses:
++    "200":
++      description: Account data retrieved successfully
++      headers:
++        X-Request-Id:
++          schema:
++            type: string
++          description: Request correlation ID
++        Cache-Control:
++          schema:
++            type: string
++          example: private, no-store
++      content:
++        application/json:
++          schema:
++            type: object
++            required:
++              - data
++            properties:
++              data:
++                $ref: ../components/schemas/AccountDataExport.yml
++    "400":
++      $ref: ../components/responses/V3BadRequest.yml
++    "401":
++      $ref: ../components/responses/V3UnauthorizedSession.yml
++    "429":
++      $ref: ../components/responses/V3TooManyRequests.yml
++    "500":
++      $ref: ../components/responses/V3InternalServerError.yml
++  security:
++    - sessionAuth: []
