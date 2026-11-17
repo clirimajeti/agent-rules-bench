@@ -1,0 +1,232 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
+new file mode 100644
+index 000000000..1f2e17385
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
+@@ -0,0 +1,45 @@
++"use client";
++
++import { useTranslation } from "react-i18next";
++import { formatDateForDisplay } from "@/lib/utils/datetime";
++import { Small } from "@/modules/ui/components/typography";
++
++interface AccountActivityProps {
++  createdAt: Date | null;
++  lastLoginAt: Date | null;
++  locale: string | null;
++}
++
++const DATE_DISPLAY_OPTIONS: Intl.DateTimeFormatOptions = {
++  year: "numeric",
++  month: "short",
++  day: "numeric",
++};
++
++export const AccountActivity = ({ createdAt, lastLoginAt, locale }: Readonly<AccountActivityProps>) => {
++  const { t } = useTranslation();
++
++  const displayLocale = locale ?? "en-US";
++
++  const formatDate = (date: Date | null): string => {
++    if (!date) return t("common.unknown");
++    return formatDateForDisplay(new Date(date), displayLocale, DATE_DISPLAY_OPTIONS);
++  };
++
++  return (
++    <div className="flex flex-col gap-4">
++      <div className="flex items-center gap-x-4">
++        <div className="flex flex-col">
++          <Small color="muted">{t("workspace.settings.profile.account_created")}</Small>
++          <span className="text-sm text-slate-800">{formatDate(createdAt)}</span>
++        </div>
++      </div>
++      <div className="flex items-center gap-x-4">
++        <div className="flex flex-col">
++          <Small color="muted">{t("workspace.settings.profile.last_logged_in")}</Small>
++          <span className="text-sm text-slate-800">{formatDate(lastLoginAt)}</span>
++        </div>
++      </div>
++    </div>
++  );
++};
+diff --git a/apps/web/app/(app)/account/settings/profile/components/DownloadMyData.tsx b/apps/web/app/(app)/account/settings/profile/components/DownloadMyData.tsx
+new file mode 100644
+index 000000000..a9e4bdb01
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/components/DownloadMyData.tsx
+@@ -0,0 +1,55 @@
++"use client";
++
++import { useTransition } from "react";
++import { useTranslation } from "react-i18next";
++import { Loader2 } from "lucide-react";
++import { Badge } from "@/modules/ui/components/badge";
++import { Button } from "@/modules/ui/components/button";
++import { Small } from "@/modules/ui/components/typography";
++
++const DOWNLOAD_ROUTE = "/api/v3/account/download";
++
++export const DownloadMyData = () => {
++  const { t } = useTranslation();
++  const [isPending, startTransition] = useTransition();
++
++  const handleDownload = () => {
++    startTransition(async () => {
++      const response = await fetch(DOWNLOAD_ROUTE, { method: "GET" });
++      if (response.ok) {
++        const blob = await response.blob();
++        const url = URL.createObjectURL(blob);
++        const a = document.createElement("a");
++        a.href = url;
++        a.download = "formbricks-account-data.json";
++        document.body.appendChild(a);
++        a.click();
++        document.body.removeChild(a);
++        URL.revokeObjectURL(url);
++      }
++    });
++  };
++
++  return (
++    <div className="flex flex-col gap-4">
++      <div className="flex items-center gap-x-4">
++        <div className="flex flex-col">
++          <Small color="muted">{t("workspace.settings.profile.download_my_data_description")}</Small>
++          <div className="mt-2 flex items-center gap-x-2">
++            <Badge size="normal" type="warning" text="Beta" />
++          </div>
++        </div>
++      </div>
++      <Button onClick={handleDownload} disabled={isPending} variant="secondary">
++        {isPending ? (
++          <>
++            <Loader2 className="h-4 w-4 animate-spin" />
++            {t("workspace.settings.profile.download_my_data_button")}
++          </>
++        ) : (
++          t("workspace.settings.profile.download_my_data_button")
++        )}
++      </Button>
++    </div>
++  );
++};
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..c65763514 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,4 +1,6 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
++import { AccountActivity } from "@/app/(app)/account/settings/profile/components/AccountActivity";
++import { DownloadMyData } from "@/app/(app)/account/settings/profile/components/DownloadMyData";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+@@ -90,6 +92,20 @@ const Page = async () => {
+     <PageContentWrapper>
+       <PageHeader pageTitle={t("common.profile")} />
+       <div>
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <AccountActivity
++            createdAt={user.createdAt}
++            lastLoginAt={user.lastLoginAt}
++            locale={user.locale}
++          />
++        </SettingsCard>
++        <SettingsCard
++          title={t("workspace.settings.profile.download_my_data")}
++          description={t("workspace.settings.profile.download_my_data_description")}>
++          <DownloadMyData />
++        </SettingsCard>
+         <SettingsCard
+           title={t("workspace.settings.profile.personal_information")}
+           description={t("workspace.settings.profile.update_personal_info")}>
+diff --git a/apps/web/app/api/v3/account/download/route.ts b/apps/web/app/api/v3/account/download/route.ts
+new file mode 100644
+index 000000000..a44915bd8
+--- /dev/null
++++ b/apps/web/app/api/v3/account/download/route.ts
+@@ -0,0 +1,56 @@
++/**
++ * /api/v3/account/download - Download the signed-in user's personal data as JSON.
++ * Session-only; no workspace scope.
++ */
++import "server-only";
++
++import { prisma } from "@formbricks/database";
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { getUser } from "@/lib/user/service";
++
++export const GET = withV3ApiWrapper({
++  auth: "session",
++  handler: async ({ authentication }) => {
++    const userId = authentication.user.id;
++
++    const user = await getUser(userId);
++    if (!user) {
++      return new Response("User not found", { status: 404 });
++    }
++
++    const memberships = await prisma.membership.findMany({
++      where: {
++        userId,
++      },
++      select: {
++        organization: {
++          select: {
++            name: true,
++          },
++        },
++        role: true,
++      },
++    });
++
++    const data = {
++      name: user.name,
++      email: user.email,
++      locale: user.locale ?? null,
++      notificationSettings: user.notificationSettings ?? {},
++      organizationMemberships: memberships.map((m) => ({
++        organizationName: m.organization.name,
++        role: m.role,
++      })),
++    };
++
++    const json = JSON.stringify(data, null, 2);
++    const headers = new Headers();
++    headers.set("Content-Type", "application/json");
++    headers.set(
++      "Content-Disposition",
++      'attachment; filename="formbricks-account-data.json"'
++    );
++
++    return new Response(json, { status: 200, headers });
++  },
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..8d258dfea 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -645,6 +645,7 @@
+     "unarchive": "Unarchive",
+     "undo": "Undo",
+     "unlock_more_workspaces_with_a_higher_plan": "Unlock more workspaces with a higher plan.",
++    "unknown": "Unknown",
+     "update": "Update",
+     "updated": "Updated",
+     "updated_at": "Updated at",
+@@ -3759,6 +3760,13 @@
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+         "permanent_removal_of_all_of_your_personal_information_and_data": "Permanent removal of all of your personal information and data",
+         "personal_information": "Personal information",
++        "account_activity": "Account activity",
++        "account_activity_description": "Account creation and login information",
++        "account_created": "Account created",
++        "last_logged_in": "Last logged in",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Download a JSON file with your personal information and organization memberships",
++        "download_my_data_button": "Download my data",
+         "please_enter_email_to_confirm_account_deletion": "Please enter {email} in the following field to confirm the definitive deletion of your account:",
+         "profile_updated_successfully": "Your profile was updated successfully",
+         "save_the_following_backup_codes_in_a_safe_place": "Save the following backup codes in a safe place.",

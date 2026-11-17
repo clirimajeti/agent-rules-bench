@@ -1,0 +1,109 @@
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..cc5e24eb6 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -2916,6 +2916,7 @@
+         "webhook_name_placeholder": "Optional: Label your webhook for easy identification",
+         "webhook_test_failed_due_to": "Webhook Test Failed due to",
+         "webhook_updated_successfully": "Webhook updated successfully",
++        "duplicate": "Duplicate",
+         "webhook_url_placeholder": "Paste the URL you want the event to trigger on"
+       },
+       "website_or_app_integration_description": "Integrate Formbricks into your Website or App",
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+index d11f09b77..2178213e2 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+@@ -1,13 +1,17 @@
+ "use client";
+ 
++import { useRouter } from "next/navigation";
+ import { TFunction } from "i18next";
++import { useCallback, useState } from "react";
+ import { useTranslation } from "react-i18next";
+ import { Webhook } from "@formbricks/database/prisma-browser";
+ import { TSurvey } from "@formbricks/types/surveys/types";
+ import { timeSince } from "@/lib/time";
++import { createWebhookAction } from "@/modules/integrations/webhooks/actions";
+ import { RestrictedSurveyHint } from "@/modules/survey/visibility/components/restricted-survey-hint";
+ import { hasRestrictedAttachedSurvey } from "@/modules/survey/visibility/lib/outbound";
+ import { Badge } from "@/modules/ui/components/badge";
++import { Button } from "@/modules/ui/components/button";
+ 
+ const renderSelectedSurveysText = (webhook: Webhook, allSurveys: TSurvey[]) => {
+   let surveyNames: string[];
+@@ -75,6 +79,26 @@ export const WebhookRowData = ({
+ }: Readonly<{ webhook: Webhook; surveys: TSurvey[]; surveyVisibilityEnabled: boolean }>) => {
+   const { t, i18n } = useTranslation();
+   const locale = i18n.resolvedLanguage ?? i18n.language ?? "en-US";
++  const router = useRouter();
++  const [duplicateLoading, setDuplicateLoading] = useState(false);
++
++  const handleDuplicate = useCallback(async () => {
++    setDuplicateLoading(true);
++    try {
++      await createWebhookAction({
++        workspaceId: webhook.workspaceId,
++        webhookInput: {
++          name: webhook.name ? `Copy of ${webhook.name}` : null,
++          url: webhook.url,
++          triggers: webhook.triggers,
++          surveyIds: webhook.surveyIds,
++        },
++      });
++      router.refresh();
++    } finally {
++      setDuplicateLoading(false);
++    }
++  }, [webhook, router]);
+ 
+   return (
+     <div className="mt-2 grid h-auto grid-cols-12 content-center rounded-lg py-2 hover:bg-slate-100">
+@@ -95,7 +119,7 @@ export const WebhookRowData = ({
+       <div className="col-span-1 my-auto text-center text-sm text-slate-800">
+         <Badge type="gray" size="tiny" text={webhook.source || t("common.user")} className="capitalize" />
+       </div>
+-      <div className="col-span-4 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
++      <div className="col-span-2 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
+         {renderSelectedSurveysText(webhook, surveys)}
+         {hasRestrictedAttachedSurvey(surveyVisibilityEnabled, webhook.surveyIds, surveys) && (
+           <RestrictedSurveyHint kind="paused" />
+@@ -104,10 +128,22 @@ export const WebhookRowData = ({
+       <div className="col-span-2 my-auto text-center text-sm text-slate-800">
+         {renderSelectedTriggersText(webhook, t)}
+       </div>
++      <div className="col-span-1 my-auto text-center text-sm whitespace-nowrap text-slate-500">
++        {timeSince(webhook.createdAt.toString(), locale)}
++      </div>
+       <div className="col-span-2 my-auto text-center text-sm whitespace-nowrap text-slate-500">
+         {timeSince(webhook.updatedAt.toString(), locale)}
+       </div>
+-      <div className="text-center"></div>
++      <div className="flex items-center justify-center">
++        <Button
++          variant="ghost"
++          size="sm"
++          onClick={handleDuplicate}
++          disabled={duplicateLoading}
++          className="text-slate-500 hover:text-slate-700">
++          {t("workspace.integrations.webhooks.duplicate")}
++        </Button>
++      </div>
+     </div>
+   );
+ };
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+index 0c5945508..d851a3158 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+@@ -8,8 +8,9 @@ export const WebhookTableHeading = async () => {
+         <span className="sr-only">{t("common.edit")}</span>
+         <div className="col-span-3 pl-6">{t("common.webhook")}</div>
+         <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.source")}</div>
+-        <div className="col-span-4 text-center">{t("common.surveys")}</div>
++        <div className="col-span-2 text-center">{t("common.surveys")}</div>
+         <div className="col-span-2 text-center">{t("workspace.integrations.webhooks.triggers")}</div>
++        <div className="col-span-1 text-center">{t("common.created")}</div>
+         <div className="col-span-2 text-center">{t("common.updated")}</div>
+       </div>
+     </>

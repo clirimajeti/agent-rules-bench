@@ -1,0 +1,310 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
+new file mode 100644
+index 000000000..4dbdc33b8
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
+@@ -0,0 +1,61 @@
++"use client";
++
++import { useTranslation } from "react-i18next";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
++import { Button } from "@/modules/ui/components/button";
++
++interface OrganizationMembership {
++  organizationId: string;
++  organizationName: string;
++  role: string;
++}
++
++interface AccountActivityProps {
++  createdAt: Date;
++  lastLoginAt: Date | null;
++  memberships: OrganizationMembership[];
++  locale: string;
++}
++
++export const AccountActivity = ({ createdAt, lastLoginAt, memberships, locale }: Readonly<AccountActivityProps>) => {
++  const { t } = useTranslation();
++
++  return (
++    <div className="space-y-4">
++      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
++        <div>
++          <p className="text-sm text-slate-500">
++            {t("workspace.settings.profile.account_created")}
++          </p>
++          <p className="mt-1 text-sm font-medium text-slate-900">
++            {formatDateTimeForDisplay(createdAt, locale)}
++          </p>
++        </div>
++        <div>
++          <p className="text-sm text-slate-500">
++            {t("workspace.settings.profile.last_login")}
++          </p>
++          <p className="mt-1 text-sm font-medium text-slate-900">
++            {lastLoginAt
++              ? formatDateTimeForDisplay(lastLoginAt, locale)
++              : t("workspace.settings.profile.no_login_recorded")}
++          </p>
++        </div>
++      </div>
++      {memberships.length > 0 && (
++        <div>
++          <p className="text-sm text-slate-500">
++            {t("workspace.settings.profile.organization_memberships")}
++          </p>
++          <ul className="mt-1 space-y-1">
++            {memberships.map((membership) => (
++              <li key={membership.organizationId} className="text-sm text-slate-900">
++                {membership.organizationName} — {membership.role}
++              </li>
++            ))}
++          </ul>
++        </div>
++      )}
++    </div>
++  );
++};
+diff --git a/apps/web/app/(app)/account/settings/profile/components/DownloadMyData.tsx b/apps/web/app/(app)/account/settings/profile/components/DownloadMyData.tsx
+new file mode 100644
+index 000000000..fa0fae9a0
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/components/DownloadMyData.tsx
+@@ -0,0 +1,80 @@
++"use client";
++
++import { useState } from "react";
++import { useTranslation } from "react-i18next";
++import { Loader2 } from "lucide-react";
++import { Button } from "@/modules/ui/components/button";
++
++interface OrganizationMembership {
++  organizationId: string;
++  organizationName: string;
++  role: string;
++}
++
++interface DownloadMyDataProps {
++  userName: string;
++  userEmail: string;
++  userLocale: string;
++  notificationSettings: {
++    alert: Record<string, boolean>;
++    unsubscribedOrganizationIds?: string[];
++  };
++  memberships: OrganizationMembership[];
++}
++
++const DownloadMyData = ({
++  userName,
++  userEmail,
++  userLocale,
++  notificationSettings,
++  memberships,
++}: Readonly<DownloadMyDataProps>) => {
++  const { t } = useTranslation();
++  const [isDownloading, setIsDownloading] = useState(false);
++
++  const handleDownload = async () => {
++    setIsDownloading(true);
++    try {
++      const data = {
++        name: userName,
++        email: userEmail,
++        locale: userLocale,
++        notificationSettings,
++        organizationMemberships: memberships.map((m) => ({
++          organizationName: m.organizationName,
++          role: m.role,
++        })),
++      };
++
++      const jsonString = JSON.stringify(data, null, 2);
++      const blob = new Blob([jsonString], { type: "application/json" });
++      const url = URL.createObjectURL(blob);
++      const link = document.createElement("a");
++      link.href = url;
++      link.download = "formbricks-account-data.json";
++      document.body.appendChild(link);
++      link.click();
++      document.body.removeChild(link);
++      URL.revokeObjectURL(url);
++    } catch {
++      // Silently fail — the user can retry.
++    } finally {
++      setIsDownloading(false);
++    }
++  };
++
++  return (
++    <Button variant="outline" size="sm" onClick={handleDownload} disabled={isDownloading}>
++      {isDownloading ? (
++        <>
++          <Loader2 className="animate-spin" />
++          {t("workspace.settings.profile.downloading")}
++        </>
++      ) : (
++        t("workspace.settings.profile.download_my_data")
++      )}
++    </Button>
++  );
++};
++
++export default DownloadMyData;
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..85c0267ea 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -10,7 +10,7 @@ import {
+   PASSWORD_RESET_DISABLED,
+ } from "@/lib/constants";
+ import { getOrganizationsWhereUserIsSingleOwner } from "@/lib/organization/service";
+-import { getUser } from "@/lib/user/service";
++import { getUserWithOrganizationMemberships } from "@/lib/user/service";
+ import { getTranslate } from "@/lingodotdev/server";
+ import { requiresPasswordConfirmationForAccountDeletion } from "@/modules/account/lib/account-deletion-auth";
+ import { getSession } from "@/modules/auth/lib/session";
+@@ -19,6 +19,8 @@ import { getEnterpriseLicense } from "@/modules/ee/license-check/lib/license";
+ import { getIsMultiOrgEnabled, getIsTwoFactorAuthEnabled } from "@/modules/ee/license-check/lib/utils";
+ import { getSettingsLayoutData } from "@/modules/settings/lib/navigation-data";
+ import { getOrganizationBillingPath } from "@/modules/settings/lib/routes";
++import { AccountActivity } from "./components/AccountActivity";
++import DownloadMyData from "./components/DownloadMyData";
+ import { IdBadge } from "@/modules/ui/components/id-badge";
+ import { PageContentWrapper } from "@/modules/ui/components/page-content-wrapper";
+ import { PageHeader } from "@/modules/ui/components/page-header";
+@@ -34,11 +36,13 @@ const Page = async () => {
+   }
+ 
+   const organizationsWithSingleOwner = await getOrganizationsWhereUserIsSingleOwner(session.user.id);
+-  const user = await getUser(session.user.id);
+-  if (!user) {
++  const userWithMemberships = await getUserWithOrganizationMemberships(session.user.id);
++  if (!userWithMemberships) {
+     throw new AuthenticationError(t("common.not_authenticated"));
+   }
+ 
++  const { user, organizationMemberships } = userWithMemberships;
++
+   // Two-factor upgrade points at the user's organization billing page (org-scoped after the refactor).
+   const layoutData = await getSettingsLayoutData(session.user.id);
+   const billingUpgradeHref = layoutData
+@@ -90,6 +94,25 @@ const Page = async () => {
+     <PageContentWrapper>
+       <PageHeader pageTitle={t("common.profile")} />
+       <div>
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <AccountActivity
++            createdAt={user.createdAt}
++            lastLoginAt={user.lastLoginAt}
++            memberships={organizationMemberships}
++            locale={user.locale}
++          />
++          <div className="mt-4">
++            <DownloadMyData
++              userName={user.name}
++              userEmail={user.email}
++              userLocale={user.locale}
++              notificationSettings={user.notificationSettings}
++              memberships={organizationMemberships}
++            />
++          </div>
++        </SettingsCard>
+         <SettingsCard
+           title={t("workspace.settings.profile.personal_information")}
+           description={t("workspace.settings.profile.update_personal_info")}>
+diff --git a/apps/web/lib/user/service.ts b/apps/web/lib/user/service.ts
+index 787b8f160..5320709a4 100644
+--- a/apps/web/lib/user/service.ts
++++ b/apps/web/lib/user/service.ts
+@@ -194,3 +194,60 @@ export const getUserLocale = reactCache(async (id: string): Promise<TUserLocale
+     throw error;
+   }
+ });
++
++export interface TUserWithOrganizationMemberships {
++  user: TUser;
++  organizationMemberships: Array<{
++    organizationId: string;
++    organizationName: string;
++    role: string;
++  }>;
++}
++
++export const getUserWithOrganizationMemberships = reactCache(
++  async (userId: string): Promise<TUserWithOrganizationMemberships | null> => {
++    validateInputs([userId, ZId]);
++
++    try {
++      const user = await prisma.user.findUnique({
++        where: {
++          id: userId,
++        },
++        select: publicUserSelect,
++      });
++
++      if (!user) {
++        return null;
++      }
++
++      const memberships = await prisma.membership.findMany({
++        where: {
++          userId,
++        },
++        select: {
++          organizationId: true,
++          role: true,
++          organization: {
++            select: {
++              name: true,
++            },
++          },
++        },
++      });
++
++      return {
++        user,
++        organizationMemberships: memberships.map((m) => ({
++          organizationId: m.organizationId,
++          organizationName: m.organization.name,
++          role: m.role,
++        })),
++      };
++    } catch (error) {
++      if (error instanceof Prisma.PrismaClientKnownRequestError) {
++        throw new DatabaseError(error.message);
++      }
++      throw error;
++    }
++  }
++);
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..42e35b2b0 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3773,7 +3773,15 @@
+         "update_personal_info": "Update your personal information",
+         "warning_cannot_delete_account": "You are the only owner of this organization. Please transfer ownership to another member first.",
+         "warning_cannot_undo": "This cannot be undone",
+-        "wrong_password": "Wrong password"
++        "wrong_password": "Wrong password",
++        "account_activity": "Account activity",
++        "account_activity_description": "View your account details and download your personal data.",
++        "account_created": "Account created",
++        "last_login": "Last login",
++        "no_login_recorded": "No sign-in recorded",
++        "organization_memberships": "Organization memberships",
++        "download_my_data": "Download my data",
++        "downloading": "Downloading..."
+       },
+       "teams": {
+         "add_members_description": "Add members to the team and determine their role.",
+@@ -5610,4 +5618,4 @@
+       "smileys_description": "Emoji-based satisfaction rating"
+     }
+   }
+-}
++}
+\ No newline at end of file

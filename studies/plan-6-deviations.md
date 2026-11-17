@@ -11,6 +11,7 @@ That file stays as registered; every change is listed here, with its date, its r
 - Known when added: all 256 primary Claude runs were done, and a first descriptive look at them had been made.
 - Cost estimate (from the Sonnet 5.5 runs and the price per token: Opus 5.5 about 2 times, Fable 5.2 about 4 times Sonnet 5.5): Opus 5.5 about $27, Fable 5.2 about $55, both projects.
 - Done for Fable 5.2 (2026-11-16): bulletproof 2 repeats (16 runs); Formbricks 1 repeat (8 runs). Fable 5.2 was included in the Pro plan only until 17 Nov, and the usage limits of both accounts left no room for a second Formbricks repeat (a Formbricks run cost $3.30 to $5.50 with Fable). `formbricks-conventions/study.latest.json` was set to 1 repeat before its fifth run.
+- Opus 5.5 (2026-11-17): 2 repeats in both projects as planned; `formbricks-conventions/study.latest.json` was set back to 2 repeats before the first Opus run (runs with `--models opus55`, so no Fable run was added).
 
 ## D4 (2026-11-16): turn cap of the local model on Formbricks raised from 60 to 120
 
