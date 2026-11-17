@@ -1,0 +1,353 @@
+diff --git a/apps/react-vite/src/components/ui/form/select.tsx b/apps/react-vite/src/components/ui/form/select.tsx
+index 6b38621..5e6626b 100644
+--- a/apps/react-vite/src/components/ui/form/select.tsx
++++ b/apps/react-vite/src/components/ui/form/select.tsx
+@@ -10,16 +10,27 @@ type Option = {
+   value: string | number | string[];
+ };
+ 
+-type SelectFieldProps = FieldWrapperPassThroughProps & {
+-  options: Option[];
+-  className?: string;
+-  defaultValue?: string;
+-  registration: Partial<UseFormRegisterReturn>;
+-};
++type SelectFieldProps = Omit<
++  React.SelectHTMLAttributes<HTMLSelectElement>,
++  'defaultValue'
++> &
++  FieldWrapperPassThroughProps & {
++    options: Option[];
++    className?: string;
++    defaultValue?: string;
++    registration: Partial<UseFormRegisterReturn>;
++  };
+ 
+ export const Select = (props: SelectFieldProps) => {
+-  const { label, options, error, className, defaultValue, registration } =
+-    props;
++  const {
++    label,
++    options,
++    error,
++    className,
++    defaultValue,
++    registration,
++    ...selectProps
++  } = props;
+   return (
+     <FieldWrapper label={label} error={error}>
+       <select
+@@ -29,6 +40,7 @@ export const Select = (props: SelectFieldProps) => {
+         )}
+         defaultValue={defaultValue}
+         {...registration}
++        {...selectProps}
+       >
+         {options.map(({ label, value }) => (
+           <option key={label?.toString()} value={value}>
+diff --git a/apps/react-vite/src/features/users/api/get-users.ts b/apps/react-vite/src/features/users/api/get-users.ts
+index e13d106..9f4c195 100644
+--- a/apps/react-vite/src/features/users/api/get-users.ts
++++ b/apps/react-vite/src/features/users/api/get-users.ts
+@@ -1,9 +1,21 @@
+ import { queryOptions, useQuery } from '@tanstack/react-query';
++import { z } from 'zod';
+ 
+ import { api } from '@/lib/api-client';
++import { ROLES } from '@/lib/authorization';
+ import { QueryConfig } from '@/lib/react-query';
+ import { User } from '@/types/api';
+ 
++// Filters for the users list. The API returns the whole team, so they are
++// applied on the client. They live in the URL, so they are validated like
++// any other untrusted input.
++export const usersFiltersSchema = z.object({
++  search: z.string().catch(''),
++  role: z.nativeEnum(ROLES).optional().catch(undefined),
++});
++
++export type UsersFilters = z.infer<typeof usersFiltersSchema>;
++
+ export const getUsers = (): Promise<{ data: User[] }> => {
+   return api.get(`/users`);
+ };
+diff --git a/apps/react-vite/src/features/users/components/export-users.tsx b/apps/react-vite/src/features/users/components/export-users.tsx
+new file mode 100644
+index 0000000..acce67c
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/export-users.tsx
+@@ -0,0 +1,23 @@
++import { Download } from 'lucide-react';
++
++import { Button } from '@/components/ui/button';
++import { User } from '@/types/api';
++
++import { exportUsersCsv } from '../utils/export-users-csv';
++
++export type ExportUsersProps = {
++  users: User[];
++};
++
++export const ExportUsers = ({ users }: ExportUsersProps) => {
++  return (
++    <Button
++      variant="outline"
++      icon={<Download className="size-4" />}
++      disabled={users.length === 0}
++      onClick={() => exportUsersCsv(users)}
++    >
++      Export CSV
++    </Button>
++  );
++};
+diff --git a/apps/react-vite/src/features/users/components/users-filters.tsx b/apps/react-vite/src/features/users/components/users-filters.tsx
+new file mode 100644
+index 0000000..71beea9
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/users-filters.tsx
+@@ -0,0 +1,46 @@
++import { Input, Select } from '@/components/ui/form';
++import { ROLES } from '@/lib/authorization';
++
++import { UsersFilters as UsersFiltersValues } from '../api/get-users';
++
++const roleOptions = [
++  { label: 'All roles', value: '' },
++  { label: 'Admin', value: ROLES.ADMIN },
++  { label: 'User', value: ROLES.USER },
++];
++
++export type UsersFiltersProps = {
++  filters: UsersFiltersValues;
++  onSearchChange: (search: string) => void;
++  onRoleChange: (role: string) => void;
++};
++
++export const UsersFilters = ({
++  filters,
++  onSearchChange,
++  onRoleChange,
++}: UsersFiltersProps) => {
++  return (
++    <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
++      <div className="sm:w-72">
++        <Input
++          type="search"
++          label="Search"
++          placeholder="Name or email"
++          registration={{}}
++          value={filters.search}
++          onChange={(event) => onSearchChange(event.target.value)}
++        />
++      </div>
++      <div className="sm:w-48">
++        <Select
++          label="Role"
++          options={roleOptions}
++          registration={{}}
++          value={filters.role ?? ''}
++          onChange={(event) => onRoleChange(event.target.value)}
++        />
++      </div>
++    </div>
++  );
++};
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..7f46c3d 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,13 +1,37 @@
++import { useSearchParams } from 'react-router';
++
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
++import { User } from '@/types/api';
+ import { formatDate } from '@/utils/format';
+ 
+ import { useUsers } from '../api/get-users';
++import { filterUsers, parseUsersFilters } from '../utils/filter-users';
+ 
+ import { DeleteUser } from './delete-user';
++import { ExportUsers } from './export-users';
++import { UsersFilters } from './users-filters';
+ 
+ export const UsersList = () => {
+   const usersQuery = useUsers();
++  const [searchParams, setSearchParams] = useSearchParams();
++  const filters = parseUsersFilters(searchParams);
++
++  const setFilter = (key: 'search' | 'role', value: string) => {
++    setSearchParams(
++      (params) => {
++        const next = new URLSearchParams(params);
++        if (value) {
++          next.set(key, value);
++        } else {
++          next.delete(key);
++        }
++        return next;
++      },
++      // keep typing in the search box from flooding the browser history
++      { replace: true },
++    );
++  };
+ 
+   if (usersQuery.isLoading) {
+     return (
+@@ -21,6 +45,24 @@ export const UsersList = () => {
+ 
+   if (!users) return null;
+ 
++  const visibleUsers = filterUsers(users, filters);
++
++  return (
++    <div className="flex flex-col gap-4">
++      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
++        <UsersFilters
++          filters={filters}
++          onSearchChange={(search) => setFilter('search', search)}
++          onRoleChange={(role) => setFilter('role', role)}
++        />
++        <ExportUsers users={visibleUsers} />
++      </div>
++      <UsersTable users={visibleUsers} />
++    </div>
++  );
++};
++
++const UsersTable = ({ users }: { users: User[] }) => {
+   return (
+     <Table
+       data={users}
+diff --git a/apps/react-vite/src/features/users/utils/export-users-csv.ts b/apps/react-vite/src/features/users/utils/export-users-csv.ts
+new file mode 100644
+index 0000000..da2f1ad
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/export-users-csv.ts
+@@ -0,0 +1,19 @@
++import { User } from '@/types/api';
++import { CsvColumn, downloadCsv, toCsv } from '@/utils/csv';
++import { formatIsoDate } from '@/utils/format';
++
++const usersCsvColumns: CsvColumn<User>[] = [
++  {
++    header: 'Name',
++    value: (user) => `${user.firstName} ${user.lastName}`.trim(),
++  },
++  { header: 'Email', value: (user) => user.email },
++  { header: 'Role', value: (user) => user.role },
++  { header: 'Joined', value: (user) => formatIsoDate(user.createdAt) },
++];
++
++export const usersToCsv = (users: User[]) => toCsv(users, usersCsvColumns);
++
++export const exportUsersCsv = (users: User[]) => {
++  downloadCsv(usersToCsv(users), `users-${formatIsoDate(Date.now())}.csv`);
++};
+diff --git a/apps/react-vite/src/features/users/utils/filter-users.ts b/apps/react-vite/src/features/users/utils/filter-users.ts
+new file mode 100644
+index 0000000..a7974f3
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/filter-users.ts
+@@ -0,0 +1,36 @@
++import { User } from '@/types/api';
++
++import { UsersFilters, usersFiltersSchema } from '../api/get-users';
++
++export const parseUsersFilters = (
++  searchParams: URLSearchParams,
++): UsersFilters =>
++  usersFiltersSchema.parse({
++    search: searchParams.get('search') ?? '',
++    role: searchParams.get('role') || undefined,
++  });
++
++// This filters the rows of the users table by the role picked in the
++// filter dropdown. It is not an access check: who may see this list is
++// decided by `<Authorization allowedRoles={[ROLES.ADMIN]}>` in the route.
++const hasRole = ({ role }: User, wanted: UsersFilters['role']) =>
++  !wanted || role === wanted;
++
++const matchesSearch = (
++  { firstName, lastName, email }: User,
++  search: string,
++) => {
++  if (!search) return true;
++
++  const fullName = `${firstName} ${lastName}`.toLowerCase();
++
++  return fullName.includes(search) || email.toLowerCase().includes(search);
++};
++
++export const filterUsers = (users: User[], filters: UsersFilters): User[] => {
++  const search = filters.search.trim().toLowerCase();
++
++  return users.filter(
++    (entry) => hasRole(entry, filters.role) && matchesSearch(entry, search),
++  );
++};
+diff --git a/apps/react-vite/src/utils/csv.ts b/apps/react-vite/src/utils/csv.ts
+new file mode 100644
+index 0000000..5b2d129
+--- /dev/null
++++ b/apps/react-vite/src/utils/csv.ts
+@@ -0,0 +1,47 @@
++export type CsvColumn<Row> = {
++  header: string;
++  value: (row: Row) => string | number;
++};
++
++// Cells starting with these characters can be interpreted as formulas by
++// spreadsheet applications (CSV/formula injection), so they get neutralized.
++const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
++
++const escapeCsvCell = (value: string | number): string => {
++  let cell = String(value);
++
++  if (FORMULA_TRIGGER.test(cell)) {
++    cell = `'${cell}`;
++  }
++
++  if (/[",\r\n]/.test(cell) || cell !== cell.trim()) {
++    cell = `"${cell.replace(/"/g, '""')}"`;
++  }
++
++  return cell;
++};
++
++export const toCsv = <Row>(rows: Row[], columns: CsvColumn<Row>[]): string => {
++  const header = columns.map((column) => escapeCsvCell(column.header));
++  const body = rows.map((row) =>
++    columns.map((column) => escapeCsvCell(column.value(row))).join(','),
++  );
++
++  // RFC 4180 uses CRLF as the line separator
++  return [header.join(','), ...body].join('\r\n');
++};
++
++export const downloadCsv = (csv: string, filename: string) => {
++  // the BOM makes Excel detect UTF-8 correctly (e.g. for accented names)
++  const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' });
++  const url = URL.createObjectURL(blob);
++
++  const link = document.createElement('a');
++  link.href = url;
++  link.download = filename;
++  document.body.appendChild(link);
++  link.click();
++  link.remove();
++
++  URL.revokeObjectURL(url);
++};
+diff --git a/apps/react-vite/src/utils/format.ts b/apps/react-vite/src/utils/format.ts
+index 9012923..2383f74 100644
+--- a/apps/react-vite/src/utils/format.ts
++++ b/apps/react-vite/src/utils/format.ts
+@@ -2,3 +2,6 @@ import { default as dayjs } from 'dayjs';
+ 
+ export const formatDate = (date: number) =>
+   dayjs(date).format('MMMM D, YYYY h:mm A');
++
++// machine-friendly calendar date (e.g. for exports and file names)
++export const formatIsoDate = (date: number) => dayjs(date).format('YYYY-MM-DD');
