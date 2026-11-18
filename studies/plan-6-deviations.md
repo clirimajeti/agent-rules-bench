@@ -20,14 +20,35 @@ That file stays as registered; every change is listed here, with its date, its r
 - When: after that pilot and before any Formbricks Qwen run of the main study, as `plan-6.md` allows ("if it changes the local model's turn cap or time limit, the change is listed under Deviations before those runs start").
 - Known when changed: the pilot, the 64 bulletproof Qwen runs (cap 60, 1 capped), and the Claude runs. Bulletproof keeps 60 for the local model.
 
-## D2 (found 2026-11-15, decision pending): a checker false positive in bulletproof T4
+## D2 (found 2026-11-15, decided 2026-11-18): a checker false positive in bulletproof T4
 
 - Found: after the 128 bulletproof Claude runs, before any Formbricks or local model run.
 - What: `role-checks-through-authorization` flags role filter code that the task asks for (for example `user.role !== role` in a users filter). That is filtering, not an access check.
   Almost all violations in bulletproof are this pattern: prose 16 of 18 findings, rules 16 of 17; T1 to T3 have no violation in either arm.
-- Proposal: run the registered analysis unchanged, and add a sensitivity analysis without the findings that the registered hand labelling (measurement checks) marks as false positives.
+- Decision: the registered analysis of H12 runs unchanged, with these findings counted as violations.
+  A sensitivity analysis repeats H12 without the findings that the hand labels mark as false positives.
+- Labels: the registered measurement checks (40 diffs per project, every loop finding of the `rules` arm), plus every T4 finding of both arms, labelled with the arm hidden.
+  The labels decide what is a false positive, not the author's reading of the rule.
+- The rule is not changed for this study; a fix goes to codemyrules and is reported as such.
+- Reported with it: in every `rules` run of T4 the loop reported the finding and the agent kept the code (`ignoredCatches`), as the loop text allows for cases it thinks legitimate.
+- Expected consequence, stated before the analysis: without the false positives bulletproof may have no violation in either arm, so H12 would rest mostly on Formbricks.
+- Known when decided: all runs of both projects and their verify outcomes; no test of H12 to H15 had been run.
 
-## D3 (found 2026-11-15, decision pending): prose location per convention in Formbricks
+## D3 (found 2026-11-15, decided 2026-11-18): prose location per convention in Formbricks
 
 - What: the plan keeps the maintainers' files unchanged but does not say which of them Claude Code loads. F1 and F4 are in `AGENTS.md`, which `CLAUDE.md` imports (always loaded); F2 and F3 are in `CODING_STANDARDS.md`, which `AGENTS.md` only mentions (not loaded unless the agent opens it).
-- Proposal: report the Formbricks results per convention, with the prose location, as a descriptive addition.
+- Decision: the prose stays where the maintainers put it; the registered analysis is unchanged.
+  The Formbricks results are also reported per convention with its prose location (always loaded or not loaded), descriptive only, with exact 95% intervals and no test.
+- Mechanism check (exploratory): from the session logs, whether each `prose` run opened `CODING_STANDARDS.md`, and the F2 and F3 violation rates of the runs that did and did not.
+  This includes the D1 runs (Opus 5.5 and Fable 5.2), reported separately.
+- Known when decided: all runs of both projects and their verify outcomes; no test of H12 to H15 had been run.
+
+## D5 (found 2026-11-17, decided 2026-11-18): project tests that the task itself breaks
+
+- Found: during verify. Bulletproof T2: `discussions.test.tsx` finds table rows by their full accessible name, so any run that adds the columns T2 asks for fails it (Sonnet 0 of 8 in both arms).
+  Formbricks T1: `api-keys.test.ts` asserts the exact Prisma `select`, so adding `lastUsedAt`, which T1 asks for, fails it.
+- Decision: H15 is reported as registered.
+  A sensitivity analysis reports the verify pass rate again without the project tests that a minimal correct solution of the task also fails.
+- Criterion, fixed before the sensitivity analysis: for each task, a minimal correct solution is written by hand and verified in the same container; a project test file that fails on it is left out for that task in every run of both arms.
+  Only that test file is left out; the type check and all other tests still count.
+- Known when decided: all runs of both projects and their verify outcomes, including which tests failed; no test of H12 to H15 had been run.
