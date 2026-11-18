@@ -1,0 +1,24 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(11,32): error TS2307: Cannot find module '../lib/operations' or its corresponding type declarations.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(12,35): error TS2307: Cannot find module '../lib/schemas' or its corresponding type declarations.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(16,3): error TS2322: Type '"rotated"' is not assignable to type '"emailVerified" | "deleted" | "archived" | "created" | "updated" | "restored" | "signedIn" | "merged" | "verificationEmailSent" | "createdFromCSV" | "copiedToOtherWorkspace" | ... 26 more ... | undefined'.
+app/api/v3/api-keys/lib/operations.ts(6,8): error TS2305: Module '"@/app/api/v3/lib/response"' has no exported member 'TV3HandlerParams'.
+app/api/v3/api-keys/lib/operations.ts(16,3): error TS6133: 'auditLog' is declared but its value is never read.
+app/api/v3/api-keys/lib/operations.ts(17,3): error TS6133: 'requestId' is declared but its value is never read.
+app/api/v3/api-keys/lib/operations.ts(18,3): error TS6133: 'instance' is declared but its value is never read.
+app/api/v3/api-keys/lib/operations.ts(22,12): error TS2554: Expected 1-3 arguments, but got 0.
+app/api/v3/api-keys/lib/operations.ts(26,7): error TS6133: 'organizationId' is declared but its value is never read.
+app/api/v3/api-keys/lib/operations.ts(30,12): error TS2554: Expected 2-3 arguments, but got 1.
+app/api/v3/api-keys/lib/operations.ts(44,12): error TS2554: Expected 1-3 arguments, but got 0.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(148,13): error TS2304: Cannot find name 'setActiveKey'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(149,13): error TS2304: Cannot find name 'setIsRotateKeyModalOpen'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(375,82): error TS2322: Type '{ children: Element; open: boolean; onOpenChange: Dispatch<SetStateAction<boolean>>; closeOnOverlayClick: boolean; }' is not assignable to type 'IntrinsicAttributes & DialogProps'.
+  Property 'closeOnOverlayClick' does not exist on type 'IntrinsicAttributes & DialogProps'.
+modules/organization/settings/api-keys/lib/api-key.ts(166,3): error TS6133: 'userId' is declared but its value is never read.
+modules/organization/settings/api-keys/lib/api-key.ts(188,38): error TS2353: Object literal may only specify known properties, and 'updatedAt' does not exist in type '((Without<ApiKeyUpdateInput, ApiKeyUncheckedUpdateInput> & ApiKeyUncheckedUpdateInput) | (Without<...> & ApiKeyUpdateInput)) & object'.
+modules/organization/settings/api-keys/lib/api-key.ts(196,5): error TS2322: Type '{ actualKey: string; id: string; createdAt: Date; createdBy: string | null; lastUsedAt: Date | null; label: string; hashedKey: string; lookupHash: string | null; organizationId: string; organizationAccess: PrismaJson.OrganizationAccess; }' is not assignable to type 'TApiKeyWithEnvironmentPermission & { actualKey: string; }'.
+  Property 'apiKeyWorkspaces' is missing in type '{ actualKey: string; id: string; createdAt: Date; createdBy: string | null; lastUsedAt: Date | null; label: string; hashedKey: string; lookupHash: string | null; organizationId: string; organizationAccess: PrismaJson.OrganizationAccess; }' but required in type 'TApiKeyWithEnvironmentPermission'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

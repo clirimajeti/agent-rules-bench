@@ -1,0 +1,9 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/tags/unused/route.ts(14,21): error TS6133: 'authentication' is declared but its value is never read.
+app/api/v3/tags/unused/route.ts(14,61): error TS6133: 'instance' is declared but its value is never read.
+modules/workspaces/settings/tags/loading.tsx(31,55): error TS2345: Argument of type '{ t: TFunction<"translation", undefined>; workspaceId: string; tags: never[]; isReadOnly: false; }' is not assignable to parameter of type 'Readonly<{ t: TFunction<"translation", undefined>; workspaceId: string; tags: TV3Tag[]; isReadOnly: boolean; locale: string; }>'.
+  Property 'locale' is missing in type '{ t: TFunction<"translation", undefined>; workspaceId: string; tags: never[]; isReadOnly: false; }' but required in type 'Readonly<{ t: TFunction<"translation", undefined>; workspaceId: string; tags: TV3Tag[]; isReadOnly: boolean; locale: string; }>'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

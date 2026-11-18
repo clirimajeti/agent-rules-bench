@@ -1,0 +1,8 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/tags/delete-unused/route.ts(19,6): error TS6196: 'TBaseParams' is declared but never used.
+app/api/v3/tags/delete-unused/route.ts(39,15): error TS2345: Argument of type 'TSurveyActorContext' is not assignable to parameter of type 'SurveyWhereInput'.
+  Type 'Readonly<{ enforced: boolean; isOrganizationAdmin: boolean; kind: "user"; userId: string; }>' has no properties in common with type 'SurveyWhereInput'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

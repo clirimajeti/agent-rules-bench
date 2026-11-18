@@ -1,0 +1,19 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/api-keys/[apiKeyId]/rotate/lib/operations.ts(26,23): error TS2339: Property 'type' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'type' does not exist on type 'Session'.
+app/api/v3/api-keys/[apiKeyId]/rotate/lib/operations.ts(27,56): error TS2339: Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/api-keys/[apiKeyId]/rotate/lib/operations.ts(36,14): error TS2339: Property 'apiKeyId' does not exist on type 'TAuditEventInput'.
+app/api/v3/api-keys/[apiKeyId]/rotate/lib/operations.ts(41,63): error TS2339: Property 'type' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'type' does not exist on type 'Session'.
+app/api/v3/api-keys/[apiKeyId]/rotate/lib/operations.ts(41,99): error TS2339: Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(20,36): error TS2339: Property 'apiKeyId' does not exist on type 'string'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(23,7): error TS2353: Object literal may only specify known properties, and 'requestId' does not exist in type 'TRotateApiKeyParams'.
+modules/organization/settings/api-keys/lib/api-key.ts(265,3): error TS6133: 'userId' is declared but its value is never read.
+modules/organization/settings/api-keys/lib/use-rotate-api-key.ts(33,17): error TS6133: 'data' is declared but its value is never read.
+modules/organization/settings/api-keys/lib/use-rotate-api-key.ts(33,23): error TS6133: 'error' is declared but its value is never read.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

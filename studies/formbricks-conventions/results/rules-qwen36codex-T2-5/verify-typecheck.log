@@ -1,0 +1,18 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(3,1): error TS6133: 'Webhook' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(4,1): error TS6133: 'ResourceNotFoundError' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(20,1): error TS6192: All imports in import declaration are unused.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(71,39): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(71,54): error TS2339: Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(88,28): error TS2353: Object literal may only specify known properties, and 'field' does not exist in type 'InvalidParam'.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(118,5): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(118,20): error TS2339: Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+modules/integrations/webhooks/components/webhook-row-data.tsx(3,20): error TS6133: 'MoreHorizontalIcon' is declared but its value is never read.
+modules/integrations/webhooks/components/webhook-row-data.tsx(3,40): error TS6133: 'TrashIcon' is declared but its value is never read.
+modules/integrations/webhooks/components/webhook-row-data.tsx(97,48): error TS2559: Type 'Error' has no properties in common with type '{ serverError?: string | undefined; validationErrors?: unknown; }'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

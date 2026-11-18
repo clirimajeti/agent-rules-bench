@@ -1,0 +1,12 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/api-keys/[apiKeyId]/rotate/lib/operations.ts(13,48): error TS6133: 'instance' is declared but its value is never read.
+app/api/v3/api-keys/[apiKeyId]/rotate/lib/operations.ts(16,39): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/api-keys/[apiKeyId]/rotate/lib/operations.ts(16,54): error TS2339: Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(136,18): error TS2304: Cannot find name 'handleRotateKey'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(138,21): error TS2304: Cannot find name 'isLoading'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(202,9): error TS6133: 'handleRotateKey' is declared but its value is never read.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

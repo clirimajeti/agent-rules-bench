@@ -1,0 +1,7 @@
+Generating route types...
+✓ Types generated successfully
+app/(app)/account/settings/profile/page.tsx(46,52): error TS2345: Argument of type 'TAcceptedMembershipWithOrganization[]' is not assignable to parameter of type 'TUserDataExportOrganization[]'.
+  Property 'name' is missing in type 'TAcceptedMembershipWithOrganization' but required in type 'TUserDataExportOrganization'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

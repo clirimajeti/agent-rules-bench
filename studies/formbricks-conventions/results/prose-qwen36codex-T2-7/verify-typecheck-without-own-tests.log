@@ -1,0 +1,11 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(3,1): error TS6133: 'ResourceNotFoundError' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(12,36): error TS2307: Cannot find module '../../serializers' or its corresponding type declarations.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(27,9): error TS6133: 'log' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(41,5): error TS2345: Argument of type '"write"' is not assignable to parameter of type '"read" | "manage" | "readWrite"'.
+modules/integrations/webhooks/components/webhook-row-data.tsx(11,1): error TS6133: 'getFormattedErrorMessage' is declared but its value is never read.
+modules/integrations/webhooks/components/webhook-row-data.tsx(87,13): error TS6133: 'result' is declared but its value is never read.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

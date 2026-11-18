@@ -1,0 +1,18 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(3,1): error TS6133: 'ResourceNotFoundError' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(22,3): error TS6133: 'body' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(34,9): error TS6133: 'workspaceId' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(34,29): error TS2554: Expected 4-5 arguments, but got 1.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(39,39): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(39,54): error TS2339: Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(49,12): error TS2554: Expected 3-4 arguments, but got 2.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(76,5): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(76,20): error TS2339: Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+modules/integrations/webhooks/components/webhook-row-data.tsx(91,9): error TS6133: 'queryClient' is declared but its value is never read.
+modules/integrations/webhooks/components/webhook-row-data.tsx(112,48): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ serverError?: string | undefined; validationErrors?: unknown; }'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

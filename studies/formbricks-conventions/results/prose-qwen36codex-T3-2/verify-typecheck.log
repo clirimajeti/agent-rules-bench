@@ -1,0 +1,7 @@
+Generating route types...
+✓ Types generated successfully
+app/api/account/download/route.ts(13,1): error TS6133: 'TMembership' is declared but its value is never read.
+app/api/account/download/route.ts(26,9): error TS6133: 'organizations' is declared but its value is never read.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

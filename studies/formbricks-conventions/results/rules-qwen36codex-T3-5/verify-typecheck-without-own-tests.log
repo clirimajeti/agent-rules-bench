@@ -1,0 +1,7 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/account/download-my-data/route.ts(14,10): error TS2305: Module '"@/lib/authzed/organization-membership"' has no exported member 'lookupAuthorizedOrganizationIds'.
+app/api/v3/account/download-my-data/route.ts(32,19): error TS6198: All destructured elements are unused.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

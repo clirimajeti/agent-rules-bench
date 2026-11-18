@@ -1,0 +1,16 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/download-my-data/lib/operations.ts(4,1): error TS6133: 'TV3HandlerParams' is declared but its value is never read.
+app/api/v3/download-my-data/lib/operations.ts(57,5): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+app/api/v3/download-my-data/lib/operations.ts(58,5): error TS2322: Type 'string | null | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+app/api/v3/download-my-data/lib/operations.ts(59,33): error TS2339: Property 'locale' does not exist on type '{ id: string; isActive?: boolean | undefined; name?: string | null | undefined; email?: string | null | undefined; image?: string | null | undefined; }'.
+app/api/v3/download-my-data/lib/operations.ts(60,47): error TS2339: Property 'notificationSettings' does not exist on type '{ id: string; isActive?: boolean | undefined; name?: string | null | undefined; email?: string | null | undefined; image?: string | null | undefined; }'.
+app/api/v3/download-my-data/route.ts(14,3): error TS2353: Object literal may only specify known properties, and 'query' does not exist in type 'TWithV3ApiWrapperParams<TV3Schemas | undefined, unknown>'.
+app/api/v3/download-my-data/route.ts(17,15): error TS18046: 'parsedInput.query' is of type 'unknown'.
+app/api/v3/download-my-data/route.ts(18,7): error TS2322: Type 'TV3Authentication' is not assignable to type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Type 'null' is not assignable to type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

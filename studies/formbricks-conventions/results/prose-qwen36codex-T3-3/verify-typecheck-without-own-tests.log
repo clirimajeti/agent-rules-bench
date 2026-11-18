@@ -1,0 +1,10 @@
+Generating route types...
+✓ Types generated successfully
+app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx(6,23): error TS2307: Cannot find module '@/modules/ui/components/toast' or its corresponding type declarations.
+app/api/v3/account/download-my-data/lib/operations.ts(19,3): error TS6133: 'instance' is declared but its value is never read.
+app/api/v3/account/download-my-data/lib/operations.ts(53,25): error TS2322: Type 'readonly string[]' is not assignable to type 'string[] | FieldRef<"Membership", "String[]"> | undefined'.
+  The type 'readonly string[]' is 'readonly' and cannot be assigned to the mutable type 'string[]'.
+app/api/v3/account/download-my-data/lib/operations.ts(70,17): error TS2551: Property 'organization' does not exist on type '{ organizationId: string; userId: string; accepted: boolean; role: OrganizationRole; }'. Did you mean 'organizationId'?
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

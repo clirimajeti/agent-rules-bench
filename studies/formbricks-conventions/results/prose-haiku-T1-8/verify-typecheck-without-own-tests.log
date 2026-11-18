@@ -1,0 +1,11 @@
+Generating route types...
+✓ Types generated successfully
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(355,8): error TS2741: Property 'deleteWhat' is missing in type '{ open: boolean; setOpen: Dispatch<SetStateAction<boolean>>; title: string; buttonLabel: string; onDelete: () => Promise<void>; isDeleting: boolean; text: string; }' but required in type 'DeleteDialogProps'.
+modules/organization/settings/api-keys/lib/api-key.ts(37,20): error TS2694: Namespace '"/repo/packages/database/dist/src/prisma".Prisma' has no exported member 'ApiKeySelect'.
+modules/organization/settings/api-keys/lib/api-key.ts(69,7): error TS2322: Type '{ [x: string]: any; }[]' is not assignable to type 'TApiKeyWithEnvironmentPermission[]'.
+  Type '{ [x: string]: any; }' is missing the following properties from type 'TApiKeyWithEnvironmentPermission': apiKeyWorkspaces, id, createdAt, lastUsedAt, and 2 more.
+modules/organization/settings/api-keys/lib/api-key.ts(276,5): error TS2322: Type '{ actualKey: string; }' is not assignable to type 'TApiKeyWithEnvironmentPermission & { actualKey: string; }'.
+  Type '{ actualKey: string; }' is missing the following properties from type 'TApiKeyWithEnvironmentPermission': apiKeyWorkspaces, id, createdAt, lastUsedAt, and 2 more.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

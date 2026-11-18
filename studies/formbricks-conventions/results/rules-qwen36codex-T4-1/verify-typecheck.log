@@ -1,0 +1,20 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/tags/delete/route.ts(9,10): error TS6133: 'problemInternalError' is declared but its value is never read.
+app/api/v3/tags/lib/schemas.ts(16,14): error TS2451: Cannot redeclare block-scoped variable 'ZV3TagDeleteQuery'.
+app/api/v3/tags/lib/schemas.ts(21,14): error TS2451: Cannot redeclare block-scoped variable 'ZV3TagDeleteQuery'.
+modules/workspaces/settings/lib/tag.ts(149,14): error TS2451: Cannot redeclare block-scoped variable 'deleteUnusedTags'.
+modules/workspaces/settings/lib/tag.ts(182,42): error TS2339: Property 'id' does not exist on type 'string'.
+modules/workspaces/settings/lib/tag.ts(183,21): error TS2339: Property 'id' does not exist on type 'string'.
+modules/workspaces/settings/lib/tag.ts(202,14): error TS2451: Cannot redeclare block-scoped variable 'deleteUnusedTags'.
+modules/workspaces/settings/lib/tag.ts(235,42): error TS2339: Property 'id' does not exist on type 'string'.
+modules/workspaces/settings/lib/tag.ts(236,21): error TS2339: Property 'id' does not exist on type 'string'.
+modules/workspaces/settings/tags/lib/api-client.ts(47,23): error TS2323: Cannot redeclare exported variable 'deleteUnusedTags'.
+modules/workspaces/settings/tags/lib/api-client.ts(47,23): error TS2393: Duplicate function implementation.
+modules/workspaces/settings/tags/lib/api-client.ts(53,23): error TS2323: Cannot redeclare exported variable 'deleteUnusedTags'.
+modules/workspaces/settings/tags/lib/api-client.ts(53,23): error TS2393: Duplicate function implementation.
+modules/workspaces/settings/tags/page-content.tsx(25,64): error TS2322: Type '{ workspaceId: string; isReadOnly: boolean; }' is not assignable to type 'IntrinsicAttributes & Readonly<{ workspaceId: string; }>'.
+  Property 'isReadOnly' does not exist on type 'IntrinsicAttributes & Readonly<{ workspaceId: string; }>'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

@@ -1,0 +1,7 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/tags/bulk-delete-unused/lib/operations.ts(4,10): error TS6133: 'problemForbidden' is declared but its value is never read.
+app/api/v3/tags/bulk-delete-unused/route.ts(14,20): error TS18046: 'parsedInput.query' is of type 'unknown'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

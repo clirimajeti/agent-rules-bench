@@ -1,0 +1,14 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(19,6): error TS6196: 'TV3ApiKeyIdParams' is declared but never used.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(23,3): error TS2322: Type '"rotated"' is not assignable to type '"emailVerified" | "deleted" | "archived" | "created" | "updated" | "restored" | "signedIn" | "merged" | "verificationEmailSent" | "createdFromCSV" | "copiedToOtherWorkspace" | ... 26 more ... | undefined'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(26,50): error TS6133: 'auditLog' is declared but its value is never read.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(26,71): error TS6133: 'instance' is declared but its value is never read.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(32,11): error TS6133: 'organizationId' is declared but its value is never read.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(4,21): error TS6133: 'RotateCcwIcon' is declared but its value is never read.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(88,3): error TS6133: 'onRotate' is declared but its value is never read.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(280,9): error TS6133: 'handleRotateKey' is declared but its value is never read.
+modules/organization/settings/api-keys/lib/api-key.ts(246,3): error TS6133: 'userId' is declared but its value is never read.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

@@ -1,0 +1,13 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(26,21): error TS6133: 'req' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(72,37): error TS2345: Argument of type '{ requestId: string; cache: string; }' is not assignable to parameter of type '{ location: string; requestId?: string | undefined; cache?: string | undefined; extensions?: TSuccessExtensions | undefined; }'.
+  Property 'location' is missing in type '{ requestId: string; cache: string; }' but required in type '{ location: string; requestId?: string | undefined; cache?: string | undefined; extensions?: TSuccessExtensions | undefined; }'.
+modules/integrations/webhooks/components/webhook-settings-tab.tsx(3,1): error TS6133: 'clsx' is declared but its value is never read.
+modules/integrations/webhooks/components/webhook-settings-tab.tsx(60,29): error TS6133: 'setTestEndpointInput' is declared but its value is never read.
+modules/integrations/webhooks/components/webhook-settings-tab.tsx(61,10): error TS6133: 'endpointAccessible' is declared but its value is never read.
+modules/integrations/webhooks/components/webhook-settings-tab.tsx(62,10): error TS6133: 'hittingEndpoint' is declared but its value is never read.
+modules/integrations/webhooks/components/webhook-settings-tab.tsx(77,9): error TS6133: 'handleTestEndpoint' is declared but its value is never read.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

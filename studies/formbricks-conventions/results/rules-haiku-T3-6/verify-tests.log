@@ -1,0 +1,441 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.12 [39m[90m/repo/apps/web[39m
+
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/sso/lib/sso-provisioning.test.ts [2m([22m[2m35 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m lib/utils/action-client/index.test.ts [2m([22m[2m36 tests[22m[2m)[22m[33m 641[2mms[22m[39m
+       [33m[2m✓[22m[39m AuthorizationError returns its message and is not sent to Sentry [33m 613[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/lib/api/with-api-logging.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 2268[2mms[22m[39m
+     [33m[2m✓[22m[39m logs and audits on error response with API key authentication [33m 1696[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m instrumentation.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 434[2mms[22m[39m
+[32mINFO[39m [2026-11-18 12:49:37.803 +0000] (formbricks): [36mProcess is exiting[39m
+    [35mevent[39m: "SIGTERM"
+[31mERROR[39m [2026-11-18 12:49:37.572 +0000] (formbricks): [36mBullMQ recurring job registration failed during Next.js instrumentation[39m
+    err: {
+      "type": "Error",
+      "message": "schedule failed",
+      "stack":
+          Error: schedule failed
+              at /repo/apps/web/instrumentation.test.ts:105:49
+              at file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+              at file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+              at file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+              at new Promise (<anonymous>)
+              at runWithCancel (file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+              at file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+              at new Promise (<anonymous>)
+              at runWithTimeout (file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+              at file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+    }
+[31mERROR[39m [2026-11-18 12:49:37.574 +0000] (formbricks): [36mBullMQ worker registration failed during Next.js instrumentation[39m
+    err: {
+      "type": "Error",
+      "message": "startup failed",
+      "stack":
+          Error: startup failed
+              at /repo/apps/web/instrumentation.test.ts:106:46
+              at file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+              at file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+              at file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+              at new Promise (<anonymous>)
+              at runWithCancel (file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+              at file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+              at new Promise (<anonymous>)
+              at runWithTimeout (file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+              at file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+    }
+[31mERROR[39m [2026-11-18 12:49:37.600 +0000] (formbricks): [36mBullMQ instrumentation import failed during Next.js instrumentation[39m
+    err: {
+      "type": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'catch')",
+      "stack":
+          TypeError: Cannot read properties of undefined (reading 'catch')
+              at register (/repo/apps/web/instrumentation.ts:59:36)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /repo/apps/web/instrumentation.test.ts:134:5
+              at file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20
+    }
+[31mERROR[39m [2026-11-18 12:49:37.621 +0000] (formbricks): [36mBullMQ instrumentation import failed during Next.js instrumentation[39m
+    err: {
+      "type": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'catch')",
+      "stack":
+          TypeError: Cannot read properties of undefined (reading 'catch')
+              at register (/repo/apps/web/instrumentation.ts:59:36)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /repo/apps/web/instrumentation.test.ts:143:5
+              at file:///repo/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20
+    }
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/sso/lib/better-auth-hooks.test.ts [2m([22m[2m77 tests[22m[2m)[22m[33m 1722[2mms[22m[39m
+     [33m[2m✓[22m[39m github reporting the address as unverified must not mint a verified account [33m 1640[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m instrumentation-jobs.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 3713[2mms[22m[39m
+     [33m[2m✓[22m[39m each recurring registration is paired with its own job handle [33m 3430[2mms[22m[39m
+ [32m✓[39m [30m[45m components [49m[39m modules/auth/hooks/use-sign-out.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[32m 57[2mms[22m[39m
+[90mstdout[2m | app/api/v1/client/[workspaceId]/environment/lib/data.test.ts[2m > [22m[2mcreatives on the wire (ENG-3994)[2m > [22m[2msends the creative's languages, its survey's browser-language setting and a banner's own words in each
+[22m[39m🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/environment/lib/data.test.ts [2m([22m[2m43 tests[22m[2m)[22m[32m 139[2mms[22m[39m
+ [31m❯[39m [30m[42m unit [49m[39m modules/ee/sso/lib/better-auth-oidc-email-verified.test.ts [2m([22m[2m3 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 8922[2mms[22m[39m
+[31m     [31m×[31m an IdP that asserts the address is unverified must not mint a verified account[39m[33m 5012[2mms[22m[39m
+     [33m[2m✓[22m[39m an IdP that attests the address keeps it verified [33m 3847[2mms[22m[39m
+     [32m✓[39m an IdP that never sends the claim still produces a verified account[32m 62[2mms[22m[39m
+[33mWARN[39m [2026-11-18 12:49:44.266 +0000] (formbricks): [36mAZUREAD_TENANT_ID="common" names a Microsoft multi-tenant authority whose discovery document advertises a placeholder issuer, so id_tokens cannot be verified against it. Skipping discovery for this provider and taking identity from the userinfo endpoint; the authority you configured still applies at sign-in. Set a Directory (tenant) ID for full id_token verification.[39m
+[33mWARN[39m [2026-11-18 12:49:44.375 +0000] (formbricks): [36mSSO sign-up created an account the identity provider did not report as verified[39m
+    [35msource[39m: "sso-signup"
+    [35mssoProvider[39m: "azuread"
+    [35muserId[39m: "DmkLQRrevWoUPxFMAzcW2jQDOnCTEgEW"
+    [35memailVerified[39m: false
+[33mWARN[39m [2026-11-18 12:49:44.380 +0000] (formbricks): [36mAZUREAD_TENANT_ID="common" names a Microsoft multi-tenant authority whose discovery document advertises a placeholder issuer, so id_tokens cannot be verified against it. Skipping discovery for this provider and taking identity from the userinfo endpoint; the authority you configured still applies at sign-in. Set a Directory (tenant) ID for full id_token verification.[39m
+ [31m❯[39m [30m[42m unit [49m[39m modules/ee/sso/lib/better-auth-azuread-email-verified.test.ts [2m([22m[2m8 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 9350[2mms[22m[39m
+[31m       [31m×[31m an address Entra says is NOT domain-verified does not become a verified account[39m[33m 5013[2mms[22m[39m
+       [33m[2m✓[22m[39m an address Entra vouches for stays verified [33m 3841[2mms[22m[39m
+       [32m✓[39m a tenant that enables no verification claim is unchanged[32m 84[2mms[22m[39m
+       [32m✓[39m an address Entra says is NOT domain-verified does not become a verified account[32m 115[2mms[22m[39m
+       [32m✓[39m an address Entra vouches for stays verified[32m 58[2mms[22m[39m
+       [32m✓[39m a tenant that enables no verification claim is unchanged[32m 82[2mms[22m[39m
+       [32m✓[39m a denied xms_edov is honoured on the discovery branch too[32m 74[2mms[22m[39m
+       [32m✓[39m an absent claim still verifies on the discovery branch[32m 81[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/utils/hooks/useGetBillingInfo.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 230[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/lib/api-wrapper.test.ts [2m([22m[2m63 tests[22m[2m)[22m[32m 72[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/mcp/route.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 310[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/guard-scopes.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/creatives.test.ts [2m([22m[2m41 tests[22m[2m)[22m[32m 150[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/creatives/lib/operations.test.ts [2m([22m[2m90 tests[22m[2m)[22m[32m 205[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/route.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/survey/link/actions.test.ts [2m([22m[2m48 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m lib/membership/service.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/feedback-records.test.ts [2m([22m[2m49 tests[22m[2m)[22m[32m 71[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/surveys.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/responses.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/response-pipeline/lib/process-response-pipeline-job.test.ts [2m([22m[2m36 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/surveys/templates/lib/template-create.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 124[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/(app)/workspaces/[workspaceId]/lib/use-latest-stable-release.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 130[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-policies/route.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/email/link-survey-email.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 109[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/survey/list/lib/survey.test.ts [2m([22m[2m40 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/organizations/[organizationId]/teams/[teamId]/route.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/surveys/lib/operations.test.ts [2m([22m[2m91 tests[22m[2m)[22m[32m 124[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/organization/settings/teams/lib/invite.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/(app)/workspaces/[workspaceId]/surveys/[surveyId]/(analysis)/hooks/use-response-table-filters.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 104[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/surveys/generate/lib/operations.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/responses/route.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+[32mINFO[39m [2026-11-18 12:50:13.195 +0000] (formbricks): [36mEmbedded Data ingest dropped or flagged incoming keys[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mdropped[39m: {
+      "entries": [
+        {
+          "key": "rogue",
+          "reason": "unknown_key"
+        }
+      ],
+      "omitted": 0
+    }
+    [35mflags[39m: {
+      "entries": [],
+      "omitted": 0
+    }
+[32mINFO[39m [2026-11-18 12:50:13.198 +0000] (formbricks): [36mEmbedded Data ingest dropped or flagged incoming keys[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mdropped[39m: {
+      "entries": [
+        {
+          "key": "plan",
+          "reason": "locked_field"
+        }
+      ],
+      "omitted": 0
+    }
+    [35mflags[39m: {
+      "entries": [],
+      "omitted": 0
+    }
+[32mINFO[39m [2026-11-18 12:50:13.200 +0000] (formbricks): [36mEmbedded Data ingest dropped or flagged incoming keys[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mdropped[39m: {
+      "entries": [],
+      "omitted": 0
+    }
+    [35mflags[39m: {
+      "entries": [
+        {
+          "key": "note",
+          "reason": "truncated"
+        }
+      ],
+      "omitted": 0
+    }
+[32mINFO[39m [2026-11-18 12:50:13.203 +0000] (formbricks): [36mFolded duplicate response submission[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mresponseId[39m: "cm8f4x9mm0001gx9h5b7d7h3q"
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/workflows.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/surveys/import/lib/operations.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+[90mstdout[2m | lingodotdev/server.test.ts[2m > [22m[2mlingodotdev server[2m > [22m[2mshould get translate
+[22m[39m🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ [32m✓[39m [30m[42m unit [49m[39m lingodotdev/server.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/surveys/import/stream/route.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/surveys/visibility/operations.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/auth.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 79[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/data-retention/sweep/survey-notices.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/auth/verification-requested/actions.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/workflows/lib/runner/process-workflow-run-job.test.ts [2m([22m[2m43 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/data-retention/sweep/members-sweeper.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/auth/signup/actions.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/setup/organization/[organizationId]/invite/lib/invite.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-runs/export/route.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/environment/lib/custom-css-payload.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/management/surveys/custom-head-scripts.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/sso/lib/tests/team.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/two-factor-auth/lib/two-factor-auth.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/server.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 108[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/sso/lib/sso-recovery.test.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/management/responses/route.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+[90mstdout[2m | app/api/v3/responses/lib/operations.test.ts
+[22m[39m🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/lib/operations.test.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/storage/route.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/(app)/workspaces/[workspaceId]/settings/account/profile/actions.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/dashboards.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/creatives-licence.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/auth/forgot-password/actions.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/environment/route.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/(internal)/unify-feedback/sources/csv/import/route.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/auth/forgot-password/reset/actions.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/(internal)/organizations/[organizationId]/usage/route.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/organizations/[organizationId]/teams/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/management/surveys/[surveyId]/singleUseIds/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/auth/lib/session.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ui/components/file-input/lib/utils.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/survey-retention/[surveyId]/route.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/email/lib/survey-response-email.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/audit-logs/lib/handler.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/members/[userId]/reactivate/route.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/batch-delete/route.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/data-retention/sweep/sweep.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/lib/write-operations.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/workspaces/lib/utils.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/lib/validate-operations.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-health/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-runs/route.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/contacts/segments/actions.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/workflows/lib/email-authoring-context.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/email/email-types.test.ts [2m([22m[2m39 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/organization/settings/teams/actions.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/workspaces/lib/custom-css.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/[exemptionId]/revoke/route.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/[responseId]/route.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/integrations/webhooks/lib/webhook.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/survey-options/route.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/embedded-data/actions.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/me/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/environment/lib/environmentState.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/unify-feedback/actions.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/workspaces.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/survey/follow-ups/lib/follow-ups.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/auth/[...all]/route.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+[32mINFO[39m [2026-11-18 12:50:59.743 +0000] (formbricks): [36mSSO callback did not complete a sign-in[39m
+    [35msource[39m: "sso-callback"
+    [35mssoCallbackOutcome[39m: "incomplete"
+    [35mssoProvider[39m: "openid"
+    [35mssoCallbackReason[39m: "no_session"
+[32mINFO[39m [2026-11-18 12:50:59.744 +0000] (formbricks): [36mSSO callback did not complete a sign-in[39m
+    [35msource[39m: "sso-callback"
+    [35mssoCallbackOutcome[39m: "incomplete"
+    [35mssoProvider[39m: "openid"
+    [35mssoCallbackReason[39m: "no_session"
+[32mINFO[39m [2026-11-18 12:50:59.745 +0000] (formbricks): [36mSSO callback did not complete a sign-in[39m
+    [35msource[39m: "sso-callback"
+    [35mssoCallbackOutcome[39m: "incomplete"
+    [35mssoProvider[39m: "saml"
+    [35mssoCallbackReason[39m: "no_session"
+ [32m✓[39m [30m[42m unit [49m[39m modules/auth/forgot-password/lib/password-reset-request.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/survey/link/contact-survey/contact-survey-page.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m lib/feedback-source/actions.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/[exemptionId]/route.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/billing/actions.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/contacts/api/v1/management/error-handling.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/route.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/(app)/workspaces/[workspaceId]/settings/organization/general/actions.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/survey/editor/actions.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+[90mstdout[2m | modules/api/v2/management/responses/route.test.ts
+[22m[39m🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/feedback-directory/actions.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/charts/generate/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/auth/sso/recovery/complete/route.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/survey/lib/survey-auth.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/settings/lib/navigation-data.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/auth/lib/session-revocation.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/auth/forgot-password/lib/sso-sign-in-hint.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/management/authorized-collection-routes.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/organization/actions.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/auth/actions/sign-out.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/contacts/lib/contact-auth.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/teams/team-list/actions.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/storage/[workspaceId]/[accessType]/[...filePath]/lib/auth.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/workspaces/settings/actions.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+[31mERROR[39m [2026-11-18 12:51:11.671 +0000] (formbricks): [36mREDIS_URL is required to create the Redis client[39m
+[31mERROR[39m [2026-11-18 12:51:11.671 +0000] (formbricks): [36mRedis client creation failed[39m
+    error: {
+      "code": "redis_configuration_error"
+    }
+[31mERROR[39m [2026-11-18 12:51:11.671 +0000] (formbricks): [36mCache service creation failed[39m
+    error: {
+      "code": "redis_configuration_error"
+    }
+[31mERROR[39m [2026-11-18 12:51:11.671 +0000] (formbricks): [36mRedis unavailable[39m
+    [35mnamespace[39m: "action:state-mutation"
+    [35mfailClosed[39m: false
+[31mERROR[39m [2026-11-18 12:51:11.674 +0000] (formbricks): [36mREDIS_URL is required to create the Redis client[39m
+[31mERROR[39m [2026-11-18 12:51:11.674 +0000] (formbricks): [36mRedis client creation failed[39m
+    error: {
+      "code": "redis_configuration_error"
+    }
+[31mERROR[39m [2026-11-18 12:51:11.674 +0000] (formbricks): [36mCache service creation failed[39m
+    error: {
+      "code": "redis_configuration_error"
+    }
+[31mERROR[39m [2026-11-18 12:51:11.674 +0000] (formbricks): [36mRedis unavailable[39m
+    [35mnamespace[39m: "action:state-mutation"
+    [35mfailClosed[39m: false
+[31mERROR[39m [2026-11-18 12:51:11.675 +0000] (formbricks): [36mREDIS_URL is required to create the Redis client[39m
+[31mERROR[39m [2026-11-18 12:51:11.675 +0000] (formbricks): [36mRedis client creation failed[39m
+    error: {
+      "code": "redis_configuration_error"
+    }
+[31mERROR[39m [2026-11-18 12:51:11.675 +0000] (formbricks): [36mCache service creation failed[39m
+    error: {
+      "code": "redis_configuration_error"
+    }
+[31mERROR[39m [2026-11-18 12:51:11.675 +0000] (formbricks): [36mRedis unavailable[39m
+    [35mnamespace[39m: "action:state-mutation"
+    [35mfailClosed[39m: false
+[31mERROR[39m [2026-11-18 12:51:11.676 +0000] (formbricks): [36mREDIS_URL is required to create the Redis client[39m
+[31mERROR[39m [2026-11-18 12:51:11.676 +0000] (formbricks): [36mRedis client creation failed[39m
+    error: {
+      "code": "redis_configuration_error"
+    }
+[31mERROR[39m [2026-11-18 12:51:11.676 +0000] (formbricks): [36mCache service creation failed[39m
+    error: {
+      "code": "redis_configuration_error"
+    }
+[31mERROR[39m [2026-11-18 12:51:11.676 +0000] (formbricks): [36mRedis unavailable[39m
+    [35mnamespace[39m: "action:state-mutation"
+    [35mfailClosed[39m: false
+[31mERROR[39m [2026-11-18 12:51:11.676 +0000] (formbricks): [36mREDIS_URL is required to create the Redis client[39m
+[31mERROR[39m [2026-11-18 12:51:11.676 +0000] (formbricks): [36mRedis client creation failed[39m
+    error: {
+      "code": "redis_configuration_error"
+    }
+[31mERROR[39m [2026-11-18 12:51:11.676 +0000] (formbricks): [36mCache service creation failed[39m
+    error: {
+      "code": "redis_configuration_error"
+    }
+[31mERROR[39m [2026-11-18 12:51:11.676 +0000] (formbricks): [36mRedis unavailable[39m
+    [35mnamespace[39m: "action:state-mutation"
+    [35mfailClosed[39m: false
+[31mERROR[39m [2026-11-18 12:51:11.677 +0000] (formbricks): [36mREDIS_URL is required to create the Redis client[39m
+[31mERROR[39m [2026-11-18 12:51:11.677 +0000] (formbricks): [36mRedis client creation failed[39m
+    error: {
+      "code": "redis_configuration_error"
+    }
+[31mERROR[39m [2026-11-18 12:51:11.677 +0000] (formbricks): [36mCache service creation failed[39m
+    error: {
+      "code": "redis_configuration_error"
+    }
+[31mERROR[39m [2026-11-18 12:51:11.677 +0000] (formbricks): [36mRedis unavailable[39m
+    [35mnamespace[39m: "action:state-mutation"
+    [35mfailClosed[39m: false
+ [32m✓[39m [30m[42m unit [49m[39m modules/setup/organization/[organizationId]/invite/actions.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/workflows/lib/auth.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/(app)/workspaces/[workspaceId]/actions.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/sso/lib/sso-recovery-url-growth.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/role-management/actions.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/survey/list/actions.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/settings/lib/redirect-billing-role.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/organization/lib/utils.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/creatives/lib/route-auth.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/creatives/lib/visitor-labels.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/email/verification-link-ttl.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/setup/organization/create/actions.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/email/response-finished-email.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/organization/settings/api-keys/actions.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/management/responses/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/auth/lib/better-auth-two-factor-backfill.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/creatives/lib/authorization.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/auth/verify-email-change/actions.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/data-retention/sweep/process-data-retention-sweep-job.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/(app)/workspaces/[workspaceId]/surveys/[surveyId]/(analysis)/summary/actions.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/survey/link/page.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/auth/tests/authenticated-api-client.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/auth/actions.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m lingodotdev/language.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/contacts/[contactId]/actions.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/(app)/workspaces/[workspaceId]/settings/lib/redirect-billing-role.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/survey/multi-language-surveys/lib/actions.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/(app)/workspaces/[workspaceId]/settings/workspace/integrations/google-sheets/actions.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/settings/lib/metadata.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/auth/lib/after-auth-hooks.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/management/me/lib/utils.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/email/invite-email.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/organization/settings/teams/components/edit-memberships/index.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v2/client/[workspaceId]/storage/route.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m150 passed[39m[22m[90m (152)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m2108 passed[39m[22m[90m (2110)[39m
+[2m   Start at [22m 12:49:32
+[2m   Duration [22m 107.67s[2m (transform 3.23s, setup 178.18s, import 552.63s, tests 31.38s, environment 13.53s)[22m
+
+JSON report written to /repo/.verify-vitest.json
+related test files: 152, failing: 2, outside the baseline: 0
+Warning: A vi.mock("./surveySummary") call in "/repo/apps/web/app/(app)/workspaces/[workspaceId]/surveys/[surveyId]/(analysis)/summary/lib/surveySummary.test.ts" is not at the top level of the module. Although it appears nested, it will be hoisted and executed before any tests run. Move it to the top level to reflect its actual execution order. This will become an error in a future version.
+See: https://vitest.dev/guide/mocking/modules#how-it-works
+(node:79) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 exit listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:125) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 exit listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstderr[2m | modules/ui/components/file-input/lib/utils.test.ts[2m > [22m[2mFile Input Utils[2m > [22m[2mcheckForYoutubePrivacyMode[2m > [22m[2mshould return false for invalid URLs
+[22m[39mInvalid URL TypeError: Invalid URL
+[90m    at new URL (node:internal/url:895:25)[39m
+    at Module.checkForYoutubePrivacyMode [90m(/repo/apps/web/[39mmodules/ui/components/file-input/lib/utils.ts:94:23[90m)[39m
+    at [90m/repo/apps/web/[39mmodules/ui/components/file-input/lib/utils.test.ts:136:14
+    at file:///repo/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at file:///repo/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+    at file:///repo/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///repo/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10)
+    at file:///repo/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>) {
+  code: [32m'ERR_INVALID_URL'[39m,
+  input: [32m'not-a-url'[39m
+}
+
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[42m unit [49m[39m modules/ee/sso/lib/better-auth-azuread-email-verified.test.ts[2m > [22mEntra sign-up honours xms_edov (real Better Auth, ENG-2589)[2m > [22mmulti-tenant authority ('unset') — identity from Graph[2m > [22man address Entra says is NOT domain-verified does not become a verified account
+[31m[1mError[22m: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".[39m
+[36m [2m❯[22m modules/ee/sso/lib/better-auth-azuread-email-verified.test.ts:[2m198:5[22m[39m
+    [90m196|[39m     { tenant[33m:[39m [32m"common"[39m[33m,[39m label[33m:[39m [32m"common"[39m }[33m,[39m
+    [90m197|[39m   ])("multi-tenant authority ($label) — identity from Graph", ({ tenan…
+    [90m198|[39m     test("an address Entra says is NOT domain-verified does not become…
+    [90m   |[39m     [31m^[39m
+    [90m199|[39m       const user = await signUpThroughAzure({ tenant, email: `denied-$…
+    [90m200|[39m       expect(user).toMatchObject({ emailVerified: false, identityProvi…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m unit [49m[39m modules/ee/sso/lib/better-auth-oidc-email-verified.test.ts[2m > [22mgeneric OIDC sign-up persists the IdP's email_verified claim (real Better Auth, ENG-2589)[2m > [22man IdP that asserts the address is unverified must not mint a verified account
+[31m[1mError[22m: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".[39m
+[36m [2m❯[22m modules/ee/sso/lib/better-auth-oidc-email-verified.test.ts:[2m180:3[22m[39m
+    [90m178|[39m
+    [90m179|[39m describe("generic OIDC sign-up persists the IdP's email_verified claim…
+    [90m180|[39m   test("an IdP that asserts the address is unverified must not mint a …
+    [90m   |[39m   [31m^[39m
+    [90m181|[39m     [35mconst[39m user [33m=[39m [35mawait[39m [34msignUpThroughOidc[39m([35mfalse[39m)[33m;[39m
+    [90m182|[39m     expect(user).toMatchObject({ email: "squatter@corp.test", emailVer…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+

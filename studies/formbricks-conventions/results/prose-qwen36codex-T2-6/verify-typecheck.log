@@ -1,0 +1,12 @@
+Generating route types...
+✓ Types generated successfully
+modules/integrations/webhooks/components/webhook-row-data.tsx(130,18): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: TooltipProps, context?: any): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | ... 4 more ... | undefined', gave the following error.
+    Type '{ children: Element; content: string; }' is not assignable to type 'IntrinsicAttributes & TooltipProps'.
+      Property 'content' does not exist on type 'IntrinsicAttributes & TooltipProps'.
+  Overload 2 of 2, '(props: TooltipProps): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | ... 4 more ... | undefined', gave the following error.
+    Type '{ children: Element; content: string; }' is not assignable to type 'IntrinsicAttributes & TooltipProps'.
+      Property 'content' does not exist on type 'IntrinsicAttributes & TooltipProps'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts
