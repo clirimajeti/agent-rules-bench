@@ -1,0 +1,205 @@
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..05ec503 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,13 +1,40 @@
++import { Download } from 'lucide-react';
++import * as React from 'react';
++
++import { Button } from '@/components/ui/button';
++import { Input, Select } from '@/components/ui/form';
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
++import { ROLES } from '@/lib/authorization';
+ import { formatDate } from '@/utils/format';
+ 
+ import { useUsers } from '../api/get-users';
++import { downloadUsersCsv } from '../utils/export-users-csv';
+ 
+ import { DeleteUser } from './delete-user';
+ 
++const roleOptions = [
++  { label: 'All roles', value: '' },
++  { label: 'Admin', value: ROLES.ADMIN },
++  { label: 'User', value: ROLES.USER },
++];
++
+ export const UsersList = () => {
+   const usersQuery = useUsers();
++  const [search, setSearch] = React.useState('');
++  const [role, setRole] = React.useState('');
++
++  const allUsers = usersQuery.data?.data;
++
++  const users = React.useMemo(() => {
++    const term = search.trim().toLowerCase();
++    return (allUsers ?? []).filter((user) => {
++      if (role && user.role !== role) return false;
++      if (!term) return true;
++      const name = `${user.firstName} ${user.lastName}`.toLowerCase();
++      return name.includes(term) || user.email.toLowerCase().includes(term);
++    });
++  }, [allUsers, search, role]);
+ 
+   if (usersQuery.isLoading) {
+     return (
+@@ -17,45 +44,79 @@ export const UsersList = () => {
+     );
+   }
+ 
+-  const users = usersQuery.data?.data;
+-
+-  if (!users) return null;
++  if (!allUsers) return null;
+ 
+   return (
+-    <Table
+-      data={users}
+-      columns={[
+-        {
+-          title: 'First Name',
+-          field: 'firstName',
+-        },
+-        {
+-          title: 'Last Name',
+-          field: 'lastName',
+-        },
+-        {
+-          title: 'Email',
+-          field: 'email',
+-        },
+-        {
+-          title: 'Role',
+-          field: 'role',
+-        },
+-        {
+-          title: 'Created At',
+-          field: 'createdAt',
+-          Cell({ entry: { createdAt } }) {
+-            return <span>{formatDate(createdAt)}</span>;
++    <div className="space-y-4">
++      <div className="flex flex-wrap items-end gap-4">
++        <Input
++          label="Search"
++          type="search"
++          placeholder="Name or email"
++          value={search}
++          registration={{
++            name: 'search',
++            onChange: async (event) => {
++              setSearch(event.target.value);
++            },
++          }}
++        />
++        <Select
++          label="Role"
++          defaultValue={role}
++          options={roleOptions}
++          registration={{
++            name: 'role',
++            onChange: async (event) => {
++              setRole(event.target.value);
++            },
++          }}
++        />
++        <Button
++          type="button"
++          variant="outline"
++          icon={<Download className="size-4" />}
++          disabled={users.length === 0}
++          onClick={() => downloadUsersCsv(users)}
++        >
++          Export CSV
++        </Button>
++      </div>
++      <Table
++        data={users}
++        columns={[
++          {
++            title: 'First Name',
++            field: 'firstName',
++          },
++          {
++            title: 'Last Name',
++            field: 'lastName',
++          },
++          {
++            title: 'Email',
++            field: 'email',
++          },
++          {
++            title: 'Role',
++            field: 'role',
++          },
++          {
++            title: 'Created At',
++            field: 'createdAt',
++            Cell({ entry: { createdAt } }) {
++              return <span>{formatDate(createdAt)}</span>;
++            },
+           },
+-        },
+-        {
+-          title: '',
+-          field: 'id',
+-          Cell({ entry: { id } }) {
+-            return <DeleteUser id={id} />;
++          {
++            title: '',
++            field: 'id',
++            Cell({ entry: { id } }) {
++              return <DeleteUser id={id} />;
++            },
+           },
+-        },
+-      ]}
+-    />
++        ]}
++      />
++    </div>
+   );
+ };
+diff --git a/apps/react-vite/src/features/users/utils/export-users-csv.ts b/apps/react-vite/src/features/users/utils/export-users-csv.ts
+new file mode 100644
+index 0000000..cfdd624
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/export-users-csv.ts
+@@ -0,0 +1,38 @@
++import { User } from '@/types/api';
++import { formatDate } from '@/utils/format';
++
++const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
++
++const escapeCsvValue = (value: string) => {
++  // Prefix formula triggers so spreadsheet apps do not run user supplied text.
++  const safe = FORMULA_TRIGGER.test(value) ? `'${value}` : value;
++  return `"${safe.replace(/"/g, '""')}"`;
++};
++
++export const buildUsersCsv = (users: User[]) => {
++  const rows = [
++    ['Name', 'Email', 'Role', 'Joined'],
++    ...users.map((user) => [
++      `${user.firstName} ${user.lastName}`.trim(),
++      user.email,
++      user.role,
++      formatDate(user.createdAt),
++    ]),
++  ];
++
++  return rows.map((row) => row.map(escapeCsvValue).join(',')).join('\r\n');
++};
++
++export const downloadUsersCsv = (users: User[], fileName = 'users.csv') => {
++  const blob = new Blob([buildUsersCsv(users)], {
++    type: 'text/csv;charset=utf-8;',
++  });
++  const url = URL.createObjectURL(blob);
++  const link = document.createElement('a');
++  link.href = url;
++  link.download = fileName;
++  document.body.appendChild(link);
++  link.click();
++  document.body.removeChild(link);
++  URL.revokeObjectURL(url);
++};

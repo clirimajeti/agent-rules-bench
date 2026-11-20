@@ -1,0 +1,529 @@
+diff --git a/apps/web/app/api/v3/tags/delete-unused/route.ts b/apps/web/app/api/v3/tags/delete-unused/route.ts
+new file mode 100644
+index 000000000..8df7e73af
+--- /dev/null
++++ b/apps/web/app/api/v3/tags/delete-unused/route.ts
+@@ -0,0 +1,25 @@
++/**
++ * POST /api/v3/tags/delete-unused — delete every tag in a workspace that no response carries.
++ *
++ * A POST custom method rather than a `DELETE` on the tags collection, for the same reason as
++ * `/api/v3/responses/batch-delete`: a collection-level delete that loses its scope must not be reachable
++ * by accident. Session-only, matching the other tag endpoints.
++ */
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { deleteUnusedV3Tags } from "../lib/operations";
++import { ZV3DeleteUnusedTagsQuery } from "../lib/schemas";
++
++export const POST = withV3ApiWrapper({
++  auth: "session",
++  action: "deleted",
++  targetType: "tag",
++  schemas: { query: ZV3DeleteUnusedTagsQuery },
++  handler: async ({ authentication, parsedInput, auditLog, requestId, instance }) =>
++    deleteUnusedV3Tags({
++      authentication,
++      workspaceId: parsedInput.query.workspaceId,
++      auditLog,
++      requestId,
++      instance,
++    }),
++});
+diff --git a/apps/web/app/api/v3/tags/lib/operations.ts b/apps/web/app/api/v3/tags/lib/operations.ts
+index 7b7785cdf..75934c7f5 100644
+--- a/apps/web/app/api/v3/tags/lib/operations.ts
++++ b/apps/web/app/api/v3/tags/lib/operations.ts
+@@ -12,7 +12,7 @@ import { resolveV3ResponsesActorContext } from "@/app/api/v3/responses/lib/visib
+ import { buildVisibleSurveyWhere } from "@/lib/survey/visibility/predicate";
+ import { getTag, getTagsByWorkspaceId } from "@/lib/tag/service";
+ import { getTagsOnResponsesCount } from "@/lib/tagOnResponse/service";
+-import { deleteTag, mergeTags, updateTagName } from "@/modules/workspaces/settings/lib/tag";
++import { deleteTag, deleteUnusedTags, mergeTags, updateTagName } from "@/modules/workspaces/settings/lib/tag";
+ import { serializeV3Tag } from "../serializers";
+ 
+ type TBaseParams = {
+@@ -145,6 +145,34 @@ export async function deleteV3Tag(
+   return successResponse({ id: tagId }, { requestId });
+ }
+ 
++/**
++ * Deletes every tag in the workspace that no response carries. The scope is the `workspaceId` the caller
++ * was authorized against, so no tag from another workspace can match. Deleting a tag is authorized as
++ * `readWrite`, the same level the single-tag delete requires.
++ */
++export async function deleteUnusedV3Tags(
++  params: TBaseParams & { workspaceId: string; auditLog?: TV3AuditLog }
++): Promise<Response> {
++  const { workspaceId, auditLog, requestId, instance, authentication } = params;
++
++  const access = await requireV3WorkspaceAccess(authentication, workspaceId, "readWrite", requestId, instance);
++  if (access instanceof Response) return access;
++
++  if (auditLog) {
++    auditLog.organizationId = access.organizationId;
++    auditLog.targetId = workspaceId;
++  }
++
++  const result = await deleteUnusedTags(workspaceId);
++  if (!result.ok) {
++    return problemInternalError(requestId, "Unable to delete unused tags", instance);
++  }
++
++  if (auditLog) auditLog.oldObject = { workspaceId, deleted: result.data };
++
++  return successResponse({ deleted: result.data }, { requestId });
++}
++
+ export async function mergeV3Tags(
+   params: TBaseParams & { tagId: string; newTagId: string; auditLog?: TV3AuditLog }
+ ): Promise<Response> {
+diff --git a/apps/web/app/api/v3/tags/lib/schemas.ts b/apps/web/app/api/v3/tags/lib/schemas.ts
+index f4e17388c..1e30326f9 100644
+--- a/apps/web/app/api/v3/tags/lib/schemas.ts
++++ b/apps/web/app/api/v3/tags/lib/schemas.ts
+@@ -13,5 +13,8 @@ export const ZV3RenameTagBody = z.object({ name: z.string().trim().min(1).max(25
+ 
+ export const ZV3MergeTagBody = z.object({ newTagId: z.cuid2() }).strict();
+ 
++export const ZV3DeleteUnusedTagsQuery = z.object({ workspaceId: z.cuid2() }).strict();
++
+ export type TV3TagIdParams = z.infer<typeof ZV3TagIdParams>;
+ export type TV3TagListQuery = z.infer<typeof ZV3TagListQuery>;
++export type TV3DeleteUnusedTagsQuery = z.infer<typeof ZV3DeleteUnusedTagsQuery>;
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..01179d910 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -5161,6 +5161,8 @@
+       "add_tag": "Add Tag",
+       "count": "Count",
+       "delete_tag_confirmation": "Are you sure you want to delete this tag?",
++      "delete_unused_tags": "Delete unused tags",
++      "delete_unused_tags_confirmation": "Every tag that no response uses will be deleted. Tags used by at least one response are kept.",
+       "manage_tags": "Manage Tags",
+       "manage_tags_description": "Merge and remove response tags.",
+       "merge": "Merge",
+@@ -5170,7 +5172,9 @@
+       "tag_already_exists": "Tag already exists",
+       "tag_deleted": "Tag deleted successfully",
+       "tag_updated": "Tag updated successfully",
+-      "tags_merged": "Tags merged successfully"
++      "tags_merged": "Tags merged successfully",
++      "unused_tags": "unused tags",
++      "unused_tags_deleted": "{deleted} unused tags deleted"
+     },
+     "teams": {
+       "manage_teams": "Manage teams",
+diff --git a/apps/web/modules/workspaces/settings/lib/tag.ts b/apps/web/modules/workspaces/settings/lib/tag.ts
+index 5ff09f3ac..b0499be1b 100644
+--- a/apps/web/modules/workspaces/settings/lib/tag.ts
++++ b/apps/web/modules/workspaces/settings/lib/tag.ts
+@@ -36,6 +36,33 @@ export const deleteTag = async (
+   }
+ };
+ 
++/**
++ * Deletes every tag in the workspace that no response carries. The `responses: { none: {} }` filter is
++ * evaluated over all responses, not the caller's visible ones, so a tag applied only to responses the
++ * caller cannot see is kept.
++ */
++export const deleteUnusedTags = async (
++  workspaceId: string
++): Promise<Result<number, { code: TagError; message: string; meta?: Record<string, string> }>> => {
++  validateInputs([workspaceId, ZId]);
++
++  try {
++    const { count } = await prisma.tag.deleteMany({
++      where: {
++        workspaceId,
++        responses: { none: {} },
++      },
++    });
++
++    return ok(count);
++  } catch (error) {
++    return err({
++      code: TagError.UNEXPECTED_ERROR,
++      message: error instanceof Error ? error.message : "Unknown error occurred",
++    });
++  }
++};
++
+ export const updateTagName = async (
+   id: string,
+   name: string
+diff --git a/apps/web/modules/workspaces/settings/tags/components/edit-tags-wrapper.tsx b/apps/web/modules/workspaces/settings/tags/components/edit-tags-wrapper.tsx
+index b2618125a..c9f52f3c1 100644
+--- a/apps/web/modules/workspaces/settings/tags/components/edit-tags-wrapper.tsx
++++ b/apps/web/modules/workspaces/settings/tags/components/edit-tags-wrapper.tsx
+@@ -1,13 +1,18 @@
+ "use client";
+ 
+ import type { TFunction } from "i18next";
++import { useState } from "react";
++import { toast } from "react-hot-toast";
+ import { useTranslation } from "react-i18next";
+ import type { TV3Tag } from "@/app/api/v3/tags/serializers";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
+ import { getV3ApiErrorMessage } from "@/modules/api/lib/v3-client";
+ import { Button } from "@/modules/ui/components/button";
++import { DeleteDialog } from "@/modules/ui/components/delete-dialog";
+ import { SettingsTable, type TSettingsTableColumn } from "@/modules/ui/components/settings-table";
+ import { TagNameInput } from "@/modules/workspaces/settings/tags/components/tag-name-input";
+ import { TagRowActions } from "@/modules/workspaces/settings/tags/components/tag-row-actions";
++import { useDeleteUnusedTags } from "@/modules/workspaces/settings/tags/hooks/use-delete-unused-tags";
+ import { useTags } from "@/modules/workspaces/settings/tags/hooks/use-tags";
+ 
+ interface EditTagsWrapperProps {
+@@ -26,11 +31,13 @@ interface EditTagsWrapperProps {
+  */
+ export const getTagColumns = ({
+   t,
++  locale,
+   workspaceId,
+   tags,
+   isReadOnly,
+ }: Readonly<{
+   t: TFunction;
++  locale: string;
+   workspaceId: string;
+   tags: TV3Tag[];
+   isReadOnly: boolean;
+@@ -39,7 +46,7 @@ export const getTagColumns = ({
+     {
+       id: "tag",
+       header: t("workspace.tags.tag"),
+-      headerClassName: "w-[50%]",
++      headerClassName: "w-[40%]",
+       skeletonWidth: "w-full",
+       cell: (tag) => (
+         <TagNameInput tagId={tag.id} tagName={tag.name} workspaceId={workspaceId} isReadOnly={isReadOnly} />
+@@ -48,12 +55,20 @@ export const getTagColumns = ({
+     {
+       id: "count",
+       header: t("workspace.tags.count"),
+-      headerClassName: "w-[15%]",
++      headerClassName: "w-[10%]",
+       align: "center",
+       cellClassName: "whitespace-nowrap text-slate-900",
+       skeletonWidth: "w-8",
+       cell: (tag) => tag.count,
+     },
++    {
++      id: "created_at",
++      header: t("common.created_at"),
++      headerClassName: "w-[15%]",
++      cellClassName: "whitespace-nowrap text-slate-700",
++      skeletonWidth: "w-32",
++      cell: (tag) => formatDateTimeForDisplay(new Date(tag.createdAt), locale),
++    },
+   ];
+ 
+   if (!isReadOnly) {
+@@ -80,10 +95,24 @@ export const getTagColumns = ({
+ };
+ 
+ export const EditTagsWrapper = ({ workspaceId, isReadOnly }: Readonly<EditTagsWrapperProps>) => {
+-  const { t } = useTranslation();
++  const { t, i18n } = useTranslation();
++  const locale = i18n.resolvedLanguage ?? i18n.language ?? "en-US";
+   // The tag list lives in the query cache, so a rename, merge or delete invalidates it instead of
+   // calling `router.refresh()` to revalidate the whole route.
+   const { data: tags = [], isPending, isError, error, refetch } = useTags(workspaceId);
++  const deleteUnusedTags = useDeleteUnusedTags(workspaceId);
++  const [openDeleteUnusedDialog, setOpenDeleteUnusedDialog] = useState(false);
++
++  const confirmDeleteUnusedTags = async () => {
++    try {
++      const { deleted } = await deleteUnusedTags.mutateAsync();
++      toast.success(t("workspace.tags.unused_tags_deleted", { deleted }));
++    } catch (mutationError) {
++      toast.error(getV3ApiErrorMessage(mutationError, t("common.something_went_wrong_please_try_again")));
++    } finally {
++      setOpenDeleteUnusedDialog(false);
++    }
++  };
+ 
+   // A failed fetch must not fall through to the table: `data` defaults to `[]`, so the empty state would
+   // claim the workspace has no tags when the request merely failed. Same shape as `survey-list.tsx` and
+@@ -100,16 +129,37 @@ export const EditTagsWrapper = ({ workspaceId, isReadOnly }: Readonly<EditTagsWr
+   }
+ 
+   return (
+-    <SettingsTable
+-      columns={getTagColumns({ t, workspaceId, tags, isReadOnly })}
+-      rows={tags}
+-      getRowId={(tag) => tag.id}
+-      // Keyed by the id the API returned, so `settings-tags.spec.ts` can address a row without matching
+-      // on the name — the one thing a rename changes.
+-      getRowProps={(tag) => ({ "data-testid": `tag-row-${tag.id}` })}
+-      isLoading={isPending}
+-      emptyMessage={t("workspace.tags.no_tag_found")}
+-      aria-label={t("common.tags")}
+-    />
++    <>
++      {!isReadOnly && (
++        <div className="flex justify-end px-6 pt-4">
++          <Button
++            variant="secondary"
++            size="sm"
++            loading={deleteUnusedTags.isPending}
++            onClick={() => setOpenDeleteUnusedDialog(true)}>
++            {t("workspace.tags.delete_unused_tags")}
++          </Button>
++          <DeleteDialog
++            open={openDeleteUnusedDialog}
++            setOpen={setOpenDeleteUnusedDialog}
++            deleteWhat={t("workspace.tags.unused_tags")}
++            text={t("workspace.tags.delete_unused_tags_confirmation")}
++            onDelete={confirmDeleteUnusedTags}
++            isDeleting={deleteUnusedTags.isPending}
++          />
++        </div>
++      )}
++      <SettingsTable
++        columns={getTagColumns({ t, locale, workspaceId, tags, isReadOnly })}
++        rows={tags}
++        getRowId={(tag) => tag.id}
++        // Keyed by the id the API returned, so `settings-tags.spec.ts` can address a row without matching
++        // on the name — the one thing a rename changes.
++        getRowProps={(tag) => ({ "data-testid": `tag-row-${tag.id}` })}
++        isLoading={isPending}
++        emptyMessage={t("workspace.tags.no_tag_found")}
++        aria-label={t("common.tags")}
++      />
++    </>
+   );
+ };
+diff --git a/apps/web/modules/workspaces/settings/tags/hooks/use-delete-unused-tags.ts b/apps/web/modules/workspaces/settings/tags/hooks/use-delete-unused-tags.ts
+new file mode 100644
+index 000000000..3a284b8f2
+--- /dev/null
++++ b/apps/web/modules/workspaces/settings/tags/hooks/use-delete-unused-tags.ts
+@@ -0,0 +1,14 @@
++"use client";
++
++import { useMutation, useQueryClient } from "@tanstack/react-query";
++import { deleteUnusedTags } from "../lib/api-client";
++import { tagKeys } from "../lib/query";
++
++/** Delete every unused tag in the workspace, then invalidate the list so the table and counts refresh. */
++export const useDeleteUnusedTags = (workspaceId: string) => {
++  const queryClient = useQueryClient();
++  return useMutation({
++    mutationFn: () => deleteUnusedTags({ workspaceId }),
++    onSuccess: () => queryClient.invalidateQueries({ queryKey: tagKeys.list(workspaceId) }),
++  });
++};
+diff --git a/apps/web/modules/workspaces/settings/tags/lib/api-client.ts b/apps/web/modules/workspaces/settings/tags/lib/api-client.ts
+index 91ec2dadf..cbb93c21f 100644
+--- a/apps/web/modules/workspaces/settings/tags/lib/api-client.ts
++++ b/apps/web/modules/workspaces/settings/tags/lib/api-client.ts
+@@ -36,6 +36,11 @@ export async function deleteTag(params: { tagId: string }): Promise<{ id: string
+   return request<{ id: string }>(`${BASE_PATH}/${params.tagId}`, { method: "DELETE" });
+ }
+ 
++export async function deleteUnusedTags(params: { workspaceId: string }): Promise<{ deleted: number }> {
++  const query = new URLSearchParams({ workspaceId: params.workspaceId });
++  return request<{ deleted: number }>(`${BASE_PATH}/delete-unused?${query.toString()}`, { method: "POST" });
++}
++
+ export async function mergeTags(params: { tagId: string; newTagId: string }): Promise<{ id: string }> {
+   return request<{ id: string }>(`${BASE_PATH}/${params.tagId}/merge`, {
+     method: "POST",
+diff --git a/apps/web/modules/workspaces/settings/tags/loading.tsx b/apps/web/modules/workspaces/settings/tags/loading.tsx
+index fc7ba72ef..e31a78f18 100644
+--- a/apps/web/modules/workspaces/settings/tags/loading.tsx
++++ b/apps/web/modules/workspaces/settings/tags/loading.tsx
+@@ -8,7 +8,8 @@ import { SettingsTableSkeleton } from "@/modules/ui/components/settings-table";
+ import { getTagColumns } from "@/modules/workspaces/settings/tags/components/edit-tags-wrapper";
+ 
+ export const TagsLoading = () => {
+-  const { t } = useTranslation();
++  const { t, i18n } = useTranslation();
++  const locale = i18n.resolvedLanguage ?? i18n.language ?? "en-US";
+   return (
+     <PageContentWrapper>
+       <PageHeader pageTitle={t("common.tags")} />
+@@ -28,7 +29,7 @@ export const TagsLoading = () => {
+           `workspaceId` and `tags` are never read: the skeleton renders headers and placeholder bars, and
+           never calls `cell`.
+         */}
+-        <SettingsTableSkeleton columns={getTagColumns({ t, workspaceId: "", tags: [], isReadOnly: false })} />
++        <SettingsTableSkeleton columns={getTagColumns({ t, locale, workspaceId: "", tags: [], isReadOnly: false })} />
+       </SettingsCard>
+     </PageContentWrapper>
+   );
+diff --git a/docs/api-v3-reference/contract-tests/README.md b/docs/api-v3-reference/contract-tests/README.md
+index af16f7434..a2c6a5f41 100644
+--- a/docs/api-v3-reference/contract-tests/README.md
++++ b/docs/api-v3-reference/contract-tests/README.md
+@@ -70,7 +70,7 @@ Three things to know before reading the result:
+   (`/api/v3/creatives/pause`, on a fixture survey of its own), and create, other patches, archive,
+   restore and duplicate answer the documented 403 `creatives_not_entitled`. No fixture change is needed
+   either way.
+-- **The four `/tags` operations are session-only** (`auth: "session"`, and the spec declares only
++- **The five `/tags` operations are session-only** (`auth: "session"`, and the spec declares only
+   `sessionAuth`), so an API key gets a documented 401 before any handler runs. They are checked
+   against that 401, which is a real assertion that they stay session-only — but no tag fixtures
+   exist, because nothing an API key sends can reach them.
+@@ -79,8 +79,8 @@ Three things to know before reading the result:
+   `/api/v3/feedbackRecords` is a local-dev proxy that needs a running Hub and answers 404 in
+   production builds. CI has no Hub, so `schemathesis.toml` disables the `V3 Feedback Records` tag
+   rather than test a proxy without an upstream. Their contract is checked by the Hub's own suite and
+-  the live smoke recorded in ENG-1259. The bundle therefore documents 63 operations and this job
+-  exercises 55 — the four `/tags` operations carry `x-excluded` (no docs page, ENG-2533) but are
++  the live smoke recorded in ENG-1259. The bundle therefore documents 64 operations and this job
++  exercises 56 — the five `/tags` operations carry `x-excluded` (no docs page, ENG-2533) but are
+   still tested.
+ - **The two survey visibility operations answer 403 to every API key** (ENG-3282, K-4), and this
+   harness authenticates with one, so `GET`/`POST /api/v3/surveys/{surveyId}/visibility` are checked
+diff --git a/docs/api-v3-reference/openapi.yml b/docs/api-v3-reference/openapi.yml
+index cb966a8da..0921f0700 100644
+--- a/docs/api-v3-reference/openapi.yml
++++ b/docs/api-v3-reference/openapi.yml
+@@ -6745,6 +6745,60 @@ paths:
+           $ref: '#/components/responses/V3InternalServerError'
+       security:
+         - sessionAuth: []
++  /api/v3/tags/delete-unused:
++    post:
++      operationId: deleteUnusedTagsV3
++      x-excluded: true
++      summary: Delete unused tags
++      description: |
++        Deletes every tag in the workspace that no response carries. A tag applied to at least one response is
++        kept, including when that response is not visible to the caller.
++
++        Session cookie only. Tags are managed from the Formbricks app (Workspace settings → Tags); this
++        endpoint backs that screen, so it does not accept `x-api-key`.
++      tags:
++        - V3 Tags
++      parameters:
++        - in: query
++          name: workspaceId
++          required: true
++          schema:
++            type: string
++            format: cuid2
++          description: |
++            Workspace identifier. Only tags in this workspace are considered.
++      responses:
++        '200':
++          description: Unused tags deleted. `deleted` is zero when every tag is in use.
++          content:
++            application/json:
++              schema:
++                type: object
++                required:
++                  - data
++                properties:
++                  data:
++                    type: object
++                    required:
++                      - deleted
++                    properties:
++                      deleted:
++                        type: integer
++                        minimum: 0
++                        description: How many unused tags were deleted.
++                    additionalProperties: false
++        '400':
++          $ref: '#/components/responses/V3BadRequest'
++        '401':
++          $ref: '#/components/responses/V3UnauthorizedSession'
++        '403':
++          $ref: '#/components/responses/V3Forbidden'
++        '429':
++          $ref: '#/components/responses/V3TooManyRequests'
++        '500':
++          $ref: '#/components/responses/V3InternalServerError'
++      security:
++        - sessionAuth: []
+   /api/v3/workspaces/{workspaceId}/custom-css:
+     get:
+       operationId: getWorkspaceCustomCssV3
+diff --git a/docs/api-v3-reference/src/openapi.yml b/docs/api-v3-reference/src/openapi.yml
+index 22d57e490..23a27be72 100644
+--- a/docs/api-v3-reference/src/openapi.yml
++++ b/docs/api-v3-reference/src/openapi.yml
+@@ -486,6 +486,8 @@ paths:
+     $ref: paths/api_v3_tags_{tagId}.yml
+   /api/v3/tags/{tagId}/merge:
+     $ref: paths/api_v3_tags_{tagId}_merge.yml
++  /api/v3/tags/delete-unused:
++    $ref: paths/api_v3_tags_delete-unused.yml
+   /api/v3/workspaces/{workspaceId}/custom-css:
+     $ref: paths/api_v3_workspaces_{workspaceId}_custom-css.yml
+   /api/v3/feedbackRecords:
+diff --git a/docs/api-v3-reference/src/paths/api_v3_tags_delete-unused.yml b/docs/api-v3-reference/src/paths/api_v3_tags_delete-unused.yml
+new file mode 100644
+index 000000000..6dd38b0dc
+--- /dev/null
++++ b/docs/api-v3-reference/src/paths/api_v3_tags_delete-unused.yml
+@@ -0,0 +1,65 @@
++post:
++  operationId: deleteUnusedTagsV3
++  # Session-only by design, like the other tag operations: an API-key caller would only ever get a 401.
++  # Excluded from the generated docs pages until ENG-2533 decides between dropping the paths and opening
++  # them to API keys; the operation stays in the bundle for the contract tests.
++  x-excluded: true
++  summary: Delete unused tags
++  description: |
++    Deletes every tag in the workspace that no response carries. A tag applied to at least one response is
++    kept, including when that response is not visible to the caller.
++
++    Session cookie only. Tags are managed from the Formbricks app (Workspace settings → Tags); this
++    endpoint backs that screen, so it does not accept `x-api-key`.
++  tags:
++    - V3 Tags
++  parameters:
++    - in: query
++      name: workspaceId
++      required: true
++      schema:
++        type: string
++        format: cuid2
++      description: |
++        Workspace identifier. Only tags in this workspace are considered.
++  responses:
++    "200":
++      description: Unused tags deleted. `deleted` is zero when every tag is in use.
++      headers:
++        X-Request-Id:
++          schema:
++            type: string
++          description: Request correlation ID
++        Cache-Control:
++          schema:
++            type: string
++          example: private, no-store
++      content:
++        application/json:
++          schema:
++            type: object
++            required:
++              - data
++            properties:
++              data:
++                type: object
++                required:
++                  - deleted
++                properties:
++                  deleted:
++                    type: integer
++                    minimum: 0
++                    description: How many unused tags were deleted.
++                additionalProperties: false
++    "400":
++      $ref: ../components/responses/V3BadRequest.yml
++    "401":
++      $ref: ../components/responses/V3UnauthorizedSession.yml
++    "403":
++      $ref: ../components/responses/V3Forbidden.yml
++    "429":
++      $ref: ../components/responses/V3TooManyRequests.yml
++    "500":
++      $ref: ../components/responses/V3InternalServerError.yml
++  security:
++    - sessionAuth: []

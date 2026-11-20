@@ -1,0 +1,235 @@
+diff --git a/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts b/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts
+new file mode 100644
+index 000000000..0154b8fa9
+--- /dev/null
++++ b/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts
+@@ -0,0 +1,23 @@
++/**
++ * POST /api/v3/webhooks/{webhookId}/duplicate — clone a webhook into a new draft.
++ * Thin adapter delegating to the framework-agnostic handler in `@formbricks/integrations/webhooks`.
++ */
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { ZV3EmptyQuery } from "@/app/api/v3/lib/schemas";
++import { duplicateV3Webhook } from "../../lib/duplicate-operations";
++import { ZV3WebhookIdParams } from "../../lib/schemas";
++
++export const POST = withV3ApiWrapper({
++  auth: "both",
++  action: "created",
++  targetType: "webhook",
++  schemas: { params: ZV3WebhookIdParams, query: ZV3EmptyQuery },
++  handler: async ({ authentication, parsedInput, auditLog, requestId, instance }) =>
++    duplicateV3Webhook({
++      webhookId: parsedInput.params.webhookId,
++      authentication,
++      auditLog,
++      requestId,
++      instance,
++    }),
++});
+diff --git a/apps/web/app/api/v3/webhooks/lib/duplicate-operations.ts b/apps/web/app/api/v3/webhooks/lib/duplicate-operations.ts
+new file mode 100644
+index 000000000..dfb82e425
+--- /dev/null
++++ b/apps/web/app/api/v3/webhooks/lib/duplicate-operations.ts
+@@ -0,0 +1,106 @@
++import "server-only";
++import { logger } from "@formbricks/logger";
++import { ResourceNotFoundError } from "@formbricks/types/errors";
++import {
++  createdResponse,
++  problemForbidden,
++  problemNotFound,
++  problemUnauthorized,
++} from "@/app/api/v3/lib/response";
++import type { TV3AuditLog, TV3Authentication } from "@/app/api/v3/lib/types";
++import { requireV3WorkspaceAccess } from "@/app/api/v3/lib/auth";
++import { getOrganizationIdFromWebhookId, getWorkspaceIdFromWebhookId } from "@/lib/utils/helper";
++import { getWebhook } from "@/modules/api/v2/management/webhooks/[webhookId]/lib/webhook";
++import { applyRateLimit } from "@/modules/core/rate-limit/helpers";
++import { rateLimitConfigs } from "@/modules/core/rate-limit/rate-limit-configs";
++import { createWebhook } from "@/modules/integrations/webhooks/lib/webhook";
++import { capturePostHogEvent } from "@/lib/posthog";
++
++export type TV3WebhookDuplicateContext = {
++  authentication: TV3Authentication;
++  auditLog?: TV3AuditLog;
++  requestId: string;
++  instance: string;
++};
++
++/**
++ * POST /api/v3/webhooks/{webhookId}/duplicate — clone a webhook into a new draft.
++ */
++export async function duplicateV3Webhook({
++  webhookId,
++  authentication,
++  auditLog,
++  requestId,
++  instance,
++}: TV3WebhookDuplicateContext & { webhookId: string }): Promise<Response> {
++  const log = logger.withContext({ requestId, webhookId });
++
++  try {
++    const workspaceId = await getWorkspaceIdFromWebhookId(webhookId);
++    const organizationId = await getOrganizationIdFromWebhookId(webhookId);
++
++    // Authorization: require workspace.write access
++    const authorized = await requireV3WorkspaceAccess(
++      authentication,
++      workspaceId,
++      "write",
++      requestId,
++      instance
++    );
++    if (authorized instanceof Response) {
++      return authorized;
++    }
++
++    // Rate limit
++    await applyRateLimit(rateLimitConfigs.api.v3, workspaceId);
++
++    // Fetch the existing webhook
++    const existingWebhookResult = await getWebhook(webhookId);
++    if (!existingWebhookResult.ok) {
++      return problemNotFound(requestId, "Webhook", null, instance);
++    }
++    const existingWebhook = existingWebhookResult.data;
++
++    // Create the duplicate
++    const newWebhook = await createWebhook(workspaceId, {
++      name: `Copy of ${existingWebhook.name ?? ""}`,
++      url: existingWebhook.url,
++      triggers: [...existingWebhook.triggers],
++      surveyIds: [...(existingWebhook.surveyIds ?? [])],
++    });
++
++    // Audit log
++    if (auditLog) {
++      auditLog.targetId = newWebhook.id;
++      auditLog.organizationId = organizationId;
++      auditLog.newObject = {
++        name: newWebhook.name,
++        url: newWebhook.url,
++        triggers: newWebhook.triggers,
++        surveyIds: newWebhook.surveyIds,
++      };
++    }
++
++    // PostHog event
++    const userId =
++      authentication && "user" in authentication && authentication.user?.id
++        ? authentication.user.id
++        : "";
++    capturePostHogEvent(userId, "integration_connected", {
++      integration_type: "webhook",
++      organization_id: organizationId,
++      workspace_id: workspaceId,
++    });
++
++    return createdResponse(newWebhook, {
++      location: `/api/v3/webhooks/${newWebhook.id}`,
++      requestId,
++    });
++  } catch (error) {
++    if (error instanceof ResourceNotFoundError) {
++      return problemNotFound(requestId, "Webhook", null, instance);
++    }
++    log.error({ error }, "Failed to duplicate webhook");
++    throw error;
++  }
++}
+diff --git a/apps/web/app/api/v3/webhooks/lib/schemas.ts b/apps/web/app/api/v3/webhooks/lib/schemas.ts
+new file mode 100644
+index 000000000..88d57434f
+--- /dev/null
++++ b/apps/web/app/api/v3/webhooks/lib/schemas.ts
+@@ -0,0 +1,7 @@
++import { z } from "zod";
++
++export const ZV3WebhookIdParams = z.object({
++  webhookId: z.string().cuid2(),
++});
++
++export type TV3WebhookIdParams = z.infer<typeof ZV3WebhookIdParams>;
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+index d11f09b77..d8d499ca1 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+@@ -8,6 +8,7 @@ import { timeSince } from "@/lib/time";
+ import { RestrictedSurveyHint } from "@/modules/survey/visibility/components/restricted-survey-hint";
+ import { hasRestrictedAttachedSurvey } from "@/modules/survey/visibility/lib/outbound";
+ import { Badge } from "@/modules/ui/components/badge";
++import { useDuplicateWebhook } from "../hooks/use-duplicate-webhook";
+ 
+ const renderSelectedSurveysText = (webhook: Webhook, allSurveys: TSurvey[]) => {
+   let surveyNames: string[];
+@@ -75,6 +76,12 @@ export const WebhookRowData = ({
+ }: Readonly<{ webhook: Webhook; surveys: TSurvey[]; surveyVisibilityEnabled: boolean }>) => {
+   const { t, i18n } = useTranslation();
+   const locale = i18n.resolvedLanguage ?? i18n.language ?? "en-US";
++  const { mutate: duplicateWebhook } = useDuplicateWebhook(webhook.workspaceId);
++
++  const handleDuplicate = async (e: React.MouseEvent) => {
++    e.stopPropagation();
++    duplicateWebhook(webhook.id);
++  };
+ 
+   return (
+     <div className="mt-2 grid h-auto grid-cols-12 content-center rounded-lg py-2 hover:bg-slate-100">
+diff --git a/apps/web/modules/integrations/webhooks/hooks/use-duplicate-webhook.ts b/apps/web/modules/integrations/webhooks/hooks/use-duplicate-webhook.ts
+new file mode 100644
+index 000000000..7a884f77a
+--- /dev/null
++++ b/apps/web/modules/integrations/webhooks/hooks/use-duplicate-webhook.ts
+@@ -0,0 +1,26 @@
++"use client";
++
++import { useMutation, useQueryClient } from "@tanstack/react-query";
++import { duplicateWebhook } from "@/modules/integrations/webhooks/lib/api-client";
++import type { Webhook } from "@formbricks/database/prisma-browser";
++
++/**
++ * Hook for duplicating a webhook via the v3 API.
++ *
++ * On success, the new webhook is inserted at the top of the webhook list cache
++ * so the UI reflects it immediately without a full refetch.
++ */
++export const useDuplicateWebhook = (workspaceId: string) => {
++  const queryClient = useQueryClient();
++
++  return useMutation({
++    mutationFn: (webhookId: string) => duplicateWebhook(webhookId),
++    onSuccess: (newWebhook: Webhook) => {
++      const key = ["webhooks", workspaceId];
++      queryClient.setQueryData(key, (old: Webhook[] | undefined) => {
++        if (!old) return [newWebhook];
++        return [newWebhook, ...old];
++      });
++    },
++  });
++};
+diff --git a/apps/web/modules/integrations/webhooks/lib/api-client.ts b/apps/web/modules/integrations/webhooks/lib/api-client.ts
+new file mode 100644
+index 000000000..8c8298430
+--- /dev/null
++++ b/apps/web/modules/integrations/webhooks/lib/api-client.ts
+@@ -0,0 +1,18 @@
++import { parseV3ApiError } from "@/modules/api/lib/v3-client";
++import type { Webhook } from "@formbricks/database/prisma-browser";
++
++const BASE_PATH = "/api/v3/webhooks";
++const MUTATION_TIMEOUT_MS = 15_000;
++
++export async function duplicateWebhook(webhookId: string): Promise<Webhook> {
++  const response = await fetch(`${BASE_PATH}/${encodeURIComponent(webhookId)}/duplicate`, {
++    method: "POST",
++    signal: AbortSignal.timeout(MUTATION_TIMEOUT_MS),
++  });
++
++  if (!response.ok) {
++    throw await parseV3ApiError(response);
++  }
++
++  return (await response.json()) as Webhook;
++}

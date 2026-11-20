@@ -1,0 +1,203 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
+new file mode 100644
+index 000000000..b23dffa70
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
+@@ -0,0 +1,34 @@
++"use client";
++
++import { useTranslation } from "react-i18next";
++import { TUser } from "@formbricks/types/user";
++import { formatDateWithOrdinal } from "@/lib/utils/datetime";
++import { Badge } from "@/modules/ui/components/badge";
++import { Small } from "@/modules/ui/components/typography";
++
++interface AccountActivityProps {
++  user: TUser;
++}
++
++export const AccountActivity = ({ user }: AccountActivityProps) => {
++  const { t } = useTranslation();
++
++  const createdDate = formatDateWithOrdinal(user.createdAt, user.locale);
++  const lastLoginDate = user.lastLoginAt ? formatDateWithOrdinal(user.lastLoginAt, user.locale) : null;
++
++  return (
++    <div className="space-y-4">
++      <div className="flex items-center gap-x-3">
++        <Badge size="normal" type="success" text="Active" />
++        <Small color="muted">
++          {t("workspace.settings.profile.account_created_on")}: {createdDate}
++        </Small>
++      </div>
++      {lastLoginDate && (
++        <Small color="muted">
++          {t("workspace.settings.profile.last_login_on")}: {lastLoginDate}
++        </Small>
++      )}
++    </div>
++  );
++};
+diff --git a/apps/web/app/(app)/account/settings/profile/components/DownloadMyData.tsx b/apps/web/app/(app)/account/settings/profile/components/DownloadMyData.tsx
+new file mode 100644
+index 000000000..78871d63d
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/components/DownloadMyData.tsx
+@@ -0,0 +1,60 @@
++"use client";
++
++import { useCallback } from "react";
++import { useTranslation } from "react-i18next";
++import { TUserNotificationSettings } from "@formbricks/types/user";
++import { Button } from "@/modules/ui/components/button";
++
++interface TOrganizationMembership {
++  organizationId: string;
++  name: string;
++  role: string;
++}
++
++interface DownloadMyDataProps {
++  userName: string;
++  userEmail: string;
++  userLocale: string;
++  notificationSettings: TUserNotificationSettings;
++  organizationMemberships: TOrganizationMembership[];
++}
++
++export const DownloadMyData = ({
++  userName,
++  userEmail,
++  userLocale,
++  notificationSettings,
++  organizationMemberships,
++}: DownloadMyDataProps) => {
++  const { t } = useTranslation();
++
++  const handleDownload = useCallback(() => {
++    const data = {
++      name: userName,
++      email: userEmail,
++      locale: userLocale,
++      notificationSettings,
++      organizationMemberships: organizationMemberships.map(({ organizationId, name, role }) => ({
++        organizationId,
++        name,
++        role,
++      })),
++    };
++
++    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
++    const url = URL.createObjectURL(blob);
++    const link = document.createElement("a");
++    link.href = url;
++    link.download = "formbricks-account-data.json";
++    document.body.appendChild(link);
++    link.click();
++    document.body.removeChild(link);
++    URL.revokeObjectURL(url);
++  }, [userName, userEmail, userLocale, notificationSettings, organizationMemberships]);
++
++  return (
++    <Button variant="secondary" size="sm" onClick={handleDownload}>
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..55f7679e5 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,6 +1,8 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
++import { AccountActivity } from "@/app/(app)/account/settings/profile/components/AccountActivity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
++import { DownloadMyData } from "@/app/(app)/account/settings/profile/components/DownloadMyData";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+ import {
+@@ -24,6 +26,25 @@ import { PageContentWrapper } from "@/modules/ui/components/page-content-wrapper
+ import { PageHeader } from "@/modules/ui/components/page-header";
+ import { UpgradePrompt } from "@/modules/ui/components/upgrade-prompt";
+ 
++type TOrganizationMembership = {
++  organizationId: string;
++  name: string;
++  role: string;
++};
++
++const getOrganizationMemberships = async (userId: string): Promise<TOrganizationMembership[]> => {
++  const { prisma } = await import("@formbricks/database");
++  const memberships = await prisma.membership.findMany({
++    where: { userId },
++    select: { organizationId: true, role: true, organization: { select: { name: true } } },
++  });
++  return memberships.map((m) => ({
++    organizationId: m.organizationId,
++    name: m.organization.name,
++    role: m.role,
++  }));
++};
++
+ const Page = async () => {
+   const isTwoFactorAuthEnabled = await getIsTwoFactorAuthEnabled();
+   const isMultiOrgEnabled = await getIsMultiOrgEnabled();
+@@ -39,6 +60,8 @@ const Page = async () => {
+     throw new AuthenticationError(t("common.not_authenticated"));
+   }
+ 
++  const organizationMemberships = await getOrganizationMemberships(session.user.id);
++
+   // Two-factor upgrade points at the user's organization billing page (org-scoped after the refactor).
+   const layoutData = await getSettingsLayoutData(session.user.id);
+   const billingUpgradeHref = layoutData
+@@ -99,6 +122,11 @@ const Page = async () => {
+             isPasswordResetEnabled={isPasswordResetEnabled}
+           />
+         </SettingsCard>
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <AccountActivity user={user} />
++        </SettingsCard>
+         {user.identityProvider === "email" && (
+           <SettingsCard
+             title={t("common.security")}
+@@ -120,6 +148,17 @@ const Page = async () => {
+             requiresPasswordConfirmation={requiresPasswordConfirmation}
+           />
+         </SettingsCard>
++        <SettingsCard
++          title={t("workspace.settings.profile.download_my_data")}
++          description={t("workspace.settings.profile.download_my_data_description")}>
++          <DownloadMyData
++            userName={user.name}
++            userEmail={user.email}
++            userLocale={user.locale}
++            notificationSettings={user.notificationSettings}
++            organizationMemberships={organizationMemberships}
++          />
++        </SettingsCard>
+         <IdBadge id={user.id} label={t("common.profile_id")} variant="column" />
+       </div>
+     </PageContentWrapper>
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..503079a28 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3773,7 +3773,13 @@
+         "update_personal_info": "Update your personal information",
+         "warning_cannot_delete_account": "You are the only owner of this organization. Please transfer ownership to another member first.",
+         "warning_cannot_undo": "This cannot be undone",
+-        "wrong_password": "Wrong password"
++        "wrong_password": "Wrong password",
++        "account_created_on": "Account created",
++        "last_login_on": "Last login",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Export your personal information and organization memberships as a JSON file",
++        "account_activity": "Account activity",
++        "account_activity_description": "View your account creation date and last login time."
+       },
+       "teams": {
+         "add_members_description": "Add members to the team and determine their role.",

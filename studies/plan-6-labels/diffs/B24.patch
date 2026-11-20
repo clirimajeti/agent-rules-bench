@@ -1,0 +1,228 @@
+diff --git a/apps/react-vite/src/features/users/components/users-filters.tsx b/apps/react-vite/src/features/users/components/users-filters.tsx
+new file mode 100644
+index 0000000..8db4ee2
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/users-filters.tsx
+@@ -0,0 +1,35 @@
++import { Button } from '@/components/ui/button';
++import { Input } from '@/components/ui/form';
++
++type UsersFiltersProps = {
++  search: string;
++  onSearchChange: (search: string) => void;
++  onExport: () => void;
++  canExport: boolean;
++};
++
++export const UsersFilters = ({
++  search,
++  onSearchChange,
++  onExport,
++  canExport,
++}: UsersFiltersProps) => {
++  return (
++    <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end">
++      <div className="flex-1">
++        <Input
++          label="Search"
++          type="search"
++          placeholder="Search by name or email"
++          value={search}
++          onChange={(event) => onSearchChange(event.target.value)}
++          registration={{}}
++        />
++      </div>
++
++      <Button variant="outline" onClick={onExport} disabled={!canExport}>
++        Export CSV
++      </Button>
++    </div>
++  );
++};
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..ac0a567 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,13 +1,19 @@
++import { useState } from 'react';
++
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
+ import { formatDate } from '@/utils/format';
+ 
+ import { useUsers } from '../api/get-users';
++import { downloadUsersCsv } from '../utils/export-users-csv';
++import { filterUsers } from '../utils/filter-users';
+ 
+ import { DeleteUser } from './delete-user';
++import { UsersFilters } from './users-filters';
+ 
+ export const UsersList = () => {
+   const usersQuery = useUsers();
++  const [search, setSearch] = useState('');
+ 
+   if (usersQuery.isLoading) {
+     return (
+@@ -21,41 +27,51 @@ export const UsersList = () => {
+ 
+   if (!users) return null;
+ 
++  const filteredUsers = filterUsers(users, { search });
++
+   return (
+-    <Table
+-      data={users}
+-      columns={[
+-        {
+-          title: 'First Name',
+-          field: 'firstName',
+-        },
+-        {
+-          title: 'Last Name',
+-          field: 'lastName',
+-        },
+-        {
+-          title: 'Email',
+-          field: 'email',
+-        },
+-        {
+-          title: 'Role',
+-          field: 'role',
+-        },
+-        {
+-          title: 'Created At',
+-          field: 'createdAt',
+-          Cell({ entry: { createdAt } }) {
+-            return <span>{formatDate(createdAt)}</span>;
++    <>
++      <UsersFilters
++        search={search}
++        onSearchChange={setSearch}
++        onExport={() => downloadUsersCsv(filteredUsers)}
++        canExport={filteredUsers.length > 0}
++      />
++      <Table
++        data={filteredUsers}
++        columns={[
++          {
++            title: 'First Name',
++            field: 'firstName',
++          },
++          {
++            title: 'Last Name',
++            field: 'lastName',
++          },
++          {
++            title: 'Email',
++            field: 'email',
++          },
++          {
++            title: 'Role',
++            field: 'role',
++          },
++          {
++            title: 'Created At',
++            field: 'createdAt',
++            Cell({ entry: { createdAt } }) {
++              return <span>{formatDate(createdAt)}</span>;
++            },
+           },
+-        },
+-        {
+-          title: '',
+-          field: 'id',
+-          Cell({ entry: { id } }) {
+-            return <DeleteUser id={id} />;
++          {
++            title: '',
++            field: 'id',
++            Cell({ entry: { id } }) {
++              return <DeleteUser id={id} />;
++            },
+           },
+-        },
+-      ]}
+-    />
++        ]}
++      />
++    </>
+   );
+ };
+diff --git a/apps/react-vite/src/features/users/utils/export-users-csv.ts b/apps/react-vite/src/features/users/utils/export-users-csv.ts
+new file mode 100644
+index 0000000..c4624c5
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/export-users-csv.ts
+@@ -0,0 +1,46 @@
++import { User } from '@/types/api';
++import { formatDate } from '@/utils/format';
++
++const CSV_HEADERS = ['Name', 'Email', 'Role', 'Joined'];
++
++// Cells starting with these characters can be interpreted as formulas by
++// spreadsheet apps. Prefixing them with a single quote neutralises them.
++const FORMULA_PREFIXES = ['=', '+', '-', '@', '\t', '\r'];
++
++const escapeCsvValue = (value: string) => {
++  const neutralised = FORMULA_PREFIXES.some((prefix) => value.startsWith(prefix))
++    ? `'${value}`
++    : value;
++
++  return `"${neutralised.replace(/"/g, '""')}"`;
++};
++
++export const buildUsersCsv = (users: User[]) => {
++  const rows = users.map((user) => [
++    `${user.firstName} ${user.lastName}`.trim(),
++    user.email,
++    user.role,
++    formatDate(user.createdAt),
++  ]);
++
++  return [CSV_HEADERS, ...rows]
++    .map((row) => row.map(escapeCsvValue).join(','))
++    .join('\r\n');
++};
++
++export const downloadUsersCsv = (users: User[]) => {
++  // The UTF-8 byte order mark lets spreadsheet apps detect the encoding.
++  const content = `﻿${buildUsersCsv(users)}`;
++  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
++  const url = URL.createObjectURL(blob);
++  const fileName = `users-${new Date().toISOString().slice(0, 10)}.csv`;
++
++  const link = document.createElement('a');
++  link.href = url;
++  link.download = fileName;
++  document.body.appendChild(link);
++  link.click();
++  link.remove();
++
++  setTimeout(() => URL.revokeObjectURL(url), 0);
++};
+diff --git a/apps/react-vite/src/features/users/utils/filter-users.ts b/apps/react-vite/src/features/users/utils/filter-users.ts
+new file mode 100644
+index 0000000..17a79ce
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/filter-users.ts
+@@ -0,0 +1,20 @@
++import { User } from '@/types/api';
++
++export type UserFilters = {
++  search: string;
++};
++
++export const filterUsers = (users: User[], { search }: UserFilters) => {
++  const query = search.trim().toLowerCase();
++
++  if (!query) {
++    return users;
++  }
++
++  return users.filter((user) => {
++    const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
++    const email = user.email.toLowerCase();
++
++    return fullName.includes(query) || email.includes(query);
++  });
++};
