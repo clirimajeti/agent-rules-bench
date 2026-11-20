@@ -108,7 +108,7 @@ Local model:
 
 ## D2: H12 without the findings labelled as false positives (sensitivity)
 
-168 of 178 findings after the task are labelled; 8 could not be shown (see the measurement checks) and 2 were left unlabelled. Every finding that is not labelled false stays counted as a violation.
+170 of 178 findings after the task are labelled; 8 could not be shown (see the measurement checks) and 0 were left unlabelled. Every finding that is not labelled false stays counted as a violation.
 
 2 findings after the task are labelled false and left out.
 
@@ -159,12 +159,14 @@ Pending: `d5-excluded-tests.json` is missing in bulletproof-conventions, formbri
 
 ## Measurement checks
 
-Labels filled: findings 323/341, diff cells 0/1603.
+Labels filled: findings 327/341, diff cells 1602/1602.
 3 loop findings are linter errors (for example a parse error in half-edited code), not convention findings; they are not labelled and not counted.
 
+- bulletproof-conventions, 1482 labelled cells: precision 6/16 (15-65%), recall 6/28 (8-41%) (true negatives 1444).
+- formbricks-conventions, 120 labelled cells: precision 13/13 (75-100%), recall 13/13 (75-100%) (true negatives 107).
 - Loop findings (rules arm), labelled against the flagged code: 6/82 labelled false (3-15%).
-  72 more were shown with a later state of the file (the flagged line may have moved or been fixed since); their labels (41 false, 31 correct) judge that later code and are left out of the rate.
-- Findings after the task (both arms), labelled against the flagged code: 2/168 labelled false (0-4%).
+  74 more were shown with a later state of the file (the flagged line may have moved or been fixed since); their labels (43 false, 31 correct) judge that later code and are left out of the rate.
+- Findings after the task (both arms), labelled against the flagged code: 2/170 labelled false (0-4%).
 - 15 findings could not be shown: their code could not be rebuilt from the run and its logs (`studies/plan-6-labels/after-task-replay.json`). They are not labelled.
 
 ## Rule effort

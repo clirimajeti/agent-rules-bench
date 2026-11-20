@@ -30,16 +30,15 @@ index a84b9a4..35d5ba7 100644
  };
 diff --git a/apps/react-vite/src/features/users/api/change-password.ts b/apps/react-vite/src/features/users/api/change-password.ts
 new file mode 100644
-index 0000000..448159c
+index 0000000..b59558a
 --- /dev/null
 +++ b/apps/react-vite/src/features/users/api/change-password.ts
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,48 @@
 +import { useMutation } from '@tanstack/react-query';
 +import { z } from 'zod';
 +
 +import { api } from '@/lib/api-client';
 +import { useUser } from '@/lib/auth';
-+import { useNotifications } from '@/components/ui/notifications';
 +import { MutationConfig } from '@/lib/react-query';
 +
 +export const changePasswordInputSchema = z
@@ -71,17 +70,12 @@ index 0000000..448159c
 +  mutationConfig,
 +}: UseChangePasswordOptions = {}) => {
 +  const { refetch: refetchUser } = useUser();
-+  const { addNotification } = useNotifications();
 +
 +  const { onSuccess, ...restConfig } = mutationConfig || {};
 +
 +  return useMutation({
 +    onSuccess: (...args) => {
 +      refetchUser();
-+      addNotification({
-+        type: 'success',
-+        title: 'Password Changed',
-+      });
 +      onSuccess?.(...args);
 +    },
 +    ...restConfig,
@@ -90,14 +84,15 @@ index 0000000..448159c
 +};
 diff --git a/apps/react-vite/src/features/users/components/change-password.tsx b/apps/react-vite/src/features/users/components/change-password.tsx
 new file mode 100644
-index 0000000..5bc109c
+index 0000000..80d6144
 --- /dev/null
 +++ b/apps/react-vite/src/features/users/components/change-password.tsx
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,77 @@
 +import { KeyRound } from 'lucide-react';
 +
 +import { Button } from '@/components/ui/button';
 +import { Form, FormDrawer, Input } from '@/components/ui/form';
++import { useNotifications } from '@/components/ui/notifications';
 +
 +import {
 +  changePasswordInputSchema,
@@ -105,7 +100,17 @@ index 0000000..5bc109c
 +} from '../api/change-password';
 +
 +export const ChangePassword = () => {
-+  const changePasswordMutation = useChangePassword();
++  const { addNotification } = useNotifications();
++  const changePasswordMutation = useChangePassword({
++    mutationConfig: {
++      onSuccess: () => {
++        addNotification({
++          type: 'success',
++          title: 'Password Changed',
++        });
++      },
++    },
++  });
 +
 +  return (
 +    <FormDrawer
@@ -161,7 +166,7 @@ index 0000000..5bc109c
 +  );
 +};
 diff --git a/apps/react-vite/src/testing/mocks/handlers/users.ts b/apps/react-vite/src/testing/mocks/handlers/users.ts
-index 444b918..455a660 100644
+index 444b918..c6876bc 100644
 --- a/apps/react-vite/src/testing/mocks/handlers/users.ts
 +++ b/apps/react-vite/src/testing/mocks/handlers/users.ts
 @@ -7,6 +7,7 @@ import {

@@ -1,83 +1,3 @@
-diff --git a/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts b/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts
-new file mode 100644
-index 000000000..db44094bd
---- /dev/null
-+++ b/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts
-@@ -0,0 +1,74 @@
-+/**
-+ * POST /api/v3/webhooks/{webhookId}/duplicate — clone a webhook into a new one.
-+ *
-+ * Reads the source webhook, copies its name/url/triggers/surveyIds (prefixing the name with
-+ * "Copy of …"), creates a fresh signing secret, and returns the new webhook.  The v3 wrapper
-+ * handles auth, rate-limiting, audit-logging, and error mapping.
-+ */
-+import "server-only";
-+
-+import { z } from "zod";
-+import { ZId } from "@formbricks/types/common";
-+import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
-+import { requireV3WorkspaceAccess } from "@/app/api/v3/lib/auth";
-+import { createdResponse } from "@/app/api/v3/lib/response";
-+import { getOrganizationIdFromWebhookId, getWorkspaceIdFromWebhookId } from "@/lib/utils/helper";
-+import { getWebhook } from "@/modules/api/v2/management/webhooks/[webhookId]/lib/webhook";
-+import { applyRateLimit } from "@/modules/core/rate-limit/helpers";
-+import { rateLimitConfigs } from "@/modules/core/rate-limit/rate-limit-configs";
-+import { createWebhook } from "@/modules/integrations/webhooks/lib/webhook";
-+
-+export const POST = withV3ApiWrapper({
-+  auth: "both",
-+  action: "created",
-+  targetType: "webhook",
-+  schemas: { params: z.object({ webhookId: ZId }).strict() },
-+  handler: async ({ req, parsedInput, authentication, auditLog, requestId, instance }) => {
-+    const { webhookId } = parsedInput.params;
-+
-+    const organizationId = await getOrganizationIdFromWebhookId(webhookId);
-+    const workspaceId = await getWorkspaceIdFromWebhookId(webhookId);
-+
-+    const access = await requireV3WorkspaceAccess(
-+      authentication,
-+      workspaceId,
-+      "manage",
-+      requestId,
-+      instance
-+    );
-+    if (access instanceof Response) return access;
-+
-+    await applyRateLimit(rateLimitConfigs.api.v3, workspaceId);
-+
-+    const existing = await getWebhook(webhookId);
-+    if (!existing.ok) {
-+      return new Response(
-+        JSON.stringify({
-+          code: "not_found",
-+          message: "Webhook not found",
-+          details: [{ field: "webhook", issue: "not found" }],
-+        }),
-+        { status: 404, headers: { "content-type": "application/problem+json" } }
-+      );
-+    }
-+
-+    const webhookData = existing.data;
-+
-+    const webhookInput = {
-+      name: `Copy of ${webhookData.name ?? "Webhook"}`,
-+      url: webhookData.url,
-+      triggers: webhookData.triggers,
-+      surveyIds: webhookData.surveyIds,
-+    };
-+
-+    const webhook = await createWebhook(workspaceId, webhookInput);
-+
-+    if (auditLog) {
-+      auditLog.targetId = webhook.id;
-+      auditLog.organizationId = organizationId;
-+      auditLog.newObject = webhookInput;
-+    }
-+
-+    return createdResponse(webhook, { requestId, cache: "private, no-store" });
-+  },
-+});
 diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
 index ae428a24e..89d852065 100644
 --- a/apps/web/locales/en-US.json
@@ -1762,14 +1682,52 @@ index ae428a24e..89d852065 100644
        "validation_problem_trigger_ending_not_found": "A selected ending no longer exists on the connected survey.",
        "validation_problem_trigger_missing": "Add a trigger to start the workflow.",
 diff --git a/apps/web/modules/integrations/webhooks/actions.ts b/apps/web/modules/integrations/webhooks/actions.ts
-index f6795f301..d64b15e54 100644
+index f6795f301..fcabb4cde 100644
 --- a/apps/web/modules/integrations/webhooks/actions.ts
 +++ b/apps/web/modules/integrations/webhooks/actions.ts
-@@ -160,3 +160,4 @@ export const testEndpointAction = authenticatedActionClient
+@@ -160,3 +160,42 @@ export const testEndpointAction = authenticatedActionClient
      await testEndpoint(parsedInput.url, secret);
      return { success: true, secret };
    });
 +
++const ZDuplicateWebhookAction = z.object({
++  webhookId: ZId,
++  workspaceId: ZId,
++});
++
++export const duplicateWebhookAction = authenticatedActionClient
++  .inputSchema(ZDuplicateWebhookAction)
++  .action(async ({ ctx, parsedInput }) => {
++    const organizationId = await getOrganizationIdFromWebhookId(parsedInput.webhookId);
++    const workspaceId = await getWorkspaceIdFromWebhookId(parsedInput.webhookId);
++    await assertCan({ type: "user", id: ctx.user.id }, "workspace.write", {
++      type: "workspace",
++      id: workspaceId,
++    });
++    await applyRateLimit(rateLimitConfigs.actions.stateMutation, workspaceId);
++
++    const existing = await getWebhook(parsedInput.webhookId);
++    if (!existing.ok) {
++      throw new ResourceNotFoundError("Webhook", parsedInput.webhookId);
++    }
++
++    const webhookData = existing.data;
++
++    // Build the webhook input from existing data
++    const webhookInput: TWebhookInput = {
++      name: `Copy of ${webhookData.name ?? "Webhook"}`,
++      url: webhookData.url,
++      triggers: webhookData.triggers,
++      surveyIds: webhookData.surveyIds,
++    };
++
++    const webhook = await createWebhook(workspaceId, webhookInput);
++    ctx.auditLoggingCtx.organizationId = organizationId;
++    ctx.auditLoggingCtx.newObject = webhookInput;
++    ctx.auditLoggingCtx.webhookId = webhook.id;
++
++    return webhook;
++  });
 diff --git a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
 index d11f09b77..83145ac4f 100644
 --- a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
@@ -1801,247 +1759,32 @@ index d11f09b77..83145ac4f 100644
    );
  };
 diff --git a/apps/web/modules/integrations/webhooks/components/webhook-settings-tab.tsx b/apps/web/modules/integrations/webhooks/components/webhook-settings-tab.tsx
-index 1fc32ddd7..0fc20eda5 100644
+index 1fc32ddd7..ca6fc55eb 100644
 --- a/apps/web/modules/integrations/webhooks/components/webhook-settings-tab.tsx
 +++ b/apps/web/modules/integrations/webhooks/components/webhook-settings-tab.tsx
-@@ -10,6 +10,7 @@ import { toast } from "react-hot-toast";
- import { useTranslation } from "react-i18next";
- import { PipelineTriggers, Webhook } from "@formbricks/database/prisma-browser";
- import { TSurvey } from "@formbricks/types/surveys/types";
-+import { parseV3ApiError } from "@/modules/api/lib/v3-client";
- import { copyToClipboard } from "@/lib/utils/clipboard";
- import { getFormattedErrorMessage } from "@/lib/utils/error-message";
- import { SurveySelect } from "@/modules/integrations/webhooks/components/survey-select";
-@@ -51,7 +52,9 @@ export const WebhookSettingsTab = ({
+@@ -19,7 +19,7 @@ import { Button } from "@/modules/ui/components/button";
+ import { DeleteDialog } from "@/modules/ui/components/delete-dialog";
+ import { Input } from "@/modules/ui/components/input";
+ import { Label } from "@/modules/ui/components/label";
+-import { deleteWebhookAction, testEndpointAction, updateWebhookAction } from "../actions";
++import { deleteWebhookAction, duplicateWebhookAction, testEndpointAction, updateWebhookAction } from "../actions";
+ import { TWebhookInput } from "../types/webhooks";
+ 
+ interface WebhookSettingsTabProps {
+@@ -51,6 +51,7 @@ export const WebhookSettingsTab = ({
    });
  
    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
 +  const [openDuplicateDialog, setOpenDuplicateDialog] = useState(false);
    const [isUpdatingWebhook, setIsUpdatingWebhook] = useState(false);
-+  const [isDuplicatingWebhook, setIsDuplicatingWebhook] = useState(false);
    const [selectedTriggers, setSelectedTriggers] = useState<PipelineTriggers[]>(webhook.triggers);
    const [selectedSurveys, setSelectedSurveys] = useState<string[]>(webhook.surveyIds);
-   const [testEndpointInput, setTestEndpointInput] = useState(webhook.url);
-@@ -120,132 +123,110 @@ export const WebhookSettingsTab = ({
-     });
-   };
- 
--  const onSubmit = async (data: {
--    name: string | null;
--    url: string;
--    triggers: PipelineTriggers[];
--    surveyIds: string[];
--  }) => {
--    if (selectedTriggers.length === 0) {
--      toast.error(t("common.please_select_at_least_one_trigger"));
--      return;
--    }
-+  const onUpdateWebhook = async (data: TWebhookInput) => {
-+    setIsUpdatingWebhook(true);
-+    try {
-+      const updatedData: TWebhookInput = {
-+        name: data.name,
-+        url: data.url,
-+        triggers: selectedTriggers,
-+        surveyIds: selectedSurveys,
-+      };
- 
--    if (!selectedAllSurveys && selectedSurveys.length === 0) {
--      toast.error(t("common.please_select_at_least_one_survey"));
--      return;
--    }
-+      const updateWebhookActionResult = await updateWebhookAction({
-+        webhookId: webhook.id,
-+        webhookInput: updatedData,
-+      });
- 
--    const endpointHitSuccessfully = await handleTestEndpoint(false);
--    if (!endpointHitSuccessfully) {
--      return;
-+      if (updateWebhookActionResult?.data) {
-+        router.refresh();
-+        toast.success(t("workspace.integrations.webhooks.webhook_updated_successfully"));
-+      } else {
-+        const errorMessage = getFormattedErrorMessage(updateWebhookActionResult);
-+        toast.error(errorMessage);
-+      }
-+    } catch (err) {
-+      toast.error(err instanceof Error ? err.message : "Unknown error occurred");
-+    } finally {
-+      setIsUpdatingWebhook(false);
-     }
-+  };
- 
--    const updatedData: TWebhookInput = {
--      name: data.name ?? "",
--      url: data.url as string,
--      source: webhook.source as TWebhookInput["source"],
--      triggers: selectedTriggers,
--      surveyIds: selectedSurveys,
--    };
--    setIsUpdatingWebhook(true);
--    const updateWebhookActionResult = await updateWebhookAction({
--      webhookId: webhook.id,
--      webhookInput: updatedData,
--    });
--    if (updateWebhookActionResult?.data) {
-+  const onDuplicateWebhook = async () => {
-+    setIsDuplicatingWebhook(true);
-+    try {
-+      const response = await fetch(`/api/v3/webhooks/${webhook.id}/duplicate`, {
-+        method: "POST",
-+      });
-+
-+      if (!response.ok) {
-+        const error = await parseV3ApiError(response);
-+        toast.error(error.message);
-+        return;
-+      }
-+
-+      setOpen(false);
-       router.refresh();
--      toast.success(t("workspace.integrations.webhooks.webhook_updated_successfully"));
--    } else {
--      const errorMessage = getFormattedErrorMessage(updateWebhookActionResult);
--      toast.error(errorMessage);
-+      toast.success(t("workspace.integrations.webhooks.webhook_duplicate_successfully"));
-+    } catch (err) {
-+      toast.error(err instanceof Error ? err.message : "Unknown error occurred");
-+    } finally {
-+      setIsDuplicatingWebhook(false);
-     }
--    setIsUpdatingWebhook(false);
--    setOpen(false);
-   };
- 
-   return (
--    <div>
--      <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
--        <div className="col-span-1">
--          <Label htmlFor="Name">{t("common.name")}</Label>
-+    <div className="space-y-6">
-+      <form onSubmit={handleSubmit(onUpdateWebhook)} className="space-y-6">
-+        <div>
-+          <Label htmlFor="name">{t("common.name")}</Label>
-           <div className="mt-1 flex">
-             <Input
-               type="text"
-               id="name"
-               {...register("name")}
--              disabled={isReadOnly}
--              defaultValue={webhook.name ?? ""}
-               placeholder={t("workspace.integrations.webhooks.webhook_name_placeholder")}
-+              disabled={webhook.source !== "user" || isReadOnly}
-             />
-           </div>
-         </div>
- 
--        <div className="col-span-1">
--          <Label htmlFor="URL">{t("common.url")}</Label>
-+        <div>
-+          <Label htmlFor="url">{t("common.url")}</Label>
-           <div className="mt-1 flex">
-             <Input
--              {...register("url", {
--                value: testEndpointInput,
--              })}
--              type="text"
--              value={testEndpointInput}
--              onChange={(e) => {
--                setTestEndpointInput(e.target.value);
--              }}
--              readOnly={isReadOnly || webhook.source !== "user"}
--              className={clsx(
--                isReadOnly || webhook.source !== "user"
--                  ? "cursor-not-allowed bg-slate-100 text-slate-500"
--                  : null,
--                endpointAccessible === true
--                  ? "border-green-500 bg-green-50"
--                  : endpointAccessible === false
--                    ? "border-red-200 bg-red-50"
--                    : endpointAccessible === undefined
--                      ? "border-slate-200 bg-white"
--                      : null
--              )}
-+              type="url"
-+              id="url"
-+              {...register("url")}
-               placeholder={t("workspace.integrations.webhooks.webhook_url_placeholder")}
-+              disabled={webhook.source !== "user" || isReadOnly}
-             />
--            {!isReadOnly && (
--              <Button
--                type="button"
--                variant="secondary"
--                loading={hittingEndpoint}
--                className="ml-2 whitespace-nowrap"
--                onClick={() => {
--                  handleTestEndpoint(true);
--                }}>
--                {t("workspace.integrations.webhooks.test_endpoint")}
--              </Button>
--            )}
-           </div>
-         </div>
- 
--        {webhook.secret && (
--          <div className="col-span-1">
--            <Label htmlFor="secret">{t("workspace.integrations.webhooks.signing_secret")}</Label>
--            <div className="mt-1 flex">
--              <div className="relative flex-1">
--                <Input
--                  type={showSecret ? "text" : "password"}
--                  id="secret"
--                  readOnly
--                  value={webhook.secret}
--                  className="pr-10 font-mono text-sm"
--                />
--                <button
--                  type="button"
--                  className="absolute top-1/2 right-3 -translate-y-1/2 transform"
--                  onClick={() => setShowSecret(!showSecret)}>
--                  {showSecret ? (
--                    <EyeOff className="size-5 text-slate-400" />
--                  ) : (
--                    <EyeIcon className="size-5 text-slate-400" />
--                  )}
--                </button>
--              </div>
-+        {webhook.source === "user" && !isReadOnly && (
-+          <div>
-+            <Label htmlFor="secret">{t("workspace.integrations.webhooks.secret")}</Label>
-+            <div className="mt-1 flex items-center gap-x-2">
-+              <Input
-+                type={showSecret ? "text" : "password"}
-+                id="secret"
-+                value={webhook.secret ?? ""}
-+                readOnly
-+                className="flex-1 font-mono"
-+              />
-+              <Button
-+                type="button"
-+                variant="ghost"
-+                size="sm"
-+                className="size-8 shrink-0"
-+                onClick={() => setShowSecret((prev) => !prev)}>
-+                {showSecret ? (
-+                  <EyeOff className="size-5 text-slate-400" />
-+                ) : (
-+                  <EyeIcon className="size-5 text-slate-400" />
-+                )}
-+              </Button>
-               <Button
-                 type="button"
-                 variant="secondary"
-@@ -308,6 +289,15 @@ export const WebhookSettingsTab = ({
+@@ -308,6 +309,12 @@ export const WebhookSettingsTab = ({
                  {t("common.delete")}
                </Button>
              )}
 +            {!isReadOnly && (
-+              <Button
-+                type="button"
-+                loading={isDuplicatingWebhook}
-+                onClick={() => setOpenDuplicateDialog(true)}>
++              <Button type="button" onClick={() => setOpenDuplicateDialog(true)}>
 +                <CopyIcon />
 +                {t("workspace.integrations.webhooks.webhook_duplicate")}
 +              </Button>
@@ -2049,7 +1792,7 @@ index 1fc32ddd7..0fc20eda5 100644
  
              <Button variant="secondary" asChild>
                <Link
-@@ -344,6 +334,13 @@ export const WebhookSettingsTab = ({
+@@ -344,6 +351,26 @@ export const WebhookSettingsTab = ({
            }
          }}
        />
@@ -2058,7 +1801,20 @@ index 1fc32ddd7..0fc20eda5 100644
 +        setOpen={setOpenDuplicateDialog}
 +        deleteWhat={t("workspace.integrations.webhooks.webhook_duplicate")}
 +        text={t("workspace.integrations.webhooks.webhook_duplicate_confirmation")}
-+        onDelete={onDuplicateWebhook}
++        onDelete={async () => {
++          const duplicateWebhookActionResult = await duplicateWebhookAction({
++            webhookId: webhook.id,
++            workspaceId: webhook.workspaceId,
++          });
++          if (duplicateWebhookActionResult?.data) {
++            setOpen(false);
++            router.refresh();
++            toast.success(t("workspace.integrations.webhooks.webhook_duplicate_successfully"));
++          } else {
++            const errorMessage = getFormattedErrorMessage(duplicateWebhookActionResult);
++            toast.error(errorMessage);
++          }
++        }}
 +      />
      </div>
    );

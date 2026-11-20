@@ -322,7 +322,7 @@ index 04cd9866d..fbcd6ac15 100644
          </div>
 diff --git a/apps/web/modules/integrations/webhooks/components/webhooks-query-client-provider.tsx b/apps/web/modules/integrations/webhooks/components/webhooks-query-client-provider.tsx
 new file mode 100644
-index 000000000..cb6977758
+index 000000000..291ec53fb
 --- /dev/null
 +++ b/apps/web/modules/integrations/webhooks/components/webhooks-query-client-provider.tsx
 @@ -0,0 +1,10 @@
@@ -331,7 +331,7 @@ index 000000000..cb6977758
 +import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 +import { type ReactNode, useState } from "react";
 +
-+export const WebhooksQueryClientProvider = ({ children }: Readonly<{ children: ReactNode }>) => {
++export const WebhooksQueryClientProvider = ({ children }: { children: ReactNode }) => {
 +  const [queryClient] = useState(() => new QueryClient());
 +
 +  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;

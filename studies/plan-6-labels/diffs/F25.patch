@@ -55,7 +55,7 @@ index afb9bb948..12cd5f959 100644
            description={t("workspace.settings.profile.confirm_delete_account")}>
 diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
 new file mode 100644
-index 000000000..05950a7b4
+index 000000000..61b0c0884
 --- /dev/null
 +++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
 @@ -0,0 +1,31 @@
@@ -69,7 +69,7 @@ index 000000000..05950a7b4
 +  user: TUser;
 +}
 +
-+export const AccountActivity = ({ user }: Readonly<AccountActivityProps>) => {
++export const AccountActivity = ({ user }: AccountActivityProps) => {
 +  const { t } = useTranslation();
 +  const locale = user.locale ?? "en-US";
 +
@@ -92,14 +92,15 @@ index 000000000..05950a7b4
 +};
 diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx
 new file mode 100644
-index 000000000..73cf99f64
+index 000000000..415ea6135
 --- /dev/null
 +++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,45 @@
 +"use client";
 +
 +import { useState } from "react";
 +import { useTranslation } from "react-i18next";
++import { downloadMyDataAction } from "../server-actions";
 +import { Button } from "@/modules/ui/components/button";
 +import { toast } from "@/modules/ui/components/toast";
 +
@@ -107,27 +108,16 @@ index 000000000..73cf99f64
 +  userId: string;
 +}
 +
-+export const DownloadMyData = ({ userId }: Readonly<DownloadMyDataProps>) => {
++export const DownloadMyData = ({ userId }: DownloadMyDataProps) => {
 +  const { t } = useTranslation();
 +  const [isDownloading, setIsDownloading] = useState(false);
 +
 +  const handleDownload = async () => {
 +    setIsDownloading(true);
 +    try {
-+      const response = await fetch("/api/v3/account/download-my-data", {
-+        method: "POST",
-+        headers: { "Content-Type": "application/json" },
-+        body: JSON.stringify({ userId }),
-+        cache: "no-store",
-+      });
++      const data = await downloadMyDataAction({ userId });
 +
-+      if (!response.ok) {
-+        toast.error(t("common.something_went_wrong"));
-+        return;
-+      }
-+
-+      const data = await response.json();
-+      const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: "application/json" });
++      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 +      const url = URL.createObjectURL(blob);
 +      const link = document.createElement("a");
 +      link.href = url;
@@ -151,17 +141,24 @@ index 000000000..73cf99f64
 +    </Button>
 +  );
 +};
-diff --git a/apps/web/app/api/v3/account/download-my-data/lib/operations.ts b/apps/web/app/api/v3/account/download-my-data/lib/operations.ts
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/server-actions.ts b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/server-actions.ts
 new file mode 100644
-index 000000000..248a2c3ec
+index 000000000..1ae1451fe
 --- /dev/null
-+++ b/apps/web/app/api/v3/account/download-my-data/lib/operations.ts
-@@ -0,0 +1,76 @@
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/server-actions.ts
+@@ -0,0 +1,67 @@
++"use server";
++
++import { z } from "zod";
++import { ZId } from "@formbricks/types/common";
 +import { DatabaseError } from "@formbricks/types/errors";
 +import { prisma } from "@formbricks/database";
 +import { lookupAuthorizedOrganizationIds } from "@/lib/authorization/resource-list";
-+import { successResponse } from "@/app/api/v3/lib/response";
-+import type { TV3Authentication } from "@/app/api/v3/lib/types";
++import { authenticatedActionClient } from "@/lib/utils/action-client";
++
++export const ZDownloadMyDataInput = z.object({
++  userId: ZId,
++});
 +
 +export type DownloadMyDataResult = {
 +  name: string;
@@ -171,56 +168,42 @@ index 000000000..248a2c3ec
 +  organizations: { name: string; role: string }[];
 +};
 +
-+export const downloadMyDataV3 = async ({
-+  authentication,
-+  userId,
-+  requestId,
-+  instance,
-+}: {
-+  authentication: TV3Authentication;
-+  userId: string;
-+  requestId: string;
-+  instance: string;
-+}): Promise<Response> => {
-+  // Ensure session authentication is present
-+  if (!authentication || !("user" in authentication) || !authentication.user) {
-+    throw new DatabaseError("Not authenticated");
-+  }
-+
-+  const user = await prisma.user.findUnique({
-+    where: { id: userId },
-+    select: {
-+      name: true,
-+      email: true,
-+      locale: true,
-+      notificationSettings: true,
-+    },
-+  });
-+
-+  if (!user) {
-+    throw new DatabaseError("User not found");
-+  }
-+
-+  const organizationIds = await lookupAuthorizedOrganizationIds({
-+    type: "user",
-+    id: userId,
-+  });
-+
-+  const memberships = await prisma.membership.findMany({
-+    where: {
-+      userId,
-+      organizationId: { in: organizationIds },
-+    },
-+    select: {
-+      role: true,
-+      organization: {
-+        select: { name: true },
++export const downloadMyDataAction = authenticatedActionClient
++  .inputSchema(ZDownloadMyDataInput)
++  .action(async ({ ctx, parsedInput }) => {
++    const user = await prisma.user.findUnique({
++      where: { id: parsedInput.userId },
++      select: {
++        name: true,
++        email: true,
++        locale: true,
++        notificationSettings: true,
 +      },
-+    },
-+  });
++    });
 +
-+  return successResponse(
-+    {
++    if (!user) {
++      throw new DatabaseError("User not found");
++    }
++
++    const organizationIds = await lookupAuthorizedOrganizationIds({
++      type: "user",
++      id: parsedInput.userId,
++    });
++
++    const memberships = await prisma.membership.findMany({
++      where: {
++        userId: parsedInput.userId,
++        organizationId: { in: organizationIds },
++      },
++      select: {
++        role: true,
++        organization: {
++          select: { name: true },
++        },
++      },
++    });
++
++    return {
 +      name: user.name,
 +      email: user.email,
 +      locale: user.locale,
@@ -229,57 +212,8 @@ index 000000000..248a2c3ec
 +        name: m.organization.name,
 +        role: m.role,
 +      })),
-+    } satisfies DownloadMyDataResult,
-+    { requestId }
-+  );
-+};
-diff --git a/apps/web/app/api/v3/account/download-my-data/lib/schemas.ts b/apps/web/app/api/v3/account/download-my-data/lib/schemas.ts
-new file mode 100644
-index 000000000..8ede3ad6f
---- /dev/null
-+++ b/apps/web/app/api/v3/account/download-my-data/lib/schemas.ts
-@@ -0,0 +1,8 @@
-+import { z } from "zod";
-+import { ZId } from "@formbricks/types/common";
-+
-+export const ZDownloadMyDataBody = z.object({
-+  userId: ZId,
-+}).strict();
-+
-+export type ZDownloadMyDataBody = z.infer<typeof ZDownloadMyDataBody>;
-diff --git a/apps/web/app/api/v3/account/download-my-data/route.ts b/apps/web/app/api/v3/account/download-my-data/route.ts
-new file mode 100644
-index 000000000..68daee61b
---- /dev/null
-+++ b/apps/web/app/api/v3/account/download-my-data/route.ts
-@@ -0,0 +1,27 @@
-+/**
-+ * POST /api/v3/account/download-my-data
-+ *
-+ * Returns a JSON envelope with the caller's personal data (name, email, locale,
-+ * notification settings, and organization memberships) so the client can package
-+ * and download it. Session-only.
-+ */
-+import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
-+import { ZV3EmptyQuery } from "@/app/api/v3/lib/schemas";
-+import { ZDownloadMyDataBody } from "./lib/schemas";
-+import { downloadMyDataV3 } from "./lib/operations";
-+
-+export const POST = withV3ApiWrapper({
-+  auth: "session",
-+  schemas: {
-+    body: ZDownloadMyDataBody,
-+    query: ZV3EmptyQuery,
-+  },
-+  handler: async ({ authentication, parsedInput, requestId, instance }) => {
-+    return await downloadMyDataV3({
-+      authentication,
-+      userId: parsedInput.body.userId,
-+      requestId,
-+      instance,
-+    });
-+  },
-+});
++    } satisfies DownloadMyDataResult;
++  });
 diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
 index ae428a24e..2a3cecda0 100644
 --- a/apps/web/locales/en-US.json

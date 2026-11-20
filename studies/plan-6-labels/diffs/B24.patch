@@ -1,22 +1,35 @@
 diff --git a/apps/react-vite/src/features/users/components/users-filters.tsx b/apps/react-vite/src/features/users/components/users-filters.tsx
 new file mode 100644
-index 0000000..8db4ee2
+index 0000000..e3aa1bc
 --- /dev/null
 +++ b/apps/react-vite/src/features/users/components/users-filters.tsx
-@@ -0,0 +1,35 @@
+@@ -0,0 +1,61 @@
 +import { Button } from '@/components/ui/button';
-+import { Input } from '@/components/ui/form';
++import { Input, Select } from '@/components/ui/form';
++import { ROLES } from '@/lib/authorization';
++
++import { UserRoleFilter } from '../utils/filter-users';
 +
 +type UsersFiltersProps = {
 +  search: string;
 +  onSearchChange: (search: string) => void;
++  role: UserRoleFilter;
++  onRoleChange: (role: UserRoleFilter) => void;
 +  onExport: () => void;
 +  canExport: boolean;
 +};
 +
++const roleOptions = [
++  { label: 'All roles', value: 'ALL' },
++  { label: 'Admin', value: ROLES.ADMIN },
++  { label: 'User', value: ROLES.USER },
++];
++
 +export const UsersFilters = ({
 +  search,
 +  onSearchChange,
++  role,
++  onRoleChange,
 +  onExport,
 +  canExport,
 +}: UsersFiltersProps) => {
@@ -33,6 +46,19 @@ index 0000000..8db4ee2
 +        />
 +      </div>
 +
++      <div className="sm:w-48">
++        <Select
++          label="Role"
++          options={roleOptions}
++          defaultValue={role}
++          registration={{
++            name: 'role',
++            onChange: async (event) =>
++              onRoleChange(event.target.value as UserRoleFilter),
++          }}
++        />
++      </div>
++
 +      <Button variant="outline" onClick={onExport} disabled={!canExport}>
 +        Export CSV
 +      </Button>
@@ -40,10 +66,10 @@ index 0000000..8db4ee2
 +  );
 +};
 diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
-index 380a3c1..ac0a567 100644
+index 380a3c1..3ede939 100644
 --- a/apps/react-vite/src/features/users/components/users-list.tsx
 +++ b/apps/react-vite/src/features/users/components/users-list.tsx
-@@ -1,13 +1,19 @@
+@@ -1,13 +1,20 @@
 +import { useState } from 'react';
 +
  import { Spinner } from '@/components/ui/spinner';
@@ -52,7 +78,7 @@ index 380a3c1..ac0a567 100644
  
  import { useUsers } from '../api/get-users';
 +import { downloadUsersCsv } from '../utils/export-users-csv';
-+import { filterUsers } from '../utils/filter-users';
++import { filterUsers, UserRoleFilter } from '../utils/filter-users';
  
  import { DeleteUser } from './delete-user';
 +import { UsersFilters } from './users-filters';
@@ -60,14 +86,15 @@ index 380a3c1..ac0a567 100644
  export const UsersList = () => {
    const usersQuery = useUsers();
 +  const [search, setSearch] = useState('');
++  const [role, setRole] = useState<UserRoleFilter>('ALL');
  
    if (usersQuery.isLoading) {
      return (
-@@ -21,41 +27,51 @@ export const UsersList = () => {
+@@ -21,41 +28,53 @@ export const UsersList = () => {
  
    if (!users) return null;
  
-+  const filteredUsers = filterUsers(users, { search });
++  const filteredUsers = filterUsers(users, { search, role });
 +
    return (
 -    <Table
@@ -98,6 +125,8 @@ index 380a3c1..ac0a567 100644
 +      <UsersFilters
 +        search={search}
 +        onSearchChange={setSearch}
++        role={role}
++        onRoleChange={setRole}
 +        onExport={() => downloadUsersCsv(filteredUsers)}
 +        canExport={filteredUsers.length > 0}
 +      />
@@ -202,24 +231,32 @@ index 0000000..c4624c5
 +};
 diff --git a/apps/react-vite/src/features/users/utils/filter-users.ts b/apps/react-vite/src/features/users/utils/filter-users.ts
 new file mode 100644
-index 0000000..17a79ce
+index 0000000..b827828
 --- /dev/null
 +++ b/apps/react-vite/src/features/users/utils/filter-users.ts
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,28 @@
++import { ROLES } from '@/lib/authorization';
 +import { User } from '@/types/api';
++
++export type UserRoleFilter = 'ALL' | keyof typeof ROLES;
 +
 +export type UserFilters = {
 +  search: string;
++  role: UserRoleFilter;
 +};
 +
-+export const filterUsers = (users: User[], { search }: UserFilters) => {
++export const filterUsers = (users: User[], { search, role }: UserFilters) => {
 +  const query = search.trim().toLowerCase();
 +
-+  if (!query) {
-+    return users;
-+  }
-+
 +  return users.filter((user) => {
++    if (role !== 'ALL' && user.role !== role) {
++      return false;
++    }
++
++    if (!query) {
++      return true;
++    }
++
 +    const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
 +    const email = user.email.toLowerCase();
 +

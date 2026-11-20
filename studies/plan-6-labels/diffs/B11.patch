@@ -82,13 +82,12 @@ index fd92874..b3dc441 100644
  };
 diff --git a/apps/react-vite/src/features/discussions/api/pin-discussion.ts b/apps/react-vite/src/features/discussions/api/pin-discussion.ts
 new file mode 100644
-index 0000000..15e76d1
+index 0000000..6ee9faa
 --- /dev/null
 +++ b/apps/react-vite/src/features/discussions/api/pin-discussion.ts
-@@ -0,0 +1,47 @@
+@@ -0,0 +1,41 @@
 +import { useMutation, useQueryClient } from '@tanstack/react-query';
 +
-+import { useNotifications } from '@/components/ui/notifications';
 +import { api } from '@/lib/api-client';
 +import { MutationConfig } from '@/lib/react-query';
 +
@@ -111,16 +110,11 @@ index 0000000..15e76d1
 +  mutationConfig,
 +}: UsePinDiscussionOptions = {}) => {
 +  const queryClient = useQueryClient();
-+  const { addNotification } = useNotifications();
 +
 +  const { onSuccess, ...restConfig } = mutationConfig || {};
 +
 +  return useMutation({
 +    onSuccess: (data, variables) => {
-+      addNotification({
-+        type: 'success',
-+        title: 'Discussion Updated',
-+      });
 +      queryClient.refetchQueries({
 +        queryKey: getDiscussionQueryOptions(variables.discussionId).queryKey,
 +      });
@@ -134,16 +128,17 @@ index 0000000..15e76d1
 +  });
 +};
 diff --git a/apps/react-vite/src/features/discussions/components/discussion-view.tsx b/apps/react-vite/src/features/discussions/components/discussion-view.tsx
-index 47d42b0..f95a6b2 100644
+index 47d42b0..4d4d7ee 100644
 --- a/apps/react-vite/src/features/discussions/components/discussion-view.tsx
 +++ b/apps/react-vite/src/features/discussions/components/discussion-view.tsx
-@@ -1,47 +1,76 @@
+@@ -1,14 +1,32 @@
 +import { Pin, PinOff } from 'lucide-react';
 +
 +import { Badge } from '@/components/ui/badge';
 +import { Button } from '@/components/ui/button';
  import { MDPreview } from '@/components/ui/md-preview';
  import { Spinner } from '@/components/ui/spinner';
++import { useNotifications } from '@/components/ui/notifications';
 +import { Authorization, ROLES } from '@/lib/authorization';
  import { formatDate } from '@/utils/format';
  
@@ -152,23 +147,24 @@ index 47d42b0..f95a6b2 100644
  import { UpdateDiscussion } from '../components/update-discussion';
  
  export const DiscussionView = ({ discussionId }: { discussionId: string }) => {
++  const { addNotification } = useNotifications();
    const discussionQuery = useDiscussion({
      discussionId,
    });
-+  const pinDiscussionMutation = usePinDiscussion();
++  const pinDiscussionMutation = usePinDiscussion({
++    mutationConfig: {
++      onSuccess: () => {
++        addNotification({
++          type: 'success',
++          title: 'Discussion Updated',
++        });
++      },
++    },
++  });
  
    if (discussionQuery.isLoading) {
      return (
--      <div className="flex h-48 w-full items-center justify-center">
--        <Spinner size="lg" />
-+      <div className="flex justify-center">
-+        <Spinner />
-       </div>
-     );
-   }
- 
--  const discussion = discussionQuery?.data?.data;
-+  const discussion = discussionQuery.data?.data;
+@@ -22,6 +40,8 @@ export const DiscussionView = ({ discussionId }: { discussionId: string }) => {
  
    if (!discussion) return null;
  
@@ -177,26 +173,15 @@ index 47d42b0..f95a6b2 100644
    return (
      <div>
        <span className="text-xs font-bold">
--        {formatDate(discussion.createdAt)}
-+        {discussion.author.firstName} {discussion.author.lastName}
-       </span>
--      {discussion.author && (
--        <span className="ml-2 text-sm font-bold">
--          by {discussion.author.firstName} {discussion.author.lastName}
--        </span>
-+      <h1 className="mt-2 text-3xl font-bold">
-+        {discussion.title}
-+      </h1>
-+      <div className="mt-2 text-sm text-gray-500">
-+        <span>{formatDate(discussion.createdAt)}</span>
-+        <span className="mx-2">·</span>
-+        <span>{discussion.author.firstName} {discussion.author.lastName}</span>
-+      </div>
+@@ -32,10 +52,29 @@ export const DiscussionView = ({ discussionId }: { discussionId: string }) => {
+           by {discussion.author.firstName} {discussion.author.lastName}
+         </span>
+       )}
 +      {isPinned && (
 +        <Badge variant="default" className="ml-2">
 +          Pinned
 +        </Badge>
-       )}
++      )}
        <div className="mt-6 flex flex-col space-y-16">
          <div className="flex justify-end">
            <UpdateDiscussion discussionId={discussionId} />
@@ -218,13 +203,6 @@ index 47d42b0..f95a6b2 100644
          <div>
            <div className="overflow-hidden bg-white shadow sm:rounded-lg">
              <div className="px-4 py-5 sm:px-6">
--              <div className="mt-1 max-w-2xl text-sm text-gray-500">
--                <MDPreview value={discussion.body} />
--              </div>
-+              <MDPreview content={discussion.body} />
-             </div>
-           </div>
-         </div>
 diff --git a/apps/react-vite/src/features/discussions/components/discussions-list.tsx b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
 index 9aa5fba..e14935b 100644
 --- a/apps/react-vite/src/features/discussions/components/discussions-list.tsx

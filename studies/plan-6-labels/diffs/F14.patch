@@ -1,13 +1,12 @@
 diff --git a/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
 new file mode 100644
-index 000000000..afa1e6801
+index 000000000..f618a5163
 --- /dev/null
 +++ b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,27 @@
 +"use client";
 +
 +import { useTranslation } from "react-i18next";
-+import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
 +
 +interface AccountActivityProps {
 +  createdAt: Date;
@@ -18,7 +17,7 @@ index 000000000..afa1e6801
 +  const { t, i18n } = useTranslation();
 +
 +  const formatDate = (date: Date) =>
-+    formatDateTimeForDisplay(date, i18n.language, { dateStyle: "medium", timeStyle: "short" });
++    new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }).format(date);
 +
 +  return (
 +    <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm">

@@ -1,6 +1,69 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/actions.ts b/apps/web/app/(app)/account/settings/profile/actions.ts
+new file mode 100644
+index 000000000..7f531664f
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/actions.ts
+@@ -0,0 +1,57 @@
++"use server";
++
++import { prisma } from "@formbricks/database";
++import { AuthenticationError, AuthorizationError } from "@formbricks/types/errors";
++import { getUser } from "@/lib/user/service";
++import { authenticatedActionClient } from "@/lib/utils/action-client";
++
++export interface TOrganizationMembership {
++  name: string;
++  role: string;
++}
++
++interface DownloadMyDataResult {
++  name: string;
++  email: string;
++  locale: string;
++  notificationSettings: Record<string, unknown> | null;
++  organizationMemberships: TOrganizationMembership[];
++}
++
++export const downloadMyDataAction = authenticatedActionClient.action(
++  async ({ ctx }) => {
++    const user = await getUser(ctx.user.id);
++    if (!user) {
++      throw new AuthorizationError("User not found");
++    }
++
++    const memberships = await prisma.membership.findMany({
++      where: {
++        userId: ctx.user.id,
++      },
++      select: {
++        role: true,
++        organization: {
++          select: {
++            name: true,
++          },
++        },
++      },
++    });
++
++    const organizationMemberships: TOrganizationMembership[] = memberships.map((m) => ({
++      name: m.organization.name,
++      role: m.role,
++    }));
++
++    const result: DownloadMyDataResult = {
++      name: user.name,
++      email: user.email,
++      locale: user.locale,
++      notificationSettings: user.notificationSettings,
++      organizationMemberships,
++    };
++
++    return { data: result };
++  }
++);
 diff --git a/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
 new file mode 100644
-index 000000000..3d685f7e8
+index 000000000..f0c74cab2
 --- /dev/null
 +++ b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
 @@ -0,0 +1,39 @@
@@ -16,7 +79,7 @@ index 000000000..3d685f7e8
 +  locale: string;
 +}
 +
-+export const AccountActivity = ({ createdAt, lastLoginAt, locale }: Readonly<AccountActivityProps>) => {
++export const AccountActivity = ({ createdAt, lastLoginAt, locale }: AccountActivityProps) => {
 +  const { t } = useTranslation();
 +
 +  return (
@@ -45,47 +108,36 @@ index 000000000..3d685f7e8
 +};
 diff --git a/apps/web/app/(app)/account/settings/profile/components/DownloadMyDataButton.tsx b/apps/web/app/(app)/account/settings/profile/components/DownloadMyDataButton.tsx
 new file mode 100644
-index 000000000..bf6e0c51e
+index 000000000..635cbf0d1
 --- /dev/null
 +++ b/apps/web/app/(app)/account/settings/profile/components/DownloadMyDataButton.tsx
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,58 @@
 +"use client";
 +
-+import { useMutation } from "@tanstack/react-query";
 +import { DownloadIcon, Loader2 } from "lucide-react";
-+import { useRouter } from "next/navigation";
++import { useState } from "react";
 +import toast from "react-hot-toast";
 +import { useTranslation } from "react-i18next";
 +import { Button } from "@/modules/ui/components/button";
-+import { parseV3ApiError } from "@/modules/api/lib/v3-client";
-+
-+interface DownloadMyDataResult {
-+  name: string;
-+  email: string;
-+  locale: string;
-+  notificationSettings: Record<string, unknown> | null;
-+  organizationMemberships: { name: string; role: string }[];
-+}
-+
-+/** Fetch the user's downloadable data from the API. */
-+async function downloadMyData(): Promise<DownloadMyDataResult> {
-+  const response = await fetch("/api/v3/account/download-my-data", {
-+    method: "POST",
-+    cache: "no-store",
-+    signal: AbortSignal.timeout(15_000),
-+  });
-+  if (!response.ok) throw await parseV3ApiError(response);
-+  return response.json();
-+}
++import { downloadMyDataAction } from "@/app/(app)/account/settings/profile/actions";
 +
 +export const DownloadMyDataButton = () => {
 +  const { t } = useTranslation();
-+  const router = useRouter();
-+  const download = useMutation({ mutationFn: downloadMyData });
++  const [isDownloading, setIsDownloading] = useState(false);
 +
-+  const onClick = () =>
-+    download.mutate(undefined, {
-+      onSuccess: (data) => {
++  const handleDownload = async () => {
++    setIsDownloading(true);
++    try {
++      const result = await downloadMyDataAction();
++      if (result?.data) {
++        const { name, email, locale, notificationSettings, organizationMemberships } = result.data;
++        const data = {
++          name,
++          email,
++          locale,
++          notificationSettings,
++          organizationMemberships,
++        };
 +        const jsonString = JSON.stringify(data, null, 2);
 +        const blob = new Blob([jsonString], { type: "application/json" });
 +        const url = URL.createObjectURL(blob);
@@ -97,14 +149,19 @@ index 000000000..bf6e0c51e
 +        document.body.removeChild(link);
 +        URL.revokeObjectURL(url);
 +        toast.success(t("workspace.settings.profile.download_success"));
-+        router.refresh();
-+      },
-+      onError: () => toast.error(t("workspace.settings.profile.download_error")),
-+    });
++      } else {
++        toast.error(t("workspace.settings.profile.download_error"));
++      }
++    } catch {
++      toast.error(t("workspace.settings.profile.download_error"));
++    } finally {
++      setIsDownloading(false);
++    }
++  };
 +
 +  return (
-+    <Button variant="secondary" size="sm" onClick={onClick} disabled={download.isPending}>
-+      {download.isPending ? (
++    <Button variant="secondary" size="sm" onClick={handleDownload} disabled={isDownloading}>
++      {isDownloading ? (
 +        <Loader2 className="size-4 animate-spin" />
 +      ) : (
 +        <DownloadIcon className="size-4" />
@@ -137,77 +194,6 @@ index afb9bb948..dbf9b7fac 100644
          <SettingsCard
            title={t("workspace.settings.profile.personal_information")}
            description={t("workspace.settings.profile.update_personal_info")}>
-diff --git a/apps/web/app/api/v3/account/download-my-data/route.ts b/apps/web/app/api/v3/account/download-my-data/route.ts
-new file mode 100644
-index 000000000..5e2250739
---- /dev/null
-+++ b/apps/web/app/api/v3/account/download-my-data/route.ts
-@@ -0,0 +1,65 @@
-+/**
-+ * POST /api/v3/account/download-my-data
-+ *
-+ * Returns a JSON blob with the authenticated user's name, email, locale,
-+ * notification settings, and organization memberships for data export.
-+ */
-+import { prisma } from "@formbricks/database";
-+import { AuthorizationError } from "@formbricks/types/errors";
-+import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
-+import { getUser } from "@/lib/user/service";
-+
-+interface TOrganizationMembership {
-+  name: string;
-+  role: string;
-+}
-+
-+interface DownloadMyDataResult {
-+  name: string;
-+  email: string;
-+  locale: string;
-+  notificationSettings: Record<string, unknown> | null;
-+  organizationMemberships: TOrganizationMembership[];
-+}
-+
-+export const POST = withV3ApiWrapper({
-+  auth: "session",
-+  handler: async ({ authentication }) => {
-+    const user = await getUser(authentication.userId);
-+    if (!user) {
-+      throw new AuthorizationError("User not found");
-+    }
-+
-+    const memberships = await prisma.membership.findMany({
-+      where: {
-+        userId: authentication.userId,
-+      },
-+      select: {
-+        role: true,
-+        organization: {
-+          select: {
-+            name: true,
-+          },
-+        },
-+      },
-+    });
-+
-+    const organizationMemberships: TOrganizationMembership[] = memberships.map((m) => ({
-+      name: m.organization.name,
-+      role: m.role,
-+    }));
-+
-+    const result: DownloadMyDataResult = {
-+      name: user.name,
-+      email: user.email,
-+      locale: user.locale,
-+      notificationSettings: user.notificationSettings,
-+      organizationMemberships,
-+    };
-+
-+    return new Response(JSON.stringify(result), {
-+      status: 200,
-+      headers: { "Content-Type": "application/json" },
-+    });
-+  },
-+});
 diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
 index ae428a24e..36114c4f3 100644
 --- a/apps/web/locales/en-US.json

@@ -5,7 +5,7 @@
 //       findings.csv + findings.md              every checker finding after the task (both arms) and every loop
 //                                               finding of the rules arm, in a seeded random order, arm hidden
 //       conventions-<study>.md                  the text of each convention, to label against
-//   - the key from codes to runs: ~/.cache/agent-rules-bench/plan6-label-key.json (outside the repo until labelled)
+//   - the key from codes to runs: ~/.cache/agent-rules-bench/plan6-label-key.json, kept outside the repo until the labels were done, then moved to studies/plan-6-labels/key.json
 //   - studies/formbricks-conventions/d3-opened.json: whether each prose run opened CODING_STANDARDS.md (D3)
 //
 //   node bench/plan6-prepare.mjs [--force]
@@ -165,7 +165,10 @@ export async function prepare({ force = false } = {}) {
     sample.forEach((r, i) => {
       const code = `${short}${String(i + 1).padStart(2, '0')}`;
       key.diffs[code] = { study: study.name, run: r.id, arm: r.arm, model: r.model };
-      const patch = fs.readFileSync(path.join(study.resultsDir, r.id, 'diff.patch'), 'utf8');
+      // the code the checker judged after the task: before the review fix when there was one (bench/plan6-after-task.mjs)
+      const after = path.join(study.resultsDir, r.id, 'after-task.patch');
+      if (r.fixed && !fs.existsSync(after)) throw new Error(`${r.id}: no after-task.patch; run bench/plan6-after-task.mjs first`);
+      const patch = fs.readFileSync(fs.existsSync(after) ? after : path.join(study.resultsDir, r.id, 'diff.patch'), 'utf8');
       fs.writeFileSync(path.join(LABELS, 'diffs', `${code}.patch`), patch);
       for (const c of conventions) if ([...patchLines(patch).keys()].some((f) => c.inScope(f))) rows.push(csvRow([code, c.id, '', '']));
     });

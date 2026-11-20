@@ -182,10 +182,10 @@ index 0000000..19211ba
 +};
 diff --git a/apps/react-vite/src/features/users/utils/filter-users.ts b/apps/react-vite/src/features/users/utils/filter-users.ts
 new file mode 100644
-index 0000000..313dee6
+index 0000000..a0d1e3c
 --- /dev/null
 +++ b/apps/react-vite/src/features/users/utils/filter-users.ts
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,33 @@
 +import { ROLES } from '@/lib/authorization';
 +import { User } from '@/types/api';
 +
@@ -200,28 +200,18 @@ index 0000000..313dee6
 +  role: RoleFilter;
 +};
 +
-+const groupUsersByRole = (users: User[]) => {
-+  const groups = new Map<string, User[]>();
-+
-+  for (const user of users) {
-+    const group = groups.get(user.role) ?? [];
-+    group.push(user);
-+    groups.set(user.role, group);
-+  }
-+
-+  return groups;
-+};
-+
 +export const filterUsers = (users: User[], { search, role }: UserFilters) => {
 +  const term = search.trim().toLowerCase();
-+  const roleUsers =
-+    role === 'ALL' ? users : (groupUsersByRole(users).get(role) ?? []);
 +
-+  if (!term) {
-+    return roleUsers;
-+  }
++  return users.filter((user) => {
++    if (role !== 'ALL' && user.role !== role) {
++      return false;
++    }
 +
-+  return roleUsers.filter((user) => {
++    if (!term) {
++      return true;
++    }
++
 +    const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
 +
 +    return (

@@ -28,7 +28,7 @@ index afb9bb948..fd335d977 100644
              title={t("common.security")}
 diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
 new file mode 100644
-index 000000000..ebc1e4bda
+index 000000000..0353ed881
 --- /dev/null
 +++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
 @@ -0,0 +1,31 @@
@@ -43,7 +43,7 @@ index 000000000..ebc1e4bda
 +  locale: string;
 +}
 +
-+export const AccountActivity = ({ createdAt, lastLoginAt, locale }: Readonly<AccountActivityProps>) => {
++export const AccountActivity = ({ createdAt, lastLoginAt, locale }: AccountActivityProps) => {
 +  const { t } = useTranslation();
 +
 +  return (
