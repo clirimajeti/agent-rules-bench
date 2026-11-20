@@ -225,6 +225,36 @@ function d3Section(all) {
   return [...lines, ''].join('\n');
 }
 
+// Checker against the hand labels on the blind diff sample, per project: a cell is (diff, convention).
+export function checkerCounts(all, labels) {
+  const out = {};
+  for (const { study, runs } of all) {
+    const rows = labels.diffRows.filter((r) => r.study === study.name);
+    if (!rows.length) continue;
+    const c = { cells: rows.length, tp: 0, fp: 0, fn: 0, tn: 0 };
+    for (const row of rows) {
+      const run = runs.find((r) => r.id === labels.key.diffs[row.code]?.run);
+      if (!run) continue;
+      const checker = (run.breaksAfterTaskAt ?? []).some((f) => f.ruleId === `local/${row.convention}`);
+      const human = row.violated === 'yes';
+      if (checker && human) c.tp++; else if (checker) c.fp++; else if (human) c.fn++; else c.tn++;
+    }
+    out[study.name] = c;
+  }
+  return out;
+}
+
+// False-positive labels of the findings of one kind ('loop': rules arm only, or 'after-task': both arms).
+// Only findings labelled against the code the checker saw count. A "moved" finding showed a later state of the file
+// (a Codex loop finding: the log has no time to place it), so its label judges that later code, not the finding.
+export function falseLabels(labels, kind) {
+  const shownOf = (r) => labels.shown?.[r.code] ?? 'exact';
+  const all_ = labels.findingRows.filter((r) => labels.key.findings[r.code]?.kind === kind && (kind === 'after-task' || labels.key.findings[r.code]?.arm === 'rules'));
+  const rows = all_.filter((r) => shownOf(r) === 'exact');
+  const moved = all_.filter((r) => shownOf(r) === 'moved');
+  return { f: rows.filter((r) => r.label === 'false').length, n: rows.length, moved: moved.length, movedFalse: moved.filter((r) => r.label === 'false').length, movedCorrect: moved.filter((r) => r.label === 'correct').length };
+}
+
 function measurementSection(all, labels) {
   const lines = ['## Measurement checks', ''];
   if (!labels) return [...lines, 'Pending: no label key yet (`node bench/plan6-prepare.mjs`).', ''].join('\n');
@@ -233,47 +263,29 @@ function measurementSection(all, labels) {
   lines.push(`Labels filled: findings ${findingRows.length}/${findingsTotal - linterErrors}, diff cells ${diffRows.length}/${diffCells}.`);
   if (linterErrors) lines.push(`${linterErrors} loop findings are linter errors (for example a parse error in half-edited code), not convention findings; they are not labelled and not counted.`);
   lines.push('');
-  // checker precision and recall on the blind diff sample, per project: a cell is (diff, convention)
-  for (const { study, runs } of all) {
-    const rows = diffRows.filter((r) => r.study === study.name);
-    if (!rows.length) continue;
-    let tp = 0, fp = 0, fn = 0, tn = 0;
-    for (const row of rows) {
-      const run = runs.find((r) => r.id === key.diffs[row.code]?.run);
-      if (!run) continue;
-      const checker = (run.breaksAfterTaskAt ?? []).some((f) => f.ruleId === `local/${row.convention}`);
-      const human = row.violated === 'yes';
-      if (checker && human) tp++; else if (checker) fp++; else if (human) fn++; else tn++;
-    }
-    lines.push(`- ${study.name}, ${rows.length} labelled cells: precision ${tp + fp ? `${frac(tp, tp + fp)} (${ci95(tp, tp + fp)})` : '-'}, recall ${tp + fn ? `${frac(tp, tp + fn)} (${ci95(tp, tp + fn)})` : '-'} (true negatives ${tn}).`);
+  for (const [name, { cells, tp, fp, fn, tn }] of Object.entries(checkerCounts(all, labels))) {
+    lines.push(`- ${name}, ${cells} labelled cells: precision ${tp + fp ? `${frac(tp, tp + fp)} (${ci95(tp, tp + fp)})` : '-'}, recall ${tp + fn ? `${frac(tp, tp + fn)} (${ci95(tp, tp + fn)})` : '-'} (true negatives ${tn}).`);
   }
-  // false-positive rate of the findings, by kind
-  // Only findings labelled against the code the checker saw count. A "moved" finding showed a later state of the file
-  // (a Codex loop finding: the log has no time to place it), so its label judges that later code, not the finding.
-  const shownOf = (r) => labels.shown?.[r.code] ?? 'exact';
   for (const kind of ['loop', 'after-task']) {
-    const all_ = findingRows.filter((r) => key.findings[r.code]?.kind === kind && (kind === 'after-task' || key.findings[r.code]?.arm === 'rules'));
-    const rows = all_.filter((r) => shownOf(r) === 'exact');
-    const f = rows.filter((r) => r.label === 'false').length;
-    if (rows.length) lines.push(`- ${kind === 'loop' ? 'Loop findings (rules arm)' : 'Findings after the task (both arms)'}, labelled against the flagged code: ${frac(f, rows.length)} labelled false (${ci95(f, rows.length)}).`);
-    const moved = all_.filter((r) => shownOf(r) === 'moved');
-    if (moved.length) lines.push(`  ${moved.length} more were shown with a later state of the file (the flagged line may have moved or been fixed since); their labels (${moved.filter((r) => r.label === 'false').length} false, ${moved.filter((r) => r.label === 'correct').length} correct) judge that later code and are left out of the rate.`);
+    const { f, n, moved, movedFalse, movedCorrect } = falseLabels(labels, kind);
+    if (n) lines.push(`- ${kind === 'loop' ? 'Loop findings (rules arm)' : 'Findings after the task (both arms)'}, labelled against the flagged code: ${frac(f, n)} labelled false (${ci95(f, n)}).`);
+    if (moved) lines.push(`  ${moved} more were shown with a later state of the file (the flagged line may have moved or been fixed since); their labels (${movedFalse} false, ${movedCorrect} correct) judge that later code and are left out of the rate.`);
   }
   const lost = Object.entries(key.findings).filter(([c]) => labels.shown?.[c] === 'not recoverable').length;
   if (lost) lines.push(`- ${lost} findings could not be shown: their code could not be rebuilt from the run and its logs (\`studies/plan-6-labels/after-task-replay.json\`). They are not labelled.`);
   return [...lines, ''].join('\n');
 }
 
+// Rule effort per project: conventions, rule source lines (non-empty, non-comment, without tests) and test cases.
+export function ruleEffortCounts(study) {
+  const dir = path.join(study.studyDir, 'plugin');
+  const src = fs.readdirSync(dir).filter((f) => /\.(m?js)$/.test(f)).map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+  return { conventions: (src.match(/^\s*id: '/gm) ?? []).length, loc: src.split('\n').filter((l) => l.trim() && !/^\s*\/\//.test(l)).length, cases: src.match(/\{\s*filename:/g)?.length ?? 0 };
+}
+
 function ruleEffort(all) {
   const lines = ['## Rule effort', '', '| project | conventions | rule source lines (plugin/, without tests) | test cases (valid + invalid) |', '|---|---|---|---|'];
-  for (const { study } of all) {
-    const dir = path.join(study.studyDir, 'plugin');
-    const src = fs.readdirSync(dir).filter((f) => /\.(m?js)$/.test(f)).map((f) => fs.readFileSync(path.join(dir, f), 'utf8'));
-    const loc = src.join('\n').split('\n').filter((l) => l.trim() && !/^\s*\/\//.test(l)).length;
-    const cases = src.join('\n').match(/\{\s*filename:/g)?.length ?? 0;
-    const n = (src.join('\n').match(/^\s*id: '/gm) ?? []).length;
-    lines.push(`| ${study.name} | ${n} | ${loc} | ${cases} |`);
-  }
+  for (const { study } of all) { const e = ruleEffortCounts(study); lines.push(`| ${study.name} | ${e.conventions} | ${e.loc} | ${e.cases} |`); }
   lines.push('', 'Lines are non-empty, non-comment lines of every file in `plugin/`, including the prose text and the examples of each convention; a per-convention count needs the hand split listed in the measurement checks.', '');
   return lines.join('\n');
 }

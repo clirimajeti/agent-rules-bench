@@ -6,6 +6,8 @@ import { loadStudy } from '../bench/config.mjs';
 import { loadResults } from '../bench/summarize.mjs';
 import { compare, productionBreaks } from '../bench/compare.mjs';
 import { comparisons, poolComparisons } from '../bench/pool.mjs';
+import { clopperPearson, exactUpper } from '../bench/compare.mjs';
+import * as P6 from '../bench/plan6.mjs';
 
 const S = (n) => loadStudy(`studies/${n}/study.json`);
 const out = path.resolve('paper/generated');
@@ -155,6 +157,129 @@ for (const [model, harness] of [['qwen36', 'pi'], ['qwen36codex', 'Codex']]) {
   }
 }
 fs.writeFileSync(path.join(out, 'local.tex'), local.join('\n') + '\n');
+
+// ---- Plan 6 (registered on OSF): the same calls as bench/plan6.mjs, which writes studies/plan-6-results.md.
+{
+  const all = P6.loadAll();
+  const labels = P6.loadLabels();
+  if (!labels) throw new Error('Plan 6: no label key (studies/plan-6-labels/key.json)');
+  const runsOf = (models) => all.flatMap(({ runs }) => runs.filter((r) => r.ok && models.includes(r.model)));
+  const nPrimary = runsOf(P6.PRIMARY).length, nLocal = runsOf(P6.SECONDARY).length, nLatest = runsOf(P6.EXPLORATORY).length;
+  macro('PSixPrimaryRuns', nPrimary); macro('PSixLocalRuns', nLocal); macro('PSixLatestRuns', nLatest);
+  macro('PSixRuns', nPrimary + nLocal + nLatest);
+  macro('NTotalRuns', claudeRuns.length + localRuns.length + nPrimary + nLocal + nLatest);
+  const total = (r) => r.taskCost + r.fixCost;
+  const p6Cost = runsOf([...P6.PRIMARY, ...P6.EXPLORATORY]).reduce((a, r) => a + total(r), 0);
+  macro('PSixCost', `\\$${p6Cost.toFixed(0)}`);
+  macro('NTotalCost', `\\$${(claudeRuns.reduce((a, r) => a + total(r), 0) + p6Cost).toFixed(0)}`);
+
+  const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const sum = (ss, k) => ss.reduce((a, s) => a + s[k], 0);
+  const frac = (a, b) => `${a}/${b}`;
+  const cpi = (k, n) => { const [lo, hi] = clopperPearson(k, n); return `${Math.round(lo * 100)}\\% to ${Math.round(hi * 100)}\\%`; };
+  const PROJ = { 'bulletproof-conventions': 'bulletproof-react', 'formbricks-conventions': 'Formbricks' };
+  const MODEL = { sonnet: 'Sonnet 5.5', haiku: 'Haiku 5.5', qwen36codex: 'Qwen3.6 (Codex)', opus55: 'Opus 5.5', fable52: 'Fable 5.2' };
+
+  // H12 to H14 per stratum
+  const ss = P6.strata(all, P6.PRIMARY);
+  const sec = P6.strata(all, P6.SECONDARY);
+  const h12p = exactUpper(ss);
+  const h13 = P6.costRatio(ss), h13task = P6.costRatio(ss, (r) => r.taskCost);
+  const adj = P6.holm({ H12: h12p, H13: h13.p });
+  if (adj.H12 <= 0.05 || adj.H13 <= 0.05) throw new Error('Plan 6: a hypothesis now holds; update the text');
+  const rows = [...ss, ...sec].map((s) => `${s === sec[0] ? '\\midrule\n' : ''}${PROJ[s.study]} & ${MODEL[s.model]} & ${s.x1}/${s.n1} & ${s.x2}/${s.n2} & ${p3(exactUpper([s]))} & ${s.model === 'qwen36codex' ? '--' : pct(avg(s.y.map(total)) / avg(s.x.map(total)))} \\\\`);
+  fs.writeFileSync(path.join(out, 'plan6.tex'), rows.join('\n') + '\n');
+  macro('HTwelveProse', frac(sum(ss, 'x1'), sum(ss, 'n1'))); macro('HTwelveRules', frac(sum(ss, 'x2'), sum(ss, 'n2')));
+  macro('HTwelveP', p3(h12p)); macro('HTwelveHolm', p3(adj.H12));
+  macro('HThirteenCost', pct(h13.point)); macro('HThirteenCI', ci(h13.ci)); macro('HThirteenP', p3(h13.p)); macro('HThirteenHolm', p3(adj.H13));
+  macro('HThirteenTaskCost', pct(h13task.point)); macro('HThirteenTaskCI', ci(h13task.ci));
+  for (const [name, st] of [['BP', 'bulletproof-conventions'], ['FB', 'formbricks-conventions']]) {
+    const s = ss.filter((x) => x.study === st);
+    macro(`PSix${name}Prose`, frac(sum(s, 'x1'), sum(s, 'n1'))); macro(`PSix${name}Rules`, frac(sum(s, 'x2'), sum(s, 'n2')));
+    macro(`PSix${name}P`, p3(exactUpper(s)));
+  }
+  const secPool = [{ x1: sum(sec, 'x1'), n1: sum(sec, 'n1'), x2: sum(sec, 'x2'), n2: sum(sec, 'n2') }];
+  macro('HFourteenProse', frac(secPool[0].x1, secPool[0].n1)); macro('HFourteenRules', frac(secPool[0].x2, secPool[0].n2));
+  macro('HFourteenP', p3(exactUpper(secPool)));
+
+  // H15 and the D5 sensitivity: verify passes per project and arm, primary models
+  const excl = Object.fromEntries(all.map(({ study }) => [study.name, JSON.parse(fs.readFileSync(path.join(study.studyDir, 'd5-excluded-tests.json'), 'utf8'))]));
+  const vrows = [];
+  for (const { study, runs } of all) {
+    const cells = ['prose', 'rules'].map((arm) => {
+      const rs = runs.filter((r) => r.ok && P6.PRIMARY.includes(r.model) && r.arm === arm);
+      const a = rs.map((r) => P6.verifyOk(r)).filter((x) => x !== null);
+      const b = rs.map((r) => P6.verifyOkD5(r, study.resultsDir, excl[study.name][r.task] ?? [])).filter((x) => x !== null);
+      return [frac(a.filter(Boolean).length, a.length), frac(b.filter(Boolean).length, b.length)];
+    });
+    vrows.push(`${PROJ[study.name]} & ${cells[0][0]} & ${cells[1][0]} & ${cells[0][1]} & ${cells[1][1]} \\\\`);
+  }
+  fs.writeFileSync(path.join(out, 'plan6-verify.tex'), vrows.join('\n') + '\n');
+
+  // bulletproof: the rules arm and which convention the violating runs broke (primary models)
+  const bp = all.find((a) => a.study.name === 'bulletproof-conventions');
+  const bpRules = bp.runs.filter((r) => r.ok && P6.PRIMARY.includes(r.model) && r.arm === 'rules');
+  macro('PSixBPCatchRuns', frac(bpRules.filter((r) => r.hookCatches > 0).length, bpRules.length));
+  macro('PSixBPIgnoredRuns', bpRules.filter((r) => r.ignoredCatches > 0).length);
+  const bpViol = bp.runs.filter((r) => r.ok && P6.PRIMARY.includes(r.model) && P6.violating(r));
+  const role = bpViol.filter((r) => (r.breaksAfterTaskAt ?? []).some((f) => f.ruleId === 'local/role-checks-through-authorization'));
+  macro('PSixBPRoleRuns', frac(role.length, bpViol.length));
+  macro('PSixBPRoleTFour', frac(role.filter((r) => r.task === 'T4').length, role.length));
+
+  // Formbricks per convention (D3): runs with a finding of the convention after the task
+  const fb = all.find((a) => a.study.name === 'formbricks-conventions');
+  const F = {
+    'local/no-new-server-actions': ['F1', 'No new server actions', 'loaded'],
+    'local/readonly-props': ['F2', 'Props use \\texttt{Readonly<>}', 'not loaded'],
+    'local/shared-date-formatting': ['F3', 'Shared date formatting', 'not loaded'],
+    'local/en-us-locale-only': ['F4', 'Strings only in \\texttt{en-US.json}', 'loaded'],
+  };
+  const cell = (models, arm, rule) => { const rs = fb.runs.filter((r) => r.ok && models.includes(r.model) && r.arm === arm); return frac(rs.filter((r) => (r.breaksAfterTaskAt ?? []).some((f) => f.ruleId === rule)).length, rs.length); };
+  fs.writeFileSync(path.join(out, 'plan6-formbricks.tex'), Object.entries(F).map(([rule, [id, text, where]]) =>
+    `${id} & ${text} & ${where} & ${cell(P6.PRIMARY, 'prose', rule)} & ${cell(P6.PRIMARY, 'rules', rule)} & ${cell(P6.SECONDARY, 'prose', rule)} & ${cell(P6.SECONDARY, 'rules', rule)} \\\\`).join('\n') + '\n');
+  const opened = JSON.parse(fs.readFileSync(path.join(fb.study.studyDir, 'd3-opened.json'), 'utf8'));
+  const f23 = (r) => (r.breaksAfterTaskAt ?? []).some((f) => ['local/readonly-props', 'local/shared-date-formatting'].includes(f.ruleId));
+  const fbProse = fb.runs.filter((r) => r.ok && P6.PRIMARY.includes(r.model) && r.arm === 'prose');
+  const yes = fbProse.filter((r) => opened[r.id] === true), no = fbProse.filter((r) => opened[r.id] === false);
+  macro('PSixOpened', frac(yes.length, fbProse.length));
+  macro('PSixOpenedViol', frac(yes.filter(f23).length, yes.length)); macro('PSixNotOpenedViol', frac(no.filter(f23).length, no.length));
+
+  // measurement checks
+  const cc = P6.checkerCounts(all, labels);
+  for (const [name, st] of [['BP', 'bulletproof-conventions'], ['FB', 'formbricks-conventions']]) {
+    const { cells, tp, fp, fn } = cc[st];
+    macro(`PSix${name}Cells`, cells);
+    macro(`PSix${name}Precision`, frac(tp, tp + fp)); macro(`PSix${name}PrecisionCI`, cpi(tp, tp + fp));
+    macro(`PSix${name}Recall`, frac(tp, tp + fn)); macro(`PSix${name}RecallCI`, cpi(tp, tp + fn));
+  }
+  // bulletproof: the disagreements of checker and labels by convention (checker only = fp, labels only = fn)
+  const by = { fp: {}, fn: {} };
+  for (const row of labels.diffRows.filter((r) => r.study === 'bulletproof-conventions')) {
+    const run = bp.runs.find((r) => r.id === labels.key.diffs[row.code]?.run);
+    const checker = (run?.breaksAfterTaskAt ?? []).some((f) => f.ruleId === `local/${row.convention}`);
+    const k = checker && row.violated === 'no' ? 'fp' : !checker && row.violated === 'yes' ? 'fn' : null;
+    if (k) by[k][row.convention] = (by[k][row.convention] ?? 0) + 1;
+  }
+  macro('PSixBPFpRole', by.fp['role-checks-through-authorization'] ?? 0);
+  macro('PSixBPFnNoAny', by.fn['no-any'] ?? 0); macro('PSixBPFnZod', by.fn['input-types-from-zod'] ?? 0);
+  macro('PSixBPFnOther', Object.entries(by.fn).filter(([c]) => !['no-any', 'input-types-from-zod'].includes(c)).reduce((a, [, n]) => a + n, 0));
+  const loop = P6.falseLabels(labels, 'loop'), after = P6.falseLabels(labels, 'after-task');
+  macro('PSixLoopFalse', frac(loop.f, loop.n)); macro('PSixLoopFalseCI', cpi(loop.f, loop.n));
+  macro('PSixAfterFalse', frac(after.f, after.n)); macro('PSixAfterFalseCI', cpi(after.f, after.n));
+  for (const [name, i] of [['BP', 0], ['FB', 1]]) {
+    const e = P6.ruleEffortCounts(all[i].study);
+    macro(`PSix${name}Conventions`, e.conventions); macro(`PSix${name}LOC`, e.loc); macro(`PSix${name}Cases`, e.cases);
+  }
+
+  // D1: the newest models, descriptive
+  const d1 = [];
+  for (const { study, runs } of all) for (const m of P6.EXPLORATORY) {
+    const c = (arm) => { const rs = runs.filter((r) => r.ok && r.model === m && r.arm === arm); return [frac(rs.filter((r) => P6.violating(r)).length, rs.length), avg(rs.map((r) => r.turns)).toFixed(1)]; };
+    const [p, pt] = c('prose'), [q, qt] = c('rules');
+    d1.push(`${PROJ[study.name]} & ${MODEL[m]} & ${p} & ${q} & ${pt} & ${qt} \\\\`);
+  }
+  fs.writeFileSync(path.join(out, 'plan6-latest.tex'), d1.join('\n') + '\n');
+}
 
 fs.writeFileSync(path.join(out, 'macros.tex'), macros.join('\n') + '\n');
 console.log(`wrote ${fs.readdirSync(out).length} files to paper/generated (${claudeRuns.length} Claude Code runs)`);
