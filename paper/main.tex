@@ -1,19 +1,14 @@
-\documentclass[11pt]{article}
-\usepackage[a4paper,margin=2.5cm]{geometry}
+% Springer Nature LaTeX template (sn-jnl.cls, version 3.1, December 2024), numbered references.
+\documentclass[pdflatex,sn-mathphys-num]{sn-jnl}
 \usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage{lmodern}
 \usepackage{microtype}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{tabularx}
 \usepackage{array}
 \usepackage{amsmath}
-\usepackage[numbers,sort&compress]{natbib}
 \usepackage{xcolor}
-\usepackage{float}
-\usepackage{xurl}
-\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\usepackage[title]{appendix}
 
 \input{generated/macros.tex}
 % \input is not expandable inside a tabular, so a rule after it fails; the primitive is.
@@ -25,35 +20,27 @@
 \newcommand{\arm}[1]{\texttt{#1}}
 \newcolumntype{L}{>{\raggedright\arraybackslash}X}
 
-\title{Where Should a Coding Rule Live?\\[0.3em]
-\large A Controlled Benchmark of Prose Instructions and Lint Rules for AI Coding Agents}
-\author{Clirim Ajeti\\
-Independent Researcher, Munich, Germany\\
-\href{mailto:clirimajeti@gmail.com}{\texttt{clirimajeti@gmail.com}}}
-\date{November 2026}
-
 \begin{document}
-\maketitle
 
-\begin{abstract}
-\noindent
-\textbf{Context.}
+\title[Where Should a Coding Rule Live?]{Where Should a Coding Rule Live? A Controlled Benchmark of Prose Instructions and Lint Rules for AI Coding Agents}
+
+\author*{\fnm{Clirim} \sur{Ajeti}}\email{clirimajeti@gmail.com}
+\affil*{\orgname{Independent Researcher}, \orgaddress{\city{Munich}, \country{Germany}}}
+
+\abstract{\textbf{Context.}
 Software engineering teams write conventions for AI coding agents in Markdown instruction files such as \file{CLAUDE.md} and \file{AGENTS.md}.
 Nothing enforces them: the agent may ignore them, and an always-loaded file costs tokens in every session.
 An alternative is a lint rule that runs after every edit and reports violations to the agent.
 
-\smallskip\noindent
 \textbf{Objective.}
 We ask where a coding rule should live to minimize violations and cost.
 
-\smallskip\noindent
 \textbf{Method.}
 We present agent-rules-bench, an open-source harness that runs the same task in identical copies of a repository, one per rule placement, and measures violations, cost, turns and functional correctness.
 We report \NTotalRuns{} headless agent runs on four public projects in Java, Python and TypeScript, mostly with Claude Sonnet 5.5 and Haiku 5.5 in Claude Code, and with the local model Qwen3.6 35B-A3B in pi and Codex.
 Four studies were exploratory, and six were pre-registered.
 The last of them (Plan~6, \PSixRuns{} runs) was registered on OSF and tests the conventions of two projects, one of them in the words of its own maintainers.
 
-\smallskip\noindent
 \textbf{Results.}
 Exploratory: when the rule was in prose that the agent could miss, it was violated in 17 of 56 runs (11 in production code); as a lint rule, in none, and runs cost 14\% less (95\% CI: 5\% to 22\%) because no run needed a review fix.
 In a short always-loaded file, prose matched lint rules.
@@ -67,12 +54,15 @@ With the local model, lint rules reduced violating runs from \HFourteenProse{} t
 The cost of lint rules was not shown to be equivalent to the cost of prose (\HThirteenCost, 90\% CI \HThirteenCI).
 Functional correctness did not differ in any study.
 
-\smallskip\noindent
 \textbf{Conclusions.}
 A lint rule with an in-session feedback loop helps most where the agent does not read the prose: rules in documents it may not open, and weaker models.
 Against short prose that the agent always loads, it gives no measurable gain.
-Teams can keep always-loaded prose short and move the rules that the agent tends to miss into lint rules.
-\end{abstract}
+Teams can keep always-loaded prose short and move the rules that the agent tends to miss into lint rules.}
+
+\keywords{AI coding agents, coding conventions, static analysis, lint rules, context files, pre-registration}
+
+\maketitle
+
 
 \section{Introduction}
 \label{sec:intro}
@@ -162,7 +152,7 @@ Two further arms take the \arm{rules} arm apart.
 \arm{rule\_only} keeps the lint rules and the loop but removes the pointers.
 \arm{pointer\_only} keeps the pointers but removes the loop.
 
-\begin{figure}[H]
+\begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{generated/fig2-loop.pdf}
 \caption{The in-session feedback loop of the \arm{rules} arm. After each edit, a guard and the linter run on the edited file. A clean result costs no tokens. A violation returns a message with the fix, and the agent usually fixes it in the same turn. A full check runs at the end of each turn.}
@@ -178,7 +168,7 @@ A design-shaping rule is not: a late fix means that the agent must move code tha
 The pointer exists for this second kind, because it tells the agent the right shape before it writes.
 Figure~\ref{fig:example} shows one rule in its three forms.
 
-\begin{figure}[H]
+\begin{figure}[!htb]
 \small
 \textbf{Prose} (one bullet in the middle of a list in \file{docs/backend.md}):
 \begin{quote}\ttfamily\footnotesize
@@ -229,7 +219,7 @@ If a run violated a rule, one more session gives the agent precise review feedba
 \textbf{summarize}, \textbf{compare} and \textbf{pool} produce the statistics.
 The harness needs only Node.js and git, and its own test suite runs against a fake agent.
 
-\begin{figure}[H]
+\begin{figure}[!htb]
 \centering
 \includegraphics[width=\linewidth]{generated/fig3-bench.pdf}
 \caption{One run in agent-rules-bench. Every session starts from a fresh copy of its arm. A run that violated a rule gets one review-fix session.}
@@ -244,7 +234,7 @@ An agent that copies nearby code therefore violates the rule.
 We chose this design on purpose, because it makes a missed rule visible.
 It also means that our violation rates are an upper bound for everyday work (Section~\ref{sec:threats}).
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering
 \small
 \caption{Projects and rules. D = design-shaping, M = mechanical.}
@@ -340,9 +330,10 @@ A script generates every table and every number in this paper from the published
 
 Table~\ref{tab:pooled} pools the four exploratory studies, and Appendix~\ref{app:per} lists each comparison.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering
-\small
+\footnotesize
+\setlength{\tabcolsep}{3pt}
 \caption{Exploratory studies: \arm{rules} against prose. Cost change is rules/prose with a 95\% bootstrap interval; violating = runs with a violation after the task. One FastAPI comparison is excluded, because those Sonnet runs skipped the linked documents and wrote no tests, so they did less work. With it, always-loaded prose vs.\ rules is +10\% ($-$1\% to +22\%) for all models. Violations in jhipster-buried include new test files, which its documents did not cover; in production code only, its prose arms violated the rule in 0/8 (Sonnet) and 3/8 (Haiku) runs, so prose the agent can miss was violated in 11/56 runs.}
 \label{tab:pooled}
 \begin{tabular}{@{}llcccrr@{}}
@@ -379,7 +370,7 @@ Table~\ref{tab:hyp} gives every pre-registered hypothesis with its result.
 Of the nine hypotheses of Plans 1 to 5 that we could test, three are supported.
 H3 has no test by design, and H4 could not be tested.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering
 \footnotesize
 \setlength{\tabcolsep}{4pt}
@@ -457,7 +448,7 @@ In Formbricks the four conventions are in the maintainers' own files (Section~\r
 In the \arm{rules} arm the convention lines are removed from these files, and each convention is a lint rule with the feedback loop.
 Table~\ref{tab:plan6} gives every stratum.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering
 \small
 \caption{Plan~6: violating runs per stratum, with a one-sided Fisher test, and the change in mean total cost (rules/prose). Upper part: primary models (H12, H13). Lower part: the local model in Codex (H14, secondary; no cost).}
@@ -492,7 +483,7 @@ F2 or F3 was violated in \PSixOpenedViol{} of the runs that opened it and in \PS
 Opening the document therefore helped little.
 The logs do not show whether the agent read the part of the document that states the convention.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering
 \small
 \caption{Plan~6, Formbricks: runs with a violation of each convention, by where the prose arm states it (loaded: \file{AGENTS.md}, which \file{CLAUDE.md} imports; not loaded: \file{CODING\_STANDARDS.md}). Claude: Sonnet 5.5 and Haiku 5.5 together.}
@@ -537,7 +528,7 @@ Two project tests fail for any correct solution of their task: in bulletproof-re
 We wrote a minimal correct solution for every task by hand, ran it through verify, and left out the project test files that it fails (deviation D5).
 With that, the pass rates rise, and the arms still do not differ.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering
 \small
 \caption{Plan~6: runs whose final diff passes the type check and the project's tests on the unchanged commit (primary models). D5: without the test files that a hand-written correct solution also fails.}
@@ -558,14 +549,16 @@ They violated few conventions in either arm, and none on Formbricks.
 On bulletproof-react, Fable 5.2 needed about twice as many turns with lint rules, because it read more files and reacted to the messages of the loop.
 With 1 or 2 repeats per cell these runs support no test.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering
-\small
+\footnotesize
+\setlength{\tabcolsep}{4pt}
 \caption{Plan~6, exploratory: the newest Claude models (descriptive only).}
 \label{tab:latest}
 \begin{tabular}{@{}llcccc@{}}
 \toprule
-Project & Model & Prose violating & Rules violating & Turns, prose & Turns, rules \\
+& & \multicolumn{2}{c}{Violating} & \multicolumn{2}{c}{Mean turns} \\
+Project & Model & Prose & Rules & Prose & Rules \\
 \midrule
 \rows{generated/plan6-latest.tex}
 \bottomrule
@@ -588,7 +581,7 @@ The lint rules took \PSixBPLOC{} lines of rule code and \PSixBPCases{} test case
 Table~\ref{tab:desc} lists the comparisons that the plans name as descriptive.
 Two of them matter for the discussion.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering
 \footnotesize
 \setlength{\tabcolsep}{3pt}
@@ -625,7 +618,7 @@ Table~\ref{tab:local} shows \NLocalRuns{} exploratory runs with a local model in
 These agents load only the root \file{AGENTS.md} by themselves and never load a folder-level pointer.
 In these runs, \arm{prose\_buried} therefore means documents that the agent must find without help.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering
 \small
 \caption{Exploratory: a local model (qwen3.6, 35B, quantized) in pi and Codex on bulletproof-react, 8 runs per cell. $p$: one-sided Fisher against \arm{rules}.}
@@ -774,39 +767,47 @@ Our largest registered study did not confirm a general advantage of lint rules: 
 A lint rule reports, and the agent can still keep code that it thinks is right.
 The harness and all \NTotalRuns{} runs are public, so others can test other projects, rules and agents.
 
-\section*{Data and Code Availability}
-The harness, all study setups, analysis plans, prompts, session results, diffs and logs are at \url{https://github.com/clirimajeti/agent-rules-bench}.
-The command \texttt{node paper/tables.mjs} regenerates every table and every number in this paper from the published results.
-The registration of Plan~6 is at \url{https://osf.io/9hdjs}; its plan, deviations and labels are in the repository.
+\backmatter
 
-\section*{Conflict of Interest}
-The author is the developer of codemyrules (\url{https://github.com/clirimajeti/codemyrules}), an open-source, MIT-licensed tool that installs the \arm{rules} arm.
-The author receives no income from it.
-This work had no external funding.
-
-\section*{Use of AI Assistance}
+\bmhead{Use of AI assistance}
 The author used Claude (Anthropic) for programming assistance and to draft and edit the text of this paper.
 The author reviewed all code, analyses and text, and is responsible for the content.
 
-\bibliographystyle{plainnat}
-\bibliography{refs}
+\section*{Declarations}
 
-\appendix
+\begin{itemize}
+\item \textbf{Funding:} This work had no external funding.
+\item \textbf{Competing interests:} The author is the developer of codemyrules (\url{https://github.com/clirimajeti/codemyrules}), an open-source, MIT-licensed tool that installs the \arm{rules} arm. The author receives no income from it.
+\item \textbf{Ethics approval and consent to participate:} Not applicable. The study involves no human participants; all sessions are runs of AI coding agents on public repositories.
+\item \textbf{Consent for publication:} Not applicable.
+\item \textbf{Data availability:} All session results, diffs, logs and hand labels are at \url{https://github.com/clirimajeti/agent-rules-bench}. The registration of Plan~6 is at \url{https://osf.io/9hdjs}.
+\item \textbf{Materials availability:} The study setups, analysis plans, prompts and lint rules are in the same repository.
+\item \textbf{Code availability:} The harness is in the same repository. The command \texttt{node paper/tables.mjs} regenerates every table and every number in this paper from the published results.
+\item \textbf{Author contribution:} The author did all the work.
+\end{itemize}
+
+\begin{appendices}
+
 \section{Exploratory Comparisons}
 \label{app:per}
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering
 \footnotesize
-\setlength{\tabcolsep}{2.4pt}
+\setlength{\tabcolsep}{3pt}
 \caption{Each exploratory comparison of a prose arm against \arm{rules} (cost = rules/prose).}
 \begin{tabular}{@{}lllccrr@{}}
 \toprule
-Study & Model & Prose arm & Prose violating & Rules violating & Cost & 95\% CI \\
+& & & \multicolumn{2}{c}{Violating} & & \\
+Study & Model & Prose arm & Prose & Rules & Cost & 95\% CI \\
 \midrule
 \rows{generated/pooled-per-comparison.tex}
 \bottomrule
 \end{tabular}
 \end{table}
+
+\end{appendices}
+
+\bibliography{refs}
 
 \end{document}
