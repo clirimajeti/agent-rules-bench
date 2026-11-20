@@ -162,13 +162,15 @@ $('y').onclick=()=>answer('yes');$('n').onclick=()=>answer('no');$('prev').oncli
 $('jump').onsubmit=(e)=>{e.preventDefault();let v=$('jumpto').value.trim().toUpperCase();if(/^[BF]\\d$/.test(v))v=v[0]+'0'+v[1];const j=items.findIndex((x)=>x.code===v);if(j>=0){i=j;show();$('jumpto').value='';$('jumpto').blur();}else $('err').textContent='No diff '+v;};
 document.addEventListener('keydown',(e)=>{if(e.target.tagName==='INPUT')return;if(e.key==='y')answer('yes');else if(e.key==='n')answer('no');else if(e.key==='ArrowRight')$('next').onclick();else if(e.key==='ArrowLeft')$('prev').onclick();});
 fetch('/diffs').then((r)=>r.json()).then((d)=>{for(const x of d){patches[x.code]=x.patch;for(const c of x.cells)items.push({code:x.code,convention:c.convention,text:c.text,hint:c.hint,violated:c.violated});}
+// /d?c=<convention> shows only that convention's cells answered "broken", to recheck them
+const c=new URLSearchParams(location.search).get('c');if(c){items=items.filter((x)=>x.convention===c&&x.violated==='yes');if(!items.length){$('err').textContent='No cells answered broken for '+c;return;}i=0;show();return;}
 const j=items.findIndex((x)=>!x.violated);i=j>=0?j:0;show();});
 </script></body></html>`;
 
 const server = http.createServer((req, res) => {
   try {
     if (req.method === 'GET' && req.url === '/') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(PAGE); }
-    if (req.method === 'GET' && req.url === '/d') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(DIFF_PAGE); }
+    if (req.method === 'GET' && (req.url === '/d' || req.url.startsWith('/d?'))) { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(DIFF_PAGE); }
     if (req.method === 'GET' && req.url === '/diffs') { res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(loadDiffs())); }
     if (req.method === 'POST' && req.url === '/diff-label') {
       let body = '';
