@@ -155,7 +155,26 @@ Mechanism check (exploratory): `prose` runs that opened `CODING_STANDARDS.md` du
 
 ## D5: verify without the tests the task itself breaks (sensitivity)
 
-Pending: `d5-excluded-tests.json` is missing in bulletproof-conventions, formbricks-conventions (written after the minimal correct solutions are verified).
+- bulletproof-conventions: T1: none; T2: `src/app/routes/app/discussions/__tests__/discussions.test.tsx`; T3: none; T4: none
+- formbricks-conventions: T1: `modules/organization/settings/api-keys/lib/api-keys.test.ts`; T2: none; T3: none; T4: none
+
+Primary models:
+
+| project | arm | verify passes | exact 95% interval |
+|---|---|---|---|
+| bulletproof-conventions | prose | 60/64 | 85-98% |
+| bulletproof-conventions | rules | 58/64 | 81-96% |
+| formbricks-conventions | prose | 56/64 | 77-94% |
+| formbricks-conventions | rules | 56/64 | 77-94% |
+
+Local model:
+
+| project | arm | verify passes | exact 95% interval |
+|---|---|---|---|
+| bulletproof-conventions | prose | 16/32 | 32-68% |
+| bulletproof-conventions | rules | 17/32 | 35-71% |
+| formbricks-conventions | prose | 2/32 | 1-21% |
+| formbricks-conventions | rules | 5/32 | 5-33% |
 
 ## Measurement checks
 

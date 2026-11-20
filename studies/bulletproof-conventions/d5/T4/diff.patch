@@ -1,0 +1,103 @@
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..3635f28 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,13 +1,41 @@
++import { useState } from 'react';
++
++import { Button } from '@/components/ui/button';
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
++import { ROLES } from '@/lib/authorization';
++import { User } from '@/types/api';
+ import { formatDate } from '@/utils/format';
+ 
+ import { useUsers } from '../api/get-users';
+ 
+ import { DeleteUser } from './delete-user';
+ 
++const csvCell = (value: string) => `"${value.replace(/"/g, '""')}"`;
++
++const exportCsv = (users: User[]) => {
++  const rows = [
++    ['Name', 'Email', 'Role', 'Joined'],
++    ...users.map((u) => [
++      `${u.firstName} ${u.lastName}`,
++      u.email,
++      u.role,
++      formatDate(u.createdAt),
++    ]),
++  ];
++  const csv = rows.map((r) => r.map(csvCell).join(',')).join('\n');
++  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
++  const link = document.createElement('a');
++  link.href = url;
++  link.download = 'users.csv';
++  link.click();
++  URL.revokeObjectURL(url);
++};
++
+ export const UsersList = () => {
+   const usersQuery = useUsers();
++  const [role, setRole] = useState('');
++  const [search, setSearch] = useState('');
+ 
+   if (usersQuery.isLoading) {
+     return (
+@@ -21,9 +49,48 @@ export const UsersList = () => {
+ 
+   if (!users) return null;
+ 
++  const term = search.trim().toLowerCase();
++  const shown = users.filter(
++    (u) =>
++      (!role || u.role === role) &&
++      (!term ||
++        `${u.firstName} ${u.lastName}`.toLowerCase().includes(term) ||
++        u.email.toLowerCase().includes(term)),
++  );
++
+   return (
++    <div className="space-y-4">
++      <div className="flex items-end gap-4">
++        <label className="text-sm">
++          Search
++          <input
++            className="ml-2 rounded border px-2 py-1"
++            value={search}
++            onChange={(e) => setSearch(e.target.value)}
++            placeholder="Name or email"
++          />
++        </label>
++        <label className="text-sm">
++          Role
++          <select
++            className="ml-2 rounded border px-2 py-1"
++            value={role}
++            onChange={(e) => setRole(e.target.value)}
++          >
++            <option value="">All roles</option>
++            {Object.values(ROLES).map((r) => (
++              <option key={r} value={r}>
++                {r}
++              </option>
++            ))}
++          </select>
++        </label>
++        <Button size="sm" onClick={() => exportCsv(shown)}>
++          Export CSV
++        </Button>
++      </div>
+     <Table
+-      data={users}
++      data={shown}
+       columns={[
+         {
+           title: 'First Name',
+@@ -57,5 +124,6 @@ export const UsersList = () => {
+         },
+       ]}
+     />
++    </div>
+   );
+ };

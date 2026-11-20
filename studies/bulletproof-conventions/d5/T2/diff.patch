@@ -1,0 +1,64 @@
+diff --git a/apps/react-vite/src/features/discussions/components/discussions-list.tsx b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+index 9aa5fba..5c7fcb5 100644
+--- a/apps/react-vite/src/features/discussions/components/discussions-list.tsx
++++ b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+@@ -54,6 +54,21 @@ export const DiscussionsList = ({
+             return <span>{formatDate(createdAt)}</span>;
+           },
+         },
++        {
++          title: 'Comments',
++          field: 'id',
++          Cell({ entry: { commentsCount, lastCommentAt } }) {
++            if (!commentsCount || !lastCommentAt) {
++              return <span>No comments yet</span>;
++            }
++            return (
++              <span>
++                {commentsCount} {commentsCount === 1 ? 'comment' : 'comments'},
++                last {formatDate(lastCommentAt)}
++              </span>
++            );
++          },
++        },
+         {
+           title: '',
+           field: 'id',
+diff --git a/apps/react-vite/src/testing/mocks/handlers/discussions.ts b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+index 37c0797..adf5ed9 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/discussions.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+@@ -57,9 +57,20 @@ export const discussionsHandlers = [
+               },
+             },
+           });
++          const comments = db.comment.findMany({
++            where: {
++              discussionId: {
++                equals: discussion.id,
++              },
++            },
++          });
+           return {
+             ...discussion,
+             author: author ? sanitizeUser(author) : {},
++            commentsCount: comments.length,
++            lastCommentAt: comments.length
++              ? Math.max(...comments.map((c) => c.createdAt))
++              : null,
+           };
+         });
+       return HttpResponse.json({
+diff --git a/apps/react-vite/src/types/api.ts b/apps/react-vite/src/types/api.ts
+index dbdf434..cedc0e5 100644
+--- a/apps/react-vite/src/types/api.ts
++++ b/apps/react-vite/src/types/api.ts
+@@ -41,6 +41,8 @@ export type Discussion = Entity<{
+   body: string;
+   teamId: string;
+   author: User;
++  commentsCount?: number;
++  lastCommentAt?: number | null;
+ }>;
+ 
+ export type Comment = Entity<{
