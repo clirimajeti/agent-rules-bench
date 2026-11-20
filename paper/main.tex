@@ -28,36 +28,26 @@
 \affil*{\orgname{Independent Researcher}, \orgaddress{\city{Munich}, \country{Germany}}}
 
 \abstract{\textbf{Context.}
-Software engineering teams write conventions for AI coding agents in Markdown instruction files such as \file{CLAUDE.md} and \file{AGENTS.md}.
-Nothing enforces them: the agent may ignore them, and an always-loaded file costs tokens in every session.
+Teams write conventions for AI coding agents in Markdown instruction files such as \file{CLAUDE.md} and \file{AGENTS.md}, but nothing enforces them.
 An alternative is a lint rule that runs after every edit and reports violations to the agent.
 
 \textbf{Objective.}
 We ask where a coding rule should live to minimize violations and cost.
 
 \textbf{Method.}
-We present agent-rules-bench, an open-source harness that runs the same task in identical copies of a repository, one per rule placement, and measures violations, cost, turns and functional correctness.
-We report \NTotalRuns{} headless agent runs on four public projects in Java, Python and TypeScript, mostly with Claude Sonnet 5.5 and Haiku 5.5 in Claude Code, and with the local model Qwen3.6 35B-A3B in pi and Codex.
-Four studies were exploratory, and six were pre-registered.
-The last of them (Plan~6, \PSixRuns{} runs) was registered on OSF and tests the conventions of two projects, one of them in the words of its own maintainers.
+We present agent-rules-bench, an open-source harness that runs the same task in identical repository copies, one per rule placement, and measures violations, cost and functional correctness.
+We report \NTotalRuns{} agent runs on four projects in three languages: four exploratory studies and six pre-registered ones, the last registered on OSF.
 
 \textbf{Results.}
-Exploratory: when the rule was in prose that the agent could miss, it was violated in 17 of 56 runs (11 in production code); as a lint rule, in none, and runs cost 14\% less (95\% CI: 5\% to 22\%) because no run needed a review fix.
-In a short always-loaded file, prose matched lint rules.
-Pre-registered: (1)~The feedback loop prevented violations of a rule that no prose stated (\HOneBreaks{} vs.\ \HOneBreaksAgainst, $p=\HOneBreaksP$).
-(2)~A one-line pointer in the instruction Markdown file avoided rework (\HTwoCost{} cost without it).
-(3)~A 15.7k-token always-loaded file cost 20\% more than lint rules ($p=\HSixCostP$).
-(4)~Forty conventions in a short always-loaded file and the same conventions as lint rules came out even (Plans 4 and 5).
-(5)~In Plan~6, prose was violated in \HTwelveProse{} runs and lint rules in \HTwelveRules{} ($p=\HTwelveP$, \HTwelveHolm{} after Holm's correction; not supported).
-The result split by project: on Formbricks, whose prose was partly in a file that the agent does not load, \PSixFBProse{} against \PSixFBRules; on bulletproof-react, with all prose always loaded, \PSixBPProse{} against \PSixBPRules.
-With the local model, lint rules reduced violating runs from \HFourteenProse{} to \HFourteenRules{} ($p$~\HFourteenP).
-The cost of lint rules was not shown to be equivalent to the cost of prose (\HThirteenCost, 90\% CI \HThirteenCI).
-Functional correctness did not differ in any study.
+When the rule was in prose that the agent could miss, it was violated in 17 of 56 exploratory runs, and as a lint rule in none.
+Pre-registered, the feedback loop prevented violations of a rule that no prose stated (\HOneBreaks{} vs.\ \HOneBreaksAgainst), a one-line pointer avoided rework, and a 15.7k-token always-loaded file cost 20\% more.
+Against conventions in a short always-loaded file, lint rules gained nothing.
+In the largest study, the pooled advantage of lint rules was not significant after correction (\HTwelveProse{} vs.\ \HTwelveRules{} violating runs); it came from the project whose prose the agent did not load (\PSixFBProse{} vs.\ \PSixFBRules) and from a local model (\HFourteenProse{} vs.\ \HFourteenRules).
+Functional correctness did not differ.
 
 \textbf{Conclusions.}
-A lint rule with an in-session feedback loop helps most where the agent does not read the prose: rules in documents it may not open, and weaker models.
-Against short prose that the agent always loads, it gives no measurable gain.
-Teams can keep always-loaded prose short and move the rules that the agent tends to miss into lint rules.}
+Lint rules with an in-session feedback loop help where the agent does not read the prose.
+Teams can keep always-loaded prose short and move the rules that agents miss into lint rules.}
 
 \keywords{AI coding agents, coding conventions, static analysis, lint rules, context files, pre-registration}
 
@@ -99,8 +89,10 @@ Our contributions are:
 
 \paragraph{Context files for coding agents.}
 Claude Code loads \file{CLAUDE.md} from the repository root at session start, and loads \file{CLAUDE.md} files in subdirectories when it reads files there.
-Codex and pi load \file{AGENTS.md}.
-\citet{chatlatanagulchai2025agentreadmes} analyze what developers write in these files.
+Codex and pi load \file{AGENTS.md}, and Cursor reads its own rule files.
+Several studies analyze what developers write in these files.
+\citet{chatlatanagulchai2025manifests} study 253 \file{CLAUDE.md} files and find mostly build commands, implementation details and architecture; \citet{chatlatanagulchai2025agentreadmes} extend this to 2,303 context files of three agents.
+\citet{jiang2026cursorrules} build a taxonomy of the context that developers give in Cursor rules, from 401 repositories.
 \citet{gloaguen2026agentsmd} find that context files do not generally improve task success, and that they raise inference cost by over 20\% on average.
 They also report that agents follow the instructions in these files well, and that the files are useful to state non-standard coding practices.
 \citet{khatri2026contextfiles} finds, in an ablation with Claude Code and Codex, that the context strategy does not measurably change correctness: the agents fail on implementation skill, not on missing repository knowledge.
@@ -109,23 +101,42 @@ The largest effect in that study is within the session: adherence tends to fall 
 All of these studies treat the context file as the only place for instructions.
 We add the lint rule as a second place and compare both places for the same rule.
 
-\paragraph{Long context.}
+\paragraph{Context management.}
 Language models use information in the middle of a long context less reliably than information at its start or end~\cite{liu2024lost}.
+Benchmarks that go beyond retrieval of one fact show that the usable context is often much shorter than the advertised one~\cite{hsieh2024ruler}, and that performance becomes less reliable as the input grows, even on simple tasks~\cite{hong2025contextrot}.
+Instruction following can be measured with instructions that a program can verify~\cite{zhou2023ifeval}, and it degrades as the number of instructions grows: at 500 simultaneous instructions, the best models in one benchmark follow about 68\%~\cite{jaroslawicz2025ifscale}.
+The answers so far manage what enters the context: prompt compression~\cite{jiang2023llmlingua}, memory tiers that page information in and out~\cite{packer2023memgpt}, retrieval of repository code~\cite{zhang2023repocoder}, and agents that load files just in time instead of up front~\cite{anthropic2025context}.
 For instruction files that the agent loads, however, \citet{mcmillan2026adherence} finds no detectable effect of file size or instruction position.
 The rules that we call \emph{buried} face a different risk.
 They are in linked documents, and the agent may never open the document, so the rule never enters the context at all.
-A long session adds a second risk, because adherence can fall as the session goes on~\cite{mcmillan2026adherence}.
-A check that runs after every edit does not depend on how long ago the agent read the rule.
+A lint rule takes a rule out of the context entirely: it costs no tokens while the code is correct, and it enters the context only as a message when the code violates it.
+A check that runs after every edit also does not depend on how long ago the agent read the rule.
 
-\paragraph{Static analysis.}
-Static analysis tools find defects early, but developers often ignore their warnings when the warnings arrive late or include false positives~\cite{johnson2013static,sadowski2018google}.
+\paragraph{Coding conventions and clean code.}
+Coding conventions make code consistent and easier to read~\cite{martin2008cleancode}.
+About a third of code review comments concern conventions, and conventions can be learned from the code of a project~\cite{allamanis2014naturalize}.
+Some conventions are architectural: they say where code belongs, and checking them is architecture conformance checking~\cite{passos2010conformance}.
+Violations of such rules accumulate as architecture erosion, which no single strategy prevents~\cite{desilva2012erosion}.
+Code from language models has many style and maintainability issues even when it is correct~\cite{liu2024refining}, and code models continue the patterns of their context, also faulty ones~\cite{dinh2023buggy}.
+This is the mechanism behind our tasks: the existing code violates the rule, and the agent copies it.
+
+\paragraph{Static analysis and linters.}
+Static analysis tools are common in open source, but far from universal, and their configuration rarely changes once set~\cite{beller2016static}.
+Developers use linters to keep code consistent, to prevent errors and to save discussion time~\cite{tomasdottir2017linters}, and they act on different warnings in different contexts, such as code review or continuous integration~\cite{vassallo2020static}.
+Developers often ignore warnings that arrive late or include false positives~\cite{johnson2013static,sadowski2018google}.
 \citet{sadowski2018google} report that developers act on checks that appear during code review and have a low false-positive rate.
 A lint rule that runs after each agent edit can meet both conditions: the warning arrives within seconds of the change, and a rule written for one project convention can be written to have a low false-positive rate.
 Its message can also state the fix directly.
-Agent scaffolds already use this idea for syntax: SWE-agent runs a linter inside its edit command and rejects an edit that introduces a syntax error~\cite{yang2024sweagent}.
-We study the same mechanism for rules that encode the conventions of one project.
 
-\paragraph{Benchmarks.}
+\paragraph{Feedback for code generation.}
+Language models can improve their output with feedback: from themselves~\cite{madaan2023selfrefine}, from reflections kept in memory~\cite{shinn2023reflexion}, or from running the code~\cite{chen2024selfdebug}.
+Self-repair helps less than it seems once its cost is counted, and the quality of the feedback is the bottleneck~\cite{olausson2024selfrepair}.
+Static analysis gives precise feedback: it can steer decoding toward code that type-checks~\cite{agrawal2023monitors}, and its warnings and fix recommendations let a model resolve code quality issues~\cite{wadhwa2024core,liu2024refining}.
+Agent scaffolds already use this idea for syntax: SWE-agent runs a linter inside its edit command and rejects an edit that introduces a syntax error~\cite{yang2024sweagent}.
+We study the same mechanism for rules that encode the conventions of one project, inside the session of a general-purpose coding agent.
+
+\paragraph{Agents and benchmarks.}
+Coding agents combine a model with tools to edit, run and search code~\cite{yang2024sweagent,wang2025openhands,zhang2024autocoderover}, and simpler fixed pipelines can compete with them~\cite{xia2025agentless}; \citet{hou2024llm4se} survey the wider use of language models in software engineering.
 SWE-bench~\cite{jimenez2024swebench} measures whether an agent resolves real GitHub issues.
 mdarena~\cite{mdarena} compares \file{CLAUDE.md} variants on a repository's merged pull requests, and a token-efficiency benchmark~\cite{peker2026tokeneff} compares Claude Code configurations by cost.
 None of these benchmarks measures rule violations, or the cost of fixing them, across different placements of the same rule.
@@ -300,7 +311,7 @@ We report their results as exploratory, and we draw no confirmatory conclusion f
 
 In the second phase we tested these ideas.
 We wrote six analysis plans, Plans~1 to~6, one for each new study.
-We committed each plan to the public repository before the first run of its study~\cite{nosek2018prereg}.
+We committed each plan to the public repository before the first run of its study~\cite{nosek2018prereg,ernst2023registered}.
 The commit history therefore shows that each plan is older than its data.
 This is what we mean by \emph{pre-registered}: we fixed the arms, outcomes, hypotheses and statistical tests of a study before we saw any of its results.
 Each plan also lists every later deviation with its date.
@@ -318,7 +329,7 @@ For violations we use the exact conditional Cochran--Mantel--Haenszel test~\cite
 With one stratum it is Fisher's exact test.
 For cost we use the geometric mean of the per-stratum ratios of mean cost, with a 95\% stratified bootstrap interval (10{,}000 resamples, fixed seed)~\cite{efron1993bootstrap} and a one-sided bootstrap $p$.
 Within one plan we correct the hypotheses with Holm's method~\cite{holm1979} at a family-wise $\alpha=0.05$.
-For the cost hypothesis of Plan~6 (H13) we test equivalence with two one-sided tests~\cite{schuirmann1987tost}: it holds if the 90\% stratified bootstrap interval of the cost ratio lies inside 0.90 to 1.10.
+For the cost hypothesis of Plan~6 (H13) we test equivalence with two one-sided tests~\cite{schuirmann1987tost,lakens2017equivalence}: it holds if the 90\% stratified bootstrap interval of the cost ratio lies inside 0.90 to 1.10.
 Plan~1 is the exception: it tests its two hypotheses separately, as the plan states.
 Verify pass rates have exact Clopper--Pearson intervals~\cite{clopper1934}.
 A script generates every table and every number in this paper from the published results.
@@ -748,6 +759,8 @@ We used four Claude models in Claude Code and one local model in two other agent
 For the studies before Plan~6 we did not record the exact tool versions at run time, and sessions of one arm ran back to back and shared the prompt cache.
 Plan~6 records the versions and interleaves the arms.
 Updates of a model or an agent can change the results.
+Repeated runs of the same prompt give different code~\cite{ouyang2025nondeterminism}, which is why every cell of our studies has several repeats.
+The Claude models are closed, so we cannot rule out that their training data contains the public projects that we used~\cite{sallou2024threats}; we follow the published guidelines for empirical studies with language models where they apply~\cite{baltes2025guidelines}.
 
 \paragraph{Incomplete plan.}
 Plan~2 stopped at the usage limit of the account, and we report it as not tested.
