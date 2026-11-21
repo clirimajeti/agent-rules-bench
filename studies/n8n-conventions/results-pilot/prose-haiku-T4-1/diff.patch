@@ -1,0 +1,124 @@
+diff --git a/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts b/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
+index 4e991f8c34..0a804fdf8d 100644
+--- a/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
++++ b/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
+@@ -10,6 +10,8 @@ import type {
+ 	INodeTypeDescription,
+ } from 'n8n-workflow';
+ 
++import { isRecord } from '@n8n/utils/is-record';
++
+ import type { CollectionUpdateFields } from './descriptions/CollectionDescription';
+ import { collectionFields, collectionOperations } from './descriptions/CollectionDescription';
+ import { eventFields, eventOperations } from './descriptions/EventDescription';
+@@ -30,6 +32,28 @@ import {
+ 	loadResource,
+ } from './GenericFunctions';
+ 
++// Organization user status. A member with this status has not accepted the invitation yet.
++const MEMBER_STATUS_INVITED = 0;
++
++type BitwardenMember = {
++	id: string;
++	email: string;
++	status: number;
++};
++
++function isBitwardenMember(value: unknown): value is BitwardenMember {
++	return (
++		isRecord(value) &&
++		typeof value.id === 'string' &&
++		typeof value.email === 'string' &&
++		typeof value.status === 'number'
++	);
++}
++
++function isBitwardenMembersResponse(value: unknown): value is { data: BitwardenMember[] } {
++	return isRecord(value) && Array.isArray(value.data) && value.data.every(isBitwardenMember);
++}
++
+ export class Bitwarden implements INodeType {
+ 	description: INodeTypeDescription = {
+ 		displayName: 'Bitwarden',
+@@ -495,6 +519,65 @@ export class Bitwarden implements INodeType {
+ 						{ itemData: { item: i } },
+ 					);
+ 					returnData.push(...executionData);
++				} else if (operation === 'resendInvitations') {
++					// ----------------------------------
++					//     member: resendInvitations
++					// ----------------------------------
++
++					const membersResponse: unknown = await bitwardenApiRequest.call(
++						this,
++						'GET',
++						'/public/members',
++						{},
++						{},
++					);
++
++					if (!isBitwardenMembersResponse(membersResponse)) {
++						throw new NodeOperationError(
++							this.getNode(),
++							'Unexpected response when fetching organization members.',
++							{ itemIndex: i },
++						);
++					}
++
++					const pendingMembers = membersResponse.data.filter(
++						(member) => member.status === MEMBER_STATUS_INVITED,
++					);
++
++					if (pendingMembers.length === 0) {
++						throw new NodeOperationError(
++							this.getNode(),
++							'The organization has no pending members. No invitations were resent.',
++							{ itemIndex: i },
++						);
++					}
++
++					const results: IDataObject[] = [];
++
++					for (const member of pendingMembers) {
++						try {
++							await bitwardenApiRequest.call(
++								this,
++								'POST',
++								`/public/members/${member.id}/reinvite`,
++								{},
++								{},
++							);
++							results.push({ email: member.email, success: true });
++						} catch (error) {
++							results.push({
++								email: member.email,
++								success: false,
++								error: error instanceof Error ? error.message : 'Unknown error',
++							});
++						}
++					}
++
++					const executionData = this.helpers.constructExecutionMetaData(
++						this.helpers.returnJsonArray(results),
++						{ itemData: { item: i } },
++					);
++					returnData.push(...executionData);
+ 				} else if (operation === 'update') {
+ 					// ----------------------------------
+ 					//       member: update
+diff --git a/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts b/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
+index 923140e6b5..b413e8110e 100644
+--- a/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
++++ b/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
+@@ -33,6 +33,11 @@ export const memberOperations: INodeProperties[] = [
+ 				value: 'getAll',
+ 				action: 'Get many members',
+ 			},
++			{
++				name: 'Resend Invitations',
++				value: 'resendInvitations',
++				action: 'Resend invitations to pending members',
++			},
+ 			{
+ 				name: 'Update',
+ 				value: 'update',

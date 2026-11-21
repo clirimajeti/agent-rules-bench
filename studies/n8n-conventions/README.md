@@ -24,6 +24,17 @@ The prompts name only the feature; none contains a word of a rule (checked by gr
 
 T1 and T2 read the root `AGENTS.md`; T3 and T4 also read `packages/nodes-base/AGENTS.md`.
 
+## Pilot (not analysed)
+
+`study.pilot.json`: 1 run per arm, model and task (16 runs) on 2026-11-21, results in `results-pilot/`.
+
+- All 16 sessions ok; none reached the turn cap of 60.
+- Violating after the task: prose 6 of 8 (`no-as-cast` in T3 and T4, `no-manager-in-business-logic` in T1), rules 0 of 8.
+- The loop caught a violation in 5 of 8 `rules` runs (11 catches), and the agent fixed every one (no ignored catches).
+- T2 gave no violation in either arm; it is kept, since 2 runs per arm say little and T1, a similar backend task, gave violations.
+- Cost per run: mean $0.21 (sonnet $0.35, haiku $0.07), max $0.49; the 128 runs come to about $27.
+- The first pilot start failed in prepare: n8n also ships opencode setup, so the loop installer asked which agent to set up. `rules.sh` now installs it for Claude Code only.
+
 ## License
 
 - n8n is under the Sustainable Use License, except files with `.ee` in a file or folder name, which are under the n8n Enterprise License.
