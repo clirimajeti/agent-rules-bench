@@ -10,6 +10,20 @@ Claude Code reads the root `AGENTS.md` in every session (the root `CLAUDE.md` is
 - `prose`: n8n exactly as its maintainers ship it.
 - `rules`: each rule's bullet removed from every instruction file that has it, each rule a lint rule with the codemyrules feedback loop, and a pointer line for each design-shaping rule.
 
+## Tasks
+
+Each task sits next to n8n code that already breaks the rules that apply there ([baseline-findings.md](baseline-findings.md)), and outside every `.ee` area.
+The prompts name only the feature; none contains a word of a rule (checked by grep for rule words such as repository, transaction, error, any, cast, helper).
+
+| Task | Place | Rules that apply | Nearby code that breaks them |
+|---|---|---|---|
+| T1 | `packages/cli/src/modules/chat-hub` | repositories-compose, no-manager-in-business-logic, no-as-cast, shared-helpers | `ChatHubSessionRepository extends BaseRepository`, `messageRepository.manager.transaction` in `chat-hub.service.ts` |
+| T2 | `packages/cli/src/modules/oauth-server` | repositories-compose, no-manager-in-business-logic, no-as-cast, shared-helpers | six repositories that extend `Repository` or `BaseRepository`, `createQueryBuilder` in `oauth-server.service.ts` |
+| T3 | `packages/nodes-base/nodes/KoBoToolbox` | node-errors, no-any-in-nodes, no-as-cast, shared-helpers | `throw new Error` and `any` in `GenericFunctions.ts` |
+| T4 | `packages/nodes-base/nodes/Bitwarden` | node-errors, no-any-in-nodes, no-as-cast, shared-helpers | `Promise<any>` and casts in `GenericFunctions.ts` |
+
+T1 and T2 read the root `AGENTS.md`; T3 and T4 also read `packages/nodes-base/AGENTS.md`.
+
 ## License
 
 - n8n is under the Sustainable Use License, except files with `.ee` in a file or folder name, which are under the n8n Enterprise License.
