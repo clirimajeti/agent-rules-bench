@@ -5,7 +5,6 @@ import { conventions } from './conventions.mjs';
 const named = (node, name) => node?.type === 'Identifier' && node.name === name;
 const decoratorName = (d) => (d.expression.type === 'CallExpression' ? d.expression.callee : d.expression)?.name;
 const REPOSITORY_BASES = new Set(['BaseRepository', 'Repository']);
-const DEBOUNCERS = new Set(['debounce', 'throttle', 'useDebounceFn', 'useThrottleFn']);
 
 // typeof v === 'object', v !== null and !Array.isArray(v), on the same name, in one && chain (any order)
 function isHandRolledRecordCheck(node) {
@@ -36,9 +35,11 @@ const checks = {
     },
   }),
 
-  // `.manager` or a createQueryBuilder(...) call in business logic (the config leaves out the persistence layer)
+  // `.manager` on another object (repo.manager, this.repository.manager) or a createQueryBuilder(...) call in
+  // business logic (the config leaves out the persistence layer); a class's own `this.manager` field is not
+  // TypeORM's manager (license.ts has a LicenseManager there)
   'no-manager-in-business-logic': (report) => ({
-    'MemberExpression[property.name="manager"]': report,
+    'MemberExpression[property.name="manager"]': (node) => { if (node.object.type !== 'ThisExpression') report(node); },
     'CallExpression[callee.property.name="createQueryBuilder"], CallExpression[callee.name="createQueryBuilder"]': report,
   }),
 
@@ -56,21 +57,6 @@ const checks = {
     'FunctionDeclaration[id.name="isRecord"], VariableDeclarator[id.name="isRecord"]': report,
     'LogicalExpression[operator="&&"]': (node) => { if (isHandRolledRecordCheck(node)) report(node); },
   }),
-
-  // a debounce or throttle call whose delay is a number written in the code
-  'central-debounce-times': (report) => ({
-    CallExpression: (node) => {
-      const name = node.callee.type === 'Identifier' ? node.callee.name : node.callee.property?.name;
-      const delay = node.arguments[1];
-      if (DEBOUNCERS.has(name) && delay?.type === 'Literal' && typeof delay.value === 'number') report(delay);
-    },
-  }),
-
-  // an import, re-export or import() from a parent folder; the config limits it to editor-ui
-  'editor-ui-alias-imports': (report) => {
-    const check = (node) => { if (typeof node.source?.value === 'string' && node.source.value.startsWith('../')) report(node); };
-    return { ImportDeclaration: check, ExportNamedDeclaration: check, ExportAllDeclaration: check, ImportExpression: check };
-  },
 
   // throw new Error(...) or throw Error(...): nodes throw NodeOperationError or NodeApiError
   'node-errors': (report) => ({

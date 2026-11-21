@@ -11,20 +11,17 @@ const TX = "- **Transactions:** transaction orchestration belongs in the persist
 const AS_ROOT = "- **Avoid type casting with `as`** - use type guards or type predicates instead (except in test code where `as` is acceptable)";
 const AS_NODES = "- Avoid type casting with `as` - use type guards instead";
 const HELPERS = "- **Shared utilities:** before you hand-roll a utility (`isRecord`, secret or\n  PII redaction, JSON extraction from LLM output, Zod to JSON Schema, model-id\n  parsing, AI client HTTP transport and response-size limiting, …), you MUST\n  check the shared packages for an existing\n  implementation and use it: `@n8n/utils` (generic helpers, redaction),\n  `@n8n/ai-utilities` (AI- and LLM-specific helpers) and `n8n-workflow`\n  (workflow graph and traversal). A new shared helper usually belongs in one of\n  these packages too; domain logic stays in the package that owns the domain.";
-const DEBOUNCE = "- Use centralized debounce times from `@n8n/frontend-constants/durations` instead of hardcoding:";
-const ALIAS = "- In `editor-ui`, import a file from a different folder with the `@/` alias. `@/` is `editor-ui/src/`.\n  Do not add `../` imports in new or changed code. Old code still has them. Do not copy them.";
 const NODE_OP = "- Use `NodeOperationError` for user-facing errors";
 const NODE_API = "- Use `NodeApiError` for API-related errors";
 const ANY_ROOT = "- **NEVER use `any` type** - use proper types or `unknown`";
 const ANY_NODES = "- Never use `any` type - use proper types or `unknown`";
 
-const ROOT = 'AGENTS.md', FRONTEND = 'packages/frontend/AGENTS.md', NODES = 'packages/nodes-base/AGENTS.md';
+const ROOT = 'AGENTS.md', NODES = 'packages/nodes-base/AGENTS.md';
 const prose = (block) => block.replace(/^- /, '').replace(/\n\s*/g, ' ');
 
 // Where n8n's own code lives for each area the tasks touch; tests, stories, mocks and e2e specs are left alone.
 const CLI = ['packages/cli/src/**/*.ts'];
 const EDITOR = ['packages/frontend/editor-ui/src/**/*.{ts,vue}'];
-const FRONTEND_SRC = ['packages/frontend/**/*.{ts,vue}'];
 const NODE_SRC = ['packages/nodes-base/{nodes,credentials,utils}/**/*.ts'];
 export const TESTS = ['**/*.test.ts', '**/*.spec.ts', '**/__tests__/**', '**/__mocks__/**', '**/test/**', '**/tests/**', '**/*.stories.ts', '**/e2e/**', '**/playwright/**'];
 
@@ -44,15 +41,19 @@ export const conventions = [
   },
   {
     id: 'no-manager-in-business-logic', kind: 'design', files: CLI,
-    ignores: ['**/repositories/**', '**/database/**', '**/databases/**', '**/migrations/**', '**/*.repository.ts'],
+    ignores: ['**/repositories/**', '**/database/**', '**/databases/**', '**/persistence/**', '**/migrations/**', '**/*.repository.ts'],
     sources: [{ file: ROOT, block: TX }], prose: prose(TX),
     pointer: 'Transactions belong in the persistence layer: no `.manager` or `createQueryBuilder(...)` in business logic; use the `TransactionRunner` from `@n8n/db` (enforced by lint).',
     valid: [
       { filename: 'packages/cli/src/modules/x/database/repositories/x.repository.ts', code: 'export const a = (r: R) => r.manager.transaction(async () => 1);' },
+      { filename: 'packages/cli/src/modules/data-table/persistence/data-table-ddl.ts', code: 'export const a = (d: D) => d.dataSource.manager;' },
       { filename: 'packages/cli/src/services/x.service.ts', code: 'export const a = (tx: TransactionRunner) => tx.run({}, async (ctx) => ctx);' },
+      // a class's own field called manager (license.ts has a LicenseManager there) is not TypeORM's manager
+      { filename: 'packages/cli/src/license.ts', code: 'export class License { manager?: M; key() { return this.manager?.toString(); } }' },
     ],
     invalid: [
       { filename: 'packages/cli/src/services/x.service.ts', code: 'export const a = (r: R) => r.manager.transaction(async () => 1);' },
+      { filename: 'packages/cli/src/services/x.service.ts', code: 'export class S { f() { return this.repository.manager; } }' },
       { filename: 'packages/cli/src/controllers/x.controller.ts', code: 'export const a = (r: R) => r.createQueryBuilder("x").getMany();' },
     ],
   },
@@ -81,33 +82,6 @@ export const conventions = [
       { filename: 'packages/cli/src/x.ts', code: 'export const isRecord = (v: unknown) => Boolean(v);' },
       { filename: 'packages/cli/src/x.ts', code: 'export function isRecord(v: unknown) { return Boolean(v); }' },
       { filename: 'packages/cli/src/x.ts', code: 'export const a = (v: unknown) => !Array.isArray(v) && v !== null && typeof v === "object";' },
-    ],
-  },
-  {
-    id: 'central-debounce-times', kind: 'mechanical', files: FRONTEND_SRC,
-    sources: [{ file: FRONTEND, block: DEBOUNCE }], prose: prose(DEBOUNCE),
-    valid: [
-      { filename: 'packages/frontend/editor-ui/src/features/x/X.vue', code: "<script setup lang=\"ts\">\nconst f = useDebounceFn(() => 1, getDebounceTime(DEBOUNCE_TIME.INPUT.SEARCH));\n</script>\n<template><div /></template>" },
-      { filename: 'packages/frontend/editor-ui/src/x.ts', code: 'export const f = debounce(g, DEBOUNCE_TIME.UI.RESIZE);' },
-    ],
-    invalid: [
-      { filename: 'packages/frontend/editor-ui/src/features/x/X.vue', code: "<script setup lang=\"ts\">\nconst f = useDebounceFn(() => 1, 300);\n</script>\n<template><div /></template>" },
-      { filename: 'packages/frontend/editor-ui/src/x.ts', code: 'export const f = debounce(g, 500);' },
-      { filename: 'packages/frontend/@n8n/composables/src/x.ts', code: 'export const f = useThrottleFn(g, 100);' },
-    ],
-  },
-  {
-    id: 'editor-ui-alias-imports', kind: 'mechanical', files: EDITOR,
-    sources: [{ file: FRONTEND, block: ALIAS }], prose: prose(ALIAS),
-    valid: [
-      { filename: 'packages/frontend/editor-ui/src/features/x/X.vue', code: "<script setup lang=\"ts\">\nimport a from './a';\nimport b from '@/app/b';\n</script>\n<template><div /></template>" },
-      { filename: 'packages/frontend/editor-ui/src/x.ts', code: "export { a } from './a';" },
-      { filename: 'packages/frontend/@n8n/design-system/src/x.ts', code: "import a from '../a';\nexport { a };" },
-    ],
-    invalid: [
-      { filename: 'packages/frontend/editor-ui/src/features/x/X.vue', code: "<script setup lang=\"ts\">\nimport a from '../shared/a';\n</script>\n<template><div /></template>" },
-      { filename: 'packages/frontend/editor-ui/src/x.ts', code: "export const m = () => import('../a');" },
-      { filename: 'packages/frontend/editor-ui/src/x.ts', code: "export { a } from '../a';" },
     ],
   },
   {
