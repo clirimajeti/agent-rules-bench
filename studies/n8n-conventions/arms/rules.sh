@@ -2,6 +2,7 @@
 # rules: every rule block is removed from every n8n instruction file that states it (each found exactly once,
 # word for word, all its lines), each rule becomes a lint rule with the codemyrules feedback loop, and each
 # design-shaping rule gets a pointer line at the end of the root AGENTS.md (always loaded through CLAUDE.md).
+# n8n also ships opencode setup; the loop is installed for Claude Code only, the one agent this study runs.
 set -euo pipefail
 CODEMYRULES="${CODEMYRULES:-$HOME/dev_private/tools/skills/codemyrules}"
 node --input-type=module -e '
@@ -21,4 +22,4 @@ mkdir -p $D/plugin
 cp "$BENCH_STUDY_DIR/eslint.config.mjs" $D/eslint.config.mjs
 cp "$BENCH_STUDY_DIR/plugin/index.js" "$BENCH_STUDY_DIR/plugin/conventions.mjs" $D/plugin/
 ln -s "$BENCH_STUDY_DIR/node_modules" $D/node_modules # ESLint and the parsers, installed once in the study folder
-node "$CODEMYRULES/skills/codemyrules/scripts/install.mjs" "$BENCH_COPY" --config "$BENCH_STUDY_DIR/arms/loop.json" --apply > /dev/null
+node "$CODEMYRULES/skills/codemyrules/scripts/install.mjs" "$BENCH_COPY" --config "$BENCH_STUDY_DIR/arms/loop.json" --harness claude --apply > /dev/null

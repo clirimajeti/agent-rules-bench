@@ -21,6 +21,9 @@ function copy() {
   for (const f of DOCS) { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.copyFileSync(path.join(SRC, f), path.join(dir, f)); }
   fs.mkdirSync(path.join(dir, path.dirname(VIOLATION)), { recursive: true });
   fs.writeFileSync(path.join(dir, VIOLATION), 'export const a = (b: unknown) => b as string;\n');
+  // n8n also ships setup for opencode (.opencode/skills), so the installer must be told which harness to set up
+  fs.mkdirSync(path.join(dir, '.opencode', 'skills'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.opencode', 'skills', 'README.md'), 'n8n skills\n');
   sh('git', ['init', '-q'], dir);
   sh('git', ['add', '-A'], dir);
   sh('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'base'], dir);
