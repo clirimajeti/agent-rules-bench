@@ -133,3 +133,4 @@ None of these compares where a rule lives, with rule compliance and fix-round co
   If you reuse them, cite the paper.
 - The studied projects keep their own licenses.
   `prepare` clones them from their public repositories, and the diffs in the results contain parts of their code.
+- The n8n diffs in `studies/n8n-conventions/results/` are not under CC BY 4.0: they are modified n8n code under n8n's Sustainable Use License ([studies/n8n-conventions/N8N-LICENSE.md](studies/n8n-conventions/N8N-LICENSE.md)).
