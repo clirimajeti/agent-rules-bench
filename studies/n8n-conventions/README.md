@@ -4,7 +4,7 @@ Plan 7 (draft, not registered).
 Design: [docs/superpowers/specs/2026-11-21-plan-7-n8n-design.md](../../docs/superpowers/specs/2026-11-21-plan-7-n8n-design.md).
 
 n8n's own written rules, in its own instruction files, against the same rules as lint rules with the feedback loop.
-n8n keeps its rules in many instruction files: 30 `AGENTS.md` and 14 `CLAUDE.md`.
+n8n keeps its rules in many instruction files: at the pinned commit (`c08ba2dd3`, 1 Nov 2026), 26 `AGENTS.md` and 11 `CLAUDE.md`.
 Claude Code reads the root `AGENTS.md` in every session (the root `CLAUDE.md` is `@AGENTS.md`), and a folder's `AGENTS.md` when it works in a folder whose `CLAUDE.md` imports it.
 
 - `prose`: n8n exactly as its maintainers ship it.
