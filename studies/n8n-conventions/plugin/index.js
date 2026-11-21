@@ -5,6 +5,7 @@ import { conventions } from './conventions.mjs';
 const named = (node, name) => node?.type === 'Identifier' && node.name === name;
 const decoratorName = (d) => (d.expression.type === 'CallExpression' ? d.expression.callee : d.expression)?.name;
 const REPOSITORY_BASES = new Set(['BaseRepository', 'Repository']);
+const DEBOUNCERS = new Set(['debounce', 'throttle', 'useDebounceFn', 'useThrottleFn']);
 
 // typeof v === 'object', v !== null and !Array.isArray(v), on the same name, in one && chain (any order)
 function isHandRolledRecordCheck(node) {
@@ -56,11 +57,31 @@ const checks = {
     'LogicalExpression[operator="&&"]': (node) => { if (isHandRolledRecordCheck(node)) report(node); },
   }),
 
-  // Task 4
-  'central-debounce-times': () => ({}),
-  'editor-ui-alias-imports': () => ({}),
-  'node-errors': () => ({}),
-  'no-any-in-nodes': () => ({}),
+  // a debounce or throttle call whose delay is a number written in the code
+  'central-debounce-times': (report) => ({
+    CallExpression: (node) => {
+      const name = node.callee.type === 'Identifier' ? node.callee.name : node.callee.property?.name;
+      const delay = node.arguments[1];
+      if (DEBOUNCERS.has(name) && delay?.type === 'Literal' && typeof delay.value === 'number') report(delay);
+    },
+  }),
+
+  // an import, re-export or import() from a parent folder; the config limits it to editor-ui
+  'editor-ui-alias-imports': (report) => {
+    const check = (node) => { if (typeof node.source?.value === 'string' && node.source.value.startsWith('../')) report(node); };
+    return { ImportDeclaration: check, ExportNamedDeclaration: check, ExportAllDeclaration: check, ImportExpression: check };
+  },
+
+  // throw new Error(...) or throw Error(...): nodes throw NodeOperationError or NodeApiError
+  'node-errors': (report) => ({
+    ThrowStatement: (node) => {
+      const e = node.argument;
+      if ((e?.type === 'NewExpression' || e?.type === 'CallExpression') && named(e.callee, 'Error')) report(node);
+    },
+  }),
+
+  // the type `any`; the config limits it to nodes-base, where n8n turns its own any rule off
+  'no-any-in-nodes': (report) => ({ TSAnyKeyword: report }),
 };
 
 export default {

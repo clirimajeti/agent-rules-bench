@@ -28,9 +28,6 @@ const FRONTEND_SRC = ['packages/frontend/**/*.{ts,vue}'];
 const NODE_SRC = ['packages/nodes-base/{nodes,credentials,utils}/**/*.ts'];
 export const TESTS = ['**/*.test.ts', '**/*.spec.ts', '**/__tests__/**', '**/__mocks__/**', '**/test/**', '**/tests/**', '**/*.stories.ts', '**/e2e/**', '**/playwright/**'];
 
-// one placeholder example each; the checker tasks replace them
-const todo = (file) => ({ valid: [{ filename: file, code: 'export const ok = 1;' }], invalid: [{ filename: file, code: 'export const todo = 1;' }] });
-
 export const conventions = [
   {
     id: 'repositories-compose', kind: 'design', files: ['packages/**/*.ts'],
@@ -89,22 +86,54 @@ export const conventions = [
   {
     id: 'central-debounce-times', kind: 'mechanical', files: FRONTEND_SRC,
     sources: [{ file: FRONTEND, block: DEBOUNCE }], prose: prose(DEBOUNCE),
-    ...todo('packages/frontend/editor-ui/src/x.ts'),
+    valid: [
+      { filename: 'packages/frontend/editor-ui/src/features/x/X.vue', code: "<script setup lang=\"ts\">\nconst f = useDebounceFn(() => 1, getDebounceTime(DEBOUNCE_TIME.INPUT.SEARCH));\n</script>\n<template><div /></template>" },
+      { filename: 'packages/frontend/editor-ui/src/x.ts', code: 'export const f = debounce(g, DEBOUNCE_TIME.UI.RESIZE);' },
+    ],
+    invalid: [
+      { filename: 'packages/frontend/editor-ui/src/features/x/X.vue', code: "<script setup lang=\"ts\">\nconst f = useDebounceFn(() => 1, 300);\n</script>\n<template><div /></template>" },
+      { filename: 'packages/frontend/editor-ui/src/x.ts', code: 'export const f = debounce(g, 500);' },
+      { filename: 'packages/frontend/@n8n/composables/src/x.ts', code: 'export const f = useThrottleFn(g, 100);' },
+    ],
   },
   {
     id: 'editor-ui-alias-imports', kind: 'mechanical', files: EDITOR,
     sources: [{ file: FRONTEND, block: ALIAS }], prose: prose(ALIAS),
-    ...todo('packages/frontend/editor-ui/src/x.ts'),
+    valid: [
+      { filename: 'packages/frontend/editor-ui/src/features/x/X.vue', code: "<script setup lang=\"ts\">\nimport a from './a';\nimport b from '@/app/b';\n</script>\n<template><div /></template>" },
+      { filename: 'packages/frontend/editor-ui/src/x.ts', code: "export { a } from './a';" },
+      { filename: 'packages/frontend/@n8n/design-system/src/x.ts', code: "import a from '../a';\nexport { a };" },
+    ],
+    invalid: [
+      { filename: 'packages/frontend/editor-ui/src/features/x/X.vue', code: "<script setup lang=\"ts\">\nimport a from '../shared/a';\n</script>\n<template><div /></template>" },
+      { filename: 'packages/frontend/editor-ui/src/x.ts', code: "export const m = () => import('../a');" },
+      { filename: 'packages/frontend/editor-ui/src/x.ts', code: "export { a } from '../a';" },
+    ],
   },
   {
     id: 'node-errors', kind: 'mechanical', files: NODE_SRC,
     sources: [{ file: NODES, block: NODE_OP }, { file: NODES, block: NODE_API }], prose: `${prose(NODE_OP)}. ${prose(NODE_API)}.`,
-    ...todo('packages/nodes-base/nodes/X/X.node.ts'),
+    valid: [
+      { filename: 'packages/nodes-base/nodes/X/X.node.ts', code: "export const f = (n: N) => { throw new NodeOperationError(n, 'x'); };" },
+      { filename: 'packages/nodes-base/nodes/X/X.node.ts', code: "export const f = (n: N, e: E) => { throw new NodeApiError(n, e); };" },
+    ],
+    invalid: [
+      { filename: 'packages/nodes-base/nodes/X/X.node.ts', code: "export const f = () => { throw new Error('x'); };" },
+      { filename: 'packages/nodes-base/nodes/X/GenericFunctions.ts', code: "export const f = () => { throw Error('x'); };" },
+    ],
   },
   {
     id: 'no-any-in-nodes', kind: 'mechanical', files: NODE_SRC,
     sources: [{ file: NODES, block: ANY_NODES }, { file: ROOT, block: ANY_ROOT }], prose: prose(ANY_NODES),
-    ...todo('packages/nodes-base/nodes/X/X.node.ts'),
+    valid: [
+      { filename: 'packages/cli/src/x.ts', code: 'export const a: any = 1;' },
+      { filename: 'packages/nodes-base/nodes/X/X.node.ts', code: 'export const a: unknown = 1;' },
+      { filename: 'packages/nodes-base/nodes/X/test/X.node.test.ts', code: 'export const a: any = 1;' },
+    ],
+    invalid: [
+      { filename: 'packages/nodes-base/nodes/X/X.node.ts', code: 'export const a: any = 1;' },
+      { filename: 'packages/nodes-base/nodes/X/GenericFunctions.ts', code: 'export const f = (x: Record<string, any>) => x;' },
+    ],
   },
 ];
 
