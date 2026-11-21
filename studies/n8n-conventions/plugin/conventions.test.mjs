@@ -36,3 +36,25 @@ test('every source block is in the pinned n8n instruction files, once', { skip: 
     }
   }
 });
+
+// --- each rule through the study's ESLint config (Tasks 3 and 4)
+const { ESLint } = await import('eslint');
+const eslint = new ESLint({ cwd: studyDir, overrideConfigFile: path.join(studyDir, 'eslint.config.mjs') });
+const lint = async (filename, code) => {
+  const [r] = await eslint.lintText(code, { filePath: path.join(studyDir, filename) });
+  assert.equal(r.messages.filter((m) => m.fatal).length, 0, `parse error in ${filename}: ${r.messages.map((m) => m.message).join('; ')}`);
+  return r.messages;
+};
+
+for (const c of conventions) {
+  test(c.id, async () => {
+    for (const v of c.valid) assert.ok(!(await lint(v.filename, v.code)).some((m) => m.ruleId === `local/${c.id}`), `valid example flagged: ${v.code}`);
+    for (const v of c.invalid) {
+      const hits = (await lint(v.filename, v.code)).filter((m) => m.ruleId === `local/${c.id}`);
+      assert.ok(hits.length, `invalid example not flagged: ${v.code}`);
+      // the checkers count only added lines, so the finding must be on the line that breaks the rule
+      if (v.line) assert.ok(hits.some((m) => m.line === v.line), `not flagged on line ${v.line}: ${v.code}`);
+      assert.equal(hits[0].message, c.prose);
+    }
+  });
+}

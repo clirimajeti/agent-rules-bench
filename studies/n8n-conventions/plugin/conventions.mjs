@@ -36,24 +36,55 @@ export const conventions = [
     id: 'repositories-compose', kind: 'design', files: ['packages/**/*.ts'],
     sources: [{ file: ROOT, block: REPOS }], prose: prose(REPOS),
     pointer: 'Repositories compose, they don\'t extend: a repository is a plain `@Service()` class that holds a file-private `BaseRepository` subclass as its table (enforced by lint).',
-    ...todo('packages/cli/src/x.ts'),
+    valid: [
+      { filename: 'packages/cli/src/modules/x/database/repositories/x.repository.ts', code: 'class XTable extends BaseRepository<X> {}\n@Service()\nexport class XRepository {\n  constructor(private readonly table: XTable) {}\n}' },
+      { filename: 'packages/cli/src/x.ts', code: 'export class XService extends BaseService {}' },
+    ],
+    invalid: [
+      { filename: 'packages/@n8n/db/src/repositories/x.repository.ts', code: 'export class XRepository extends Repository<X> {}', line: 1 },
+      { filename: 'packages/cli/src/modules/x/database/repositories/x.repository.ts', code: 'import { Service } from "@n8n/di";\n@Service()\nclass XRepository extends BaseRepository<X> {}', line: 2 },
+    ],
   },
   {
     id: 'no-manager-in-business-logic', kind: 'design', files: CLI,
     ignores: ['**/repositories/**', '**/database/**', '**/databases/**', '**/migrations/**', '**/*.repository.ts'],
     sources: [{ file: ROOT, block: TX }], prose: prose(TX),
     pointer: 'Transactions belong in the persistence layer: no `.manager` or `createQueryBuilder(...)` in business logic; use the `TransactionRunner` from `@n8n/db` (enforced by lint).',
-    ...todo('packages/cli/src/x.ts'),
+    valid: [
+      { filename: 'packages/cli/src/modules/x/database/repositories/x.repository.ts', code: 'export const a = (r: R) => r.manager.transaction(async () => 1);' },
+      { filename: 'packages/cli/src/services/x.service.ts', code: 'export const a = (tx: TransactionRunner) => tx.run({}, async (ctx) => ctx);' },
+    ],
+    invalid: [
+      { filename: 'packages/cli/src/services/x.service.ts', code: 'export const a = (r: R) => r.manager.transaction(async () => 1);' },
+      { filename: 'packages/cli/src/controllers/x.controller.ts', code: 'export const a = (r: R) => r.createQueryBuilder("x").getMany();' },
+    ],
   },
   {
     id: 'no-as-cast', kind: 'mechanical', files: [...CLI, ...EDITOR, ...NODE_SRC],
     sources: [{ file: ROOT, block: AS_ROOT }, { file: NODES, block: AS_NODES }], prose: prose(AS_ROOT),
-    ...todo('packages/cli/src/x.ts'),
+    valid: [
+      { filename: 'packages/cli/src/x.ts', code: 'export const a = [1, 2] as const;' },
+      { filename: 'packages/cli/src/x.test.ts', code: 'export const a = b as string;' },
+      { filename: 'packages/cli/src/__tests__/x.ts', code: 'export const a = b as string;' },
+    ],
+    invalid: [
+      { filename: 'packages/cli/src/x.ts', code: 'export const a = b as string;' },
+      { filename: 'packages/nodes-base/nodes/X/X.node.ts', code: 'export const a = JSON.parse(s) as { id: string };' },
+    ],
   },
   {
     id: 'shared-helpers', kind: 'mechanical', files: [...CLI, ...EDITOR, ...NODE_SRC], ignores: ['packages/@n8n/utils/**'],
     sources: [{ file: ROOT, block: HELPERS }], prose: prose(HELPERS),
-    ...todo('packages/cli/src/x.ts'),
+    valid: [
+      { filename: 'packages/@n8n/utils/src/is-record.ts', code: 'export const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);' },
+      { filename: 'packages/cli/src/x.ts', code: 'import { isRecord } from "@n8n/utils";\nexport const a = (v: unknown) => isRecord(v);' },
+      { filename: 'packages/cli/src/x.ts', code: 'export const a = (v: unknown) => typeof v === "object" && v !== null;' },
+    ],
+    invalid: [
+      { filename: 'packages/cli/src/x.ts', code: 'export const isRecord = (v: unknown) => Boolean(v);' },
+      { filename: 'packages/cli/src/x.ts', code: 'export function isRecord(v: unknown) { return Boolean(v); }' },
+      { filename: 'packages/cli/src/x.ts', code: 'export const a = (v: unknown) => !Array.isArray(v) && v !== null && typeof v === "object";' },
+    ],
   },
   {
     id: 'central-debounce-times', kind: 'mechanical', files: FRONTEND_SRC,
