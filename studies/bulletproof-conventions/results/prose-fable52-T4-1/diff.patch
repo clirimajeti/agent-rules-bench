@@ -1,0 +1,244 @@
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..edf62b7 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,13 +1,47 @@
++import { Download } from 'lucide-react';
++import * as React from 'react';
++
++import { Button } from '@/components/ui/button';
++import { Input, Select } from '@/components/ui/form';
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
++import { hasRole, ROLES } from '@/lib/authorization';
++import { User } from '@/types/api';
++import { CsvColumn, downloadCsv, toCsv } from '@/utils/csv';
+ import { formatDate } from '@/utils/format';
+ 
+ import { useUsers } from '../api/get-users';
+ 
+ import { DeleteUser } from './delete-user';
+ 
++const ALL_ROLES = 'ALL';
++
++const roleOptions = [
++  { label: 'All roles', value: ALL_ROLES, allowedRoles: [] },
++  { label: 'Admin', value: ROLES.ADMIN, allowedRoles: [ROLES.ADMIN] },
++  { label: 'User', value: ROLES.USER, allowedRoles: [ROLES.USER] },
++];
++
++const csvColumns: CsvColumn<User>[] = [
++  { header: 'Name', value: (user) => `${user.firstName} ${user.lastName}` },
++  { header: 'Email', value: (user) => user.email },
++  { header: 'Role', value: (user) => user.role },
++  { header: 'Joined', value: (user) => formatDate(user.createdAt) },
++];
++
++const matchesSearch = (user: User, search: string) => {
++  const term = search.trim().toLowerCase();
++  if (!term) return true;
++
++  return [`${user.firstName} ${user.lastName}`, user.email].some((value) =>
++    value.toLowerCase().includes(term),
++  );
++};
++
+ export const UsersList = () => {
+   const usersQuery = useUsers();
++  const [search, setSearch] = React.useState('');
++  const [role, setRole] = React.useState<string>(ALL_ROLES);
+ 
+   if (usersQuery.isLoading) {
+     return (
+@@ -21,41 +55,86 @@ export const UsersList = () => {
+ 
+   if (!users) return null;
+ 
++  const allowedRoles =
++    roleOptions.find((option) => option.value === role)?.allowedRoles ?? [];
++
++  const shownUsers = users.filter(
++    (user) => hasRole(user, allowedRoles) && matchesSearch(user, search),
++  );
++
+   return (
+-    <Table
+-      data={users}
+-      columns={[
+-        {
+-          title: 'First Name',
+-          field: 'firstName',
+-        },
+-        {
+-          title: 'Last Name',
+-          field: 'lastName',
+-        },
+-        {
+-          title: 'Email',
+-          field: 'email',
+-        },
+-        {
+-          title: 'Role',
+-          field: 'role',
+-        },
+-        {
+-          title: 'Created At',
+-          field: 'createdAt',
+-          Cell({ entry: { createdAt } }) {
+-            return <span>{formatDate(createdAt)}</span>;
++    <div className="space-y-4">
++      <div className="flex flex-wrap items-end gap-4">
++        <div className="w-full sm:w-72">
++          <Input
++            type="search"
++            label="Search"
++            placeholder="Search by name or email"
++            value={search}
++            onChange={(event) => setSearch(event.target.value)}
++            registration={{}}
++          />
++        </div>
++        <div className="w-full sm:w-48">
++          <Select
++            label="Role"
++            options={roleOptions}
++            defaultValue={ALL_ROLES}
++            registration={{
++              name: 'role',
++              onChange: async (event: { target: { value: string } }) => {
++                setRole(event.target.value);
++              },
++            }}
++          />
++        </div>
++        <Button
++          className="sm:ml-auto"
++          variant="outline"
++          icon={<Download className="size-4" />}
++          disabled={!shownUsers.length}
++          onClick={() =>
++            downloadCsv('users.csv', toCsv(shownUsers, csvColumns))
++          }
++        >
++          Export CSV
++        </Button>
++      </div>
++      <Table
++        data={shownUsers}
++        columns={[
++          {
++            title: 'First Name',
++            field: 'firstName',
++          },
++          {
++            title: 'Last Name',
++            field: 'lastName',
++          },
++          {
++            title: 'Email',
++            field: 'email',
++          },
++          {
++            title: 'Role',
++            field: 'role',
++          },
++          {
++            title: 'Created At',
++            field: 'createdAt',
++            Cell({ entry: { createdAt } }) {
++              return <span>{formatDate(createdAt)}</span>;
++            },
+           },
+-        },
+-        {
+-          title: '',
+-          field: 'id',
+-          Cell({ entry: { id } }) {
+-            return <DeleteUser id={id} />;
++          {
++            title: '',
++            field: 'id',
++            Cell({ entry: { id } }) {
++              return <DeleteUser id={id} />;
++            },
+           },
+-        },
+-      ]}
+-    />
++        ]}
++      />
++    </div>
+   );
+ };
+diff --git a/apps/react-vite/src/lib/authorization.tsx b/apps/react-vite/src/lib/authorization.tsx
+index 563fca3..4cab39d 100644
+--- a/apps/react-vite/src/lib/authorization.tsx
++++ b/apps/react-vite/src/lib/authorization.tsx
+@@ -25,6 +25,14 @@ export const POLICIES = {
+   },
+ };
+ 
++export const hasRole = (user: User, allowedRoles: RoleTypes[]) => {
++  if (allowedRoles.length > 0) {
++    return allowedRoles.includes(user.role);
++  }
++
++  return true;
++};
++
+ export const useAuthorization = () => {
+   const user = useUser();
+ 
+@@ -34,8 +42,8 @@ export const useAuthorization = () => {
+ 
+   const checkAccess = React.useCallback(
+     ({ allowedRoles }: { allowedRoles: RoleTypes[] }) => {
+-      if (allowedRoles && allowedRoles.length > 0 && user.data) {
+-        return allowedRoles?.includes(user.data.role);
++      if (allowedRoles && user.data) {
++        return hasRole(user.data, allowedRoles);
+       }
+ 
+       return true;
+diff --git a/apps/react-vite/src/utils/csv.ts b/apps/react-vite/src/utils/csv.ts
+new file mode 100644
+index 0000000..9196a40
+--- /dev/null
++++ b/apps/react-vite/src/utils/csv.ts
+@@ -0,0 +1,36 @@
++export type CsvColumn<Row> = {
++  header: string;
++  value: (row: Row) => string;
++};
++
++// Spreadsheet apps run cells that start with these characters as formulas.
++const FORMULA_PREFIX = /^[=+\-@\t\r]/;
++
++const escapeCsvCell = (cell: string) => {
++  const safeCell = FORMULA_PREFIX.test(cell) ? `'${cell}` : cell;
++  return `"${safeCell.replace(/"/g, '""')}"`;
++};
++
++export const toCsv = <Row>(rows: Row[], columns: CsvColumn<Row>[]) => {
++  const lines = [
++    columns.map((column) => column.header),
++    ...rows.map((row) => columns.map((column) => column.value(row))),
++  ];
++
++  return lines.map((line) => line.map(escapeCsvCell).join(',')).join('\r\n');
++};
++
++export const downloadCsv = (filename: string, csv: string) => {
++  // The byte order mark makes Excel read the file as UTF-8.
++  const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' });
++  const url = URL.createObjectURL(blob);
++
++  const link = document.createElement('a');
++  link.href = url;
++  link.download = filename;
++  document.body.appendChild(link);
++  link.click();
++  link.remove();
++
++  URL.revokeObjectURL(url);
++};

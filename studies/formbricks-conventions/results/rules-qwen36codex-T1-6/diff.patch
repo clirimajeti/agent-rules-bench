@@ -1,0 +1,579 @@
+diff --git a/apps/web/app/api/v3/api-keys/[apiKeyId]/rotate/route.ts b/apps/web/app/api/v3/api-keys/[apiKeyId]/rotate/route.ts
+new file mode 100644
+index 000000000..f06b052be
+--- /dev/null
++++ b/apps/web/app/api/v3/api-keys/[apiKeyId]/rotate/route.ts
+@@ -0,0 +1,40 @@
++/**
++ * POST /api/v3/api-keys/{apiKeyId}/rotate — rotate an API key.
++ *
++ * Generates a new secret, updates the stored hashes, and returns the new plaintext key
++ * (which the caller must show once). Thin adapter over the service layer.
++ */
++import { ZId } from "@formbricks/types/common";
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { getOrganizationIdFromApiKeyId } from "@/lib/utils/helper";
++import { assertCan } from "@/lib/authorization";
++import { rotateApiKey } from "@/modules/organization/settings/api-keys/lib/api-key";
++import { TApiKeyWithEnvironmentPermission } from "@/modules/organization/settings/api-keys/types/api-keys";
++import { successResponse } from "@/app/api/v3/lib/response";
++
++export const POST = withV3ApiWrapper({
++  auth: "both",
++  action: "updated",
++  targetType: "apiKey",
++  schemas: { params: ZId },
++  handler: async ({ parsedInput, authentication, auditLog, requestId }) => {
++    const apiKeyId = parsedInput.params.id;
++
++    const organizationId = await getOrganizationIdFromApiKeyId(apiKeyId);
++    await assertCan({ type: "user", id: authentication.userId! }, "apiKey.manage", {
++      type: "apiKey",
++      id: apiKeyId,
++    });
++
++    const result = await rotateApiKey(apiKeyId, authentication.userId!);
++
++    // Carry the organization into the audit log so the event is attributable to the org.
++    auditLog.organizationId = organizationId;
++    auditLog.objectId = apiKeyId;
++    auditLog.newObject = { id: result.id };
++
++    return successResponse(result as TApiKeyWithEnvironmentPermission & { actualKey: string }, {
++      requestId,
++    });
++  },
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..929f6cc49 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3187,7 +3187,14 @@
+         "api_keys_description": "Manage API keys to access Formbricks management APIs",
+         "connect_app_banner_description": "Setting up Formbricks on your web or mobile app does not need an API key.",
+         "connect_app_banner_link": "Go to Web & Mobile SDK",
+-        "connect_app_banner_title": "Setting up a Website & App survey?"
++        "connect_app_banner_title": "Setting up a Website & App survey?",
++        "last_used": "Last Used",
++        "never_used": "Never used",
++        "rotate_key": "Rotate",
++        "rotate_key_confirmation": "Are you sure you want to rotate this API key? The old key will stop working immediately.",
++        "rotate_key_success": "API key rotated successfully",
++        "rotate_key_error": "Unable to rotate API key",
++        "new_api_key": "New API Key"
+       },
+       "billing": {
+         "billing_currency_conflict": "This plan change conflicts with billing in another currency on your account. Please contact support to switch plans.",
+diff --git a/apps/web/modules/organization/settings/api-keys/actions.ts b/apps/web/modules/organization/settings/api-keys/actions.ts
+index cdfd2f326..6b07827f9 100644
+--- a/apps/web/modules/organization/settings/api-keys/actions.ts
++++ b/apps/web/modules/organization/settings/api-keys/actions.ts
+@@ -7,11 +7,7 @@ import { capturePostHogEvent } from "@/lib/posthog";
+ import { authenticatedActionClient } from "@/lib/utils/action-client";
+ import { getOrganizationIdFromApiKeyId } from "@/lib/utils/helper";
+ import { withAuditLogging } from "@/modules/ee/audit-logs/lib/handler";
+-import {
+-  createApiKey,
+-  deleteApiKey,
+-  updateApiKey,
+-} from "@/modules/organization/settings/api-keys/lib/api-key";
++import { createApiKey, deleteApiKey, updateApiKey } from "@/modules/organization/settings/api-keys/lib/api-key";
+ import { assertCanGrantOrganizationAccess } from "@/modules/organization/settings/api-keys/lib/organization-access";
+ import { ZApiKeyCreateInput, ZApiKeyUpdateInput } from "./types/api-keys";
+ 
+diff --git a/apps/web/modules/organization/settings/api-keys/components/api-key-list.tsx b/apps/web/modules/organization/settings/api-keys/components/api-key-list.tsx
+index 29b6a8b03..6b8a4a474 100644
+--- a/apps/web/modules/organization/settings/api-keys/components/api-key-list.tsx
++++ b/apps/web/modules/organization/settings/api-keys/components/api-key-list.tsx
+@@ -1,3 +1,6 @@
++"use client";
++
++import { useQuery } from "@tanstack/react-query";
+ import { TUserLocale } from "@formbricks/types/user";
+ import { getApiKeysWithEnvironmentPermissions } from "@/modules/organization/settings/api-keys/lib/api-key";
+ import { TOrganizationWorkspace } from "@/modules/organization/settings/api-keys/types/api-keys";
+@@ -11,23 +14,28 @@ interface ApiKeyListProps {
+   canGrantOrganizationWriteAccess: boolean;
+ }
+ 
+-export const ApiKeyList = async ({
++export const ApiKeyList = ({
+   organizationId,
+   locale,
+   workspaces,
+   isFormbricksCloud,
+   canGrantOrganizationWriteAccess,
+ }: Readonly<ApiKeyListProps>) => {
+-  const apiKeys = await getApiKeysWithEnvironmentPermissions(organizationId);
++  const { data: apiKeys, isLoading } = useQuery({
++    queryKey: ["apiKeys", organizationId],
++    queryFn: () => getApiKeysWithEnvironmentPermissions(organizationId),
++    staleTime: 1000 * 60 * 5, // 5 minutes
++  });
+ 
+   return (
+     <EditAPIKeys
+       organizationId={organizationId}
+-      apiKeys={apiKeys}
++      apiKeys={apiKeys ?? []}
+       locale={locale}
+       workspaces={workspaces}
+       isFormbricksCloud={isFormbricksCloud}
+       canGrantOrganizationWriteAccess={canGrantOrganizationWriteAccess}
++      isLoading={isLoading}
+     />
+   );
+ };
+diff --git a/apps/web/modules/organization/settings/api-keys/components/edit-api-keys.tsx b/apps/web/modules/organization/settings/api-keys/components/edit-api-keys.tsx
+index 8a51dd267..b82d896ab 100644
+--- a/apps/web/modules/organization/settings/api-keys/components/edit-api-keys.tsx
++++ b/apps/web/modules/organization/settings/api-keys/components/edit-api-keys.tsx
+@@ -1,7 +1,7 @@
+ "use client";
+ 
+ import type { TFunction } from "i18next";
+-import { FilesIcon, TrashIcon } from "lucide-react";
++import { FilesIcon, RotateCwIcon, TrashIcon } from "lucide-react";
+ import { useState } from "react";
+ import toast from "react-hot-toast";
+ import { useTranslation } from "react-i18next";
+@@ -11,6 +11,7 @@ import { TUserLocale } from "@formbricks/types/user";
+ import { timeSince } from "@/lib/time";
+ import { getFormattedErrorMessage } from "@/lib/utils/error-message";
+ import { ViewPermissionModal } from "@/modules/organization/settings/api-keys/components/view-permission-modal";
++import { useRotateApiKey } from "@/modules/organization/settings/api-keys/hooks/use-rotate-api-key";
+ import {
+   TApiKeyUpdateInput,
+   TApiKeyWithEnvironmentPermission,
+@@ -74,23 +75,37 @@ export const getApiKeyColumns = ({
+   t,
+   locale,
+   onDelete,
++  onRotate,
+ }: Readonly<{
+   t: TFunction;
+   locale: TUserLocale;
+   onDelete: (event: React.MouseEvent, apiKey: TApiKeyRow) => void;
++  onRotate: (apiKey: TApiKeyRow) => void;
+ }>): TSettingsTableColumn<TApiKeyRow>[] => [
+   {
+     id: "label",
+     header: t("common.label"),
+-    headerClassName: "w-[25%]",
++    headerClassName: "w-[22%]",
+     cellClassName: "font-semibold",
+     skeletonWidth: "w-32",
+     cell: (apiKey) => apiKey.label,
+   },
++  {
++    id: "lastUsedAt",
++    header: t("workspace.settings.api_keys.last_used"),
++    headerClassName: "w-[18%]",
++    skeletonWidth: "w-20",
++    cell: (apiKey) => {
++      if (!apiKey.lastUsedAt) {
++        return <span className="text-slate-500">{t("workspace.settings.api_keys.never_used")}</span>;
++      }
++      return timeSince(apiKey.lastUsedAt.toString(), locale);
++    },
++  },
+   {
+     id: "apiKey",
+     header: t("workspace.api_keys.api_key"),
+-    headerClassName: "w-[45%]",
++    headerClassName: "w-[30%]",
+     // Replaces `hidden sm:block`, which would have restored a `<td>` to `display: block` and dropped it
+     // out of the table's column layout. `hideBelow` uses `table-cell` for exactly that reason.
+     hideBelow: "sm",
+@@ -100,7 +115,7 @@ export const getApiKeyColumns = ({
+   {
+     id: "createdAt",
+     header: t("common.created_at"),
+-    headerClassName: "w-[20%]",
++    headerClassName: "w-[15%]",
+     skeletonWidth: "w-20",
+     cell: (apiKey) => timeSince(apiKey.createdAt.toString(), locale),
+   },
+@@ -108,7 +123,7 @@ export const getApiKeyColumns = ({
+     id: "actions",
+     header: null,
+     srLabel: t("common.actions"),
+-    headerClassName: "w-[10%]",
++    headerClassName: "w-[15%]",
+     stopRowClick: true,
+     skeletonWidth: "w-8",
+     // The flex goes on a wrapper inside the cell, never on `cellClassName`: that class lands on the `<td>`
+@@ -117,7 +132,19 @@ export const getApiKeyColumns = ({
+     // browser wrap the cell in an anonymous table-cell that defaults to baseline alignment. The button
+     // would sit high in the row instead of centred. Same reasoning as `hideBelow` above.
+     cell: (apiKey) => (
+-      <div className="flex justify-end">
++      <div className="flex justify-end gap-1">
++        <Button
++          size="sm"
++          variant="outline"
++          aria-label={t("workspace.settings.api_keys.rotate_key")}
++          onClick={(event) => {
++            event.stopPropagation();
++            onRotate(apiKey);
++          }}
++          data-testid="rotate-key-button">
++          <RotateCwIcon className="size-3.5" />
++          <span className="sr-only sm:not-sr-only sm:inline">{t("workspace.settings.api_keys.rotate_key")}</span>
++        </Button>
+         <Button
+           size="icon"
+           variant="ghost"
+@@ -130,15 +157,6 @@ export const getApiKeyColumns = ({
+   },
+ ];
+ 
+-interface EditAPIKeysProps {
+-  organizationId: string;
+-  apiKeys: TApiKeyWithEnvironmentPermission[];
+-  locale: TUserLocale;
+-  workspaces: TOrganizationWorkspace[];
+-  isFormbricksCloud: boolean;
+-  canGrantOrganizationWriteAccess: boolean;
+-}
+-
+ export const EditAPIKeys = ({
+   organizationId,
+   apiKeys,
+@@ -146,14 +164,27 @@ export const EditAPIKeys = ({
+   workspaces,
+   isFormbricksCloud,
+   canGrantOrganizationWriteAccess,
+-}: Readonly<EditAPIKeysProps>) => {
++  isLoading: propIsLoading,
++}: Readonly<{
++  organizationId: string;
++  apiKeys: TApiKeyWithEnvironmentPermission[];
++  locale: TUserLocale;
++  workspaces: TOrganizationWorkspace[];
++  isFormbricksCloud: boolean;
++  canGrantOrganizationWriteAccess: boolean;
++  isLoading?: boolean;
++}>) => {
+   const { t } = useTranslation();
++  const rotateMutation = useRotateApiKey(organizationId);
++
+   const [isAddAPIKeyModalOpen, setIsAddAPIKeyModalOpen] = useState(false);
+-  const [isDeleteKeyModalOpen, setIsDeleteKeyModalOpen] = useState(false);
+-  const [apiKeysLocal, setApiKeysLocal] = useState<TApiKeyRow[]>(apiKeys);
+   const [activeKey, setActiveKey] = useState<TApiKeyWithEnvironmentPermission | null>(null);
+   const [isLoading, setIsLoading] = useState(false);
+   const [viewPermissionsOpen, setViewPermissionsOpen] = useState(false);
++  const [isDeleteKeyModalOpen, setIsDeleteKeyModalOpen] = useState(false);
++  const [rotateKey, setRotateKey] = useState<TApiKeyRow | null>(null);
++
++  const isMutating = isLoading || rotateMutation.isPending || propIsLoading;
+ 
+   const handleOpenDeleteKeyModal = (e: React.MouseEvent, apiKey: TApiKeyWithEnvironmentPermission) => {
+     e.preventDefault();
+@@ -166,8 +197,6 @@ export const EditAPIKeys = ({
+     setIsLoading(true);
+     const deleteApiKeyResponse = await deleteApiKeyAction({ id: activeKey.id });
+     if (deleteApiKeyResponse?.data) {
+-      const updatedApiKeys = apiKeysLocal?.filter((apiKey) => apiKey.id !== activeKey.id) || [];
+-      setApiKeysLocal(updatedApiKeys);
+       toast.success(t("workspace.api_keys.api_key_deleted"));
+       setIsDeleteKeyModalOpen(false);
+       setIsLoading(false);
+@@ -178,6 +207,23 @@ export const EditAPIKeys = ({
+     }
+   };
+ 
++  const handleRotateKey = async () => {
++    if (!rotateKey) return;
++    void rotateMutation.mutate(
++      { apiKeyId: rotateKey.id },
++      {
++        onSuccess: (result) => {
++          setRotateKey({ ...rotateKey, actualKey: result.actualKey });
++          toast.success(t("workspace.settings.api_keys.rotate_key_success"));
++        },
++        onError: (error) => {
++          const errorMessage = getFormattedErrorMessage(error);
++          toast.error(errorMessage ?? t("workspace.settings.api_keys.rotate_key_error"));
++        },
++      }
++    );
++  };
++
+   const handleAddAPIKey = async (data: {
+     label: string;
+     workspacePermissions: Array<{
+@@ -197,9 +243,6 @@ export const EditAPIKeys = ({
+     });
+ 
+     if (createApiKeyResponse?.data) {
+-      const updatedApiKeys = [...apiKeysLocal, createApiKeyResponse.data];
+-      setApiKeysLocal(updatedApiKeys);
+-      setIsLoading(false);
+       toast.success(t("workspace.api_keys.api_key_created"));
+     } else {
+       setIsLoading(false);
+@@ -219,18 +262,6 @@ export const EditAPIKeys = ({
+     });
+ 
+     if (updateApiKeyResponse?.data) {
+-      const updatedApiKeys =
+-        apiKeysLocal?.map((apiKey) => {
+-          if (apiKey.id === activeKey.id) {
+-            return {
+-              ...apiKey,
+-              label: data.label,
+-            };
+-          }
+-          return apiKey;
+-        }) || [];
+-
+-      setApiKeysLocal(updatedApiKeys);
+       toast.success(t("workspace.api_keys.api_key_updated"));
+       setIsLoading(false);
+     } else {
+@@ -258,8 +289,8 @@ export const EditAPIKeys = ({
+       </div>
+ 
+       <SettingsTable
+-        columns={getApiKeyColumns({ t, locale, onDelete: handleOpenDeleteKeyModal })}
+-        rows={apiKeysLocal}
++        columns={getApiKeyColumns({ t, locale, onDelete: handleOpenDeleteKeyModal, onRotate: setRotateKey })}
++        rows={apiKeys}
+         getRowId={(apiKey) => apiKey.id}
+         emptyMessage={t("workspace.api_keys.no_api_keys_yet")}
+         getRowProps={() => ({ "data-testid": "api-key-row" })}
+@@ -276,7 +307,7 @@ export const EditAPIKeys = ({
+         setOpen={setIsAddAPIKeyModalOpen}
+         onSubmit={handleAddAPIKey}
+         workspaces={workspaces}
+-        isCreatingAPIKey={isLoading}
++        isCreatingAPIKey={isMutating}
+         isFormbricksCloud={isFormbricksCloud}
+         canGrantOrganizationWriteAccess={canGrantOrganizationWriteAccess}
+       />
+@@ -287,7 +318,7 @@ export const EditAPIKeys = ({
+           onSubmit={handleUpdateAPIKey}
+           apiKey={activeKey}
+           workspaces={workspaces}
+-          isUpdating={isLoading}
++          isUpdating={isMutating}
+         />
+       )}
+       <DeleteDialog
+@@ -295,9 +326,49 @@ export const EditAPIKeys = ({
+         setOpen={setIsDeleteKeyModalOpen}
+         deleteWhat={t("workspace.api_keys.api_key")}
+         onDelete={handleDeleteKey}
+-        isDeleting={isLoading}
++        isDeleting={isMutating}
+         text={t("workspace.api_keys.delete_api_key_confirmation")}
+       />
++      {rotateKey && (
++        <DeleteDialog
++          open={rotateKey !== null}
++          setOpen={(open) => {
++            if (!open) setRotateKey(null);
++          }}
++          deleteWhat={t("workspace.settings.api_keys.rotate_key")}
++          onDelete={handleRotateKey}
++          isDeleting={isMutating}
++          text={t("workspace.settings.api_keys.rotate_key_confirmation")}
++          confirmLabel={t("workspace.settings.api_keys.rotate_key")}
++          cancelLabel={t("common.cancel")}
++        >
++          {rotateKey.actualKey && (
++            <div className="mb-4 rounded-lg bg-slate-50 p-4">
++              <p className="mb-2 text-sm font-medium text-slate-700">
++                {t("workspace.settings.api_keys.new_api_key")}
++              </p>
++              <div className="flex items-center justify-between gap-2">
++                <code className="break-all text-sm text-slate-900">{rotateKey.actualKey}</code>
++                <Button
++                  size="icon"
++                  variant="ghost"
++                  aria-label={t("workspace.api_keys.api_key_copied_to_clipboard")}
++                  onClick={async () => {
++                    try {
++                      await navigator.clipboard.writeText(rotateKey.actualKey!);
++                      toast.success(t("workspace.api_keys.api_key_copied_to_clipboard"));
++                    } catch {
++                      toast.error(t("workspace.api_keys.unable_to_copy_api_key"));
++                    }
++                  }}
++                  data-testid="copy-rotated-key-button">
++                  <FilesIcon className="size-4" />
++                </Button>
++              </div>
++            </div>
++          )}
++        </DeleteDialog>
++      )}
+     </>
+   );
+ };
+diff --git a/apps/web/modules/organization/settings/api-keys/hooks/use-rotate-api-key.ts b/apps/web/modules/organization/settings/api-keys/hooks/use-rotate-api-key.ts
+new file mode 100644
+index 000000000..fa4f23165
+--- /dev/null
++++ b/apps/web/modules/organization/settings/api-keys/hooks/use-rotate-api-key.ts
+@@ -0,0 +1,41 @@
++"use client";
++
++import { useMutation, useQueryClient } from "@tanstack/react-query";
++import { rotateApiKey } from "../lib/api-client";
++import type { TApiKeyWithEnvironmentPermission } from "../types/api-keys";
++
++/** Key factory for API keys query cache. */
++export const apiKeyKeys = {
++  all: () => ["apiKeys"] as const,
++  lists: () => [...apiKeyKeys.all(), "list"] as const,
++  list: (organizationId: string) => [...apiKeyKeys.lists(), organizationId] as const,
++  details: () => [...apiKeyKeys.all(), "detail"] as const,
++  detail: (apiKeyId: string) => [...apiKeyKeys.details(), apiKeyId] as const,
++};
++
++export const useRotateApiKey = (organizationId: string) => {
++  const queryClient = useQueryClient();
++
++  return useMutation({
++    mutationFn: ({ apiKeyId }: { apiKeyId: string }) => rotateApiKey(apiKeyId),
++    onMutate: async ({ apiKeyId }) => {
++      await queryClient.cancelQueries({ queryKey: apiKeyKeys.list(organizationId) });
++      const previousData = queryClient.getQueryData<TApiKeyWithEnvironmentPermission[]>(
++        apiKeyKeys.list(organizationId)
++      );
++      // Optimistically remove the key from the list (the old key is invalidated immediately).
++      queryClient.setQueryData<TApiKeyWithEnvironmentPermission[]>(apiKeyKeys.list(organizationId), (current) =>
++        current?.filter((key) => key.id !== apiKeyId)
++      );
++      return { previousData };
++    },
++    onError: (_error, _variables, context) => {
++      if (context?.previousData) {
++        queryClient.setQueryData(apiKeyKeys.list(organizationId), context.previousData);
++      }
++    },
++    onSettled: () => {
++      void queryClient.invalidateQueries({ queryKey: apiKeyKeys.list(organizationId) });
++    },
++  });
++};
+diff --git a/apps/web/modules/organization/settings/api-keys/lib/api-client.ts b/apps/web/modules/organization/settings/api-keys/lib/api-client.ts
+new file mode 100644
+index 000000000..060956c84
+--- /dev/null
++++ b/apps/web/modules/organization/settings/api-keys/lib/api-client.ts
+@@ -0,0 +1,30 @@
++/**
++ * Client-side API functions for the API keys v3 routes.
++ *
++ * These are the network calls that TanStack Query hooks in this module use.
++ * Every function throws a parsed `V3ApiError` on a non-2xx response.
++ */
++import { parseV3ApiError } from "@/modules/api/lib/v3-client";
++import type { TApiKeyWithEnvironmentPermission } from "../types/api-keys";
++
++const JSON_HEADERS = { "Content-Type": "application/json" };
++
++/** Timeout for mutations so a stalled request does not leave spinners stuck indefinitely. */
++const MUTATION_TIMEOUT_MS = 15_000;
++
++export type TRotateApiKeyResponse = TApiKeyWithEnvironmentPermission & { actualKey: string };
++
++export async function rotateApiKey(apiKeyId: string): Promise<TRotateApiKeyResponse> {
++  const response = await fetch(`/api/v3/api-keys/${apiKeyId}/rotate`, {
++    method: "POST",
++    cache: "no-store",
++    signal: AbortSignal.timeout(MUTATION_TIMEOUT_MS),
++  });
++
++  if (!response.ok) {
++    throw await parseV3ApiError(response);
++  }
++
++  const body = (await response.json()) as { data: TRotateApiKeyResponse };
++  return body.data;
++}
+diff --git a/apps/web/modules/organization/settings/api-keys/lib/api-key.ts b/apps/web/modules/organization/settings/api-keys/lib/api-key.ts
+index 09f791ca2..d031be7ff 100644
+--- a/apps/web/modules/organization/settings/api-keys/lib/api-key.ts
++++ b/apps/web/modules/organization/settings/api-keys/lib/api-key.ts
+@@ -34,6 +34,7 @@ export const getApiKeysWithEnvironmentPermissions = reactCache(
+           id: true,
+           label: true,
+           createdAt: true,
++          lastUsedAt: true,
+           organizationAccess: true,
+           apiKeyWorkspaces: {
+             select: {
+@@ -258,3 +259,43 @@ export const updateApiKey = async (apiKeyId: string, data: TApiKeyUpdateInput):
+     throw error;
+   }
+ };
++
++export const rotateApiKey = async (apiKeyId: string, userId: string): Promise<TApiKeyWithEnvironmentPermission & { actualKey: string }> => {
++  validateInputs([apiKeyId, ZId]);
++  try {
++    // Generate a new secure random secret (32 bytes base64url)
++    const secret = randomBytes(32).toString("base64url");
++
++    // Hybrid approach for security + performance:
++    // 1. SHA-256 lookup hash
++    const lookupHash = hashSha256(secret);
++
++    // 2. bcrypt hash
++    const hashedKey = await hashSecret(secret, 12);
++
++    // Update the API key with the new secret
++    const result = await prisma.apiKey.update({
++      where: { id: apiKeyId },
++      data: {
++        hashedKey,
++        lookupHash,
++        createdBy: userId,
++      },
++      include: {
++        apiKeyWorkspaces: true,
++      },
++    });
++
++    await runPostCommitProjection("api_key_rotate_relationship_reconciliation", () =>
++      reconcileApiKeyRelationships({ apiKeyIds: [result.id] })
++    );
++
++    // Return the new v2 format: fbk_{secret}
++    return { ...result, actualKey: `fbk_${secret}` };
++  } catch (error) {
++    if (error instanceof Prisma.PrismaClientKnownRequestError) {
++      throw new DatabaseError(error.message);
++    }
++    throw error;
++  }
++};
+diff --git a/apps/web/modules/organization/settings/api-keys/loading.tsx b/apps/web/modules/organization/settings/api-keys/loading.tsx
+index 5c8395405..be86fbd2d 100644
+--- a/apps/web/modules/organization/settings/api-keys/loading.tsx
++++ b/apps/web/modules/organization/settings/api-keys/loading.tsx
+@@ -39,6 +39,7 @@ const LoadingCard = () => {
+             t,
+             locale: "en-US",
+             onDelete: () => undefined,
++            onRotate: () => undefined,
+           })}
+         />
+       </div>
+diff --git a/apps/web/modules/organization/settings/api-keys/types/api-keys.ts b/apps/web/modules/organization/settings/api-keys/types/api-keys.ts
+index b1b6b1810..2d24c1d55 100644
+--- a/apps/web/modules/organization/settings/api-keys/types/api-keys.ts
++++ b/apps/web/modules/organization/settings/api-keys/types/api-keys.ts
+@@ -47,7 +47,7 @@ export type TApiKeyWorkspacePermission = z.infer<typeof ZApiKeyWorkspacePermissi
+ 
+ export interface TApiKeyWithEnvironmentPermission extends Pick<
+   ApiKey,
+-  "id" | "label" | "createdAt" | "organizationAccess"
++  "id" | "label" | "createdAt" | "lastUsedAt" | "organizationAccess"
+ > {
+   apiKeyWorkspaces: TApiKeyWorkspacePermission[];
+ }

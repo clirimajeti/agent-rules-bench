@@ -1,0 +1,19 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(18,1): error TS6133: 'ZWebhookInput' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(28,60): error TS6133: 'requestId' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(28,71): error TS6133: 'instance' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(35,41): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(35,56): error TS2339: Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(52,28): error TS2749: 'ZWebhookInput' refers to a value, but is being used as a type here. Did you mean 'typeof ZWebhookInput'?
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(61,5): error TS18048: 'auditLog' is possibly 'undefined'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(61,14): error TS2339: Property 'webhookId' does not exist on type 'TAuditEventInput'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(62,5): error TS18048: 'auditLog' is possibly 'undefined'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(63,5): error TS18048: 'auditLog' is possibly 'undefined'.
+modules/integrations/webhooks/components/webhook-row-data.tsx(3,10): error TS2724: '"lucide-react"' has no exported member named 'DuplicateIcon'. Did you mean 'LocateIcon'?
+modules/integrations/webhooks/components/webhook-row-data.tsx(74,11): error TS1345: An expression of type 'void' cannot be tested for truthiness.
+modules/integrations/webhooks/components/webhook-row-data.tsx(80,46): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type '{ serverError?: string | undefined; validationErrors?: unknown; }'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

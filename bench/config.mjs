@@ -13,7 +13,7 @@ const isStrList = (v) => Array.isArray(v) && v.length > 0 && v.every((x) => type
 export function validateStudy(s, studyDir) {
   const errs = [];
   if (!s || typeof s !== 'object' || Array.isArray(s)) return ['the study must be a JSON object'];
-  const known = ['name', 'description', 'repo', 'workdir', 'tasks', 'arms', 'baselineArm', 'models', 'repeats', 'maxTurns', 'allowedTools', 'eval', 'fix', 'build', 'verify', 'designRules', 'sequence'];
+  const known = ['name', 'description', 'repo', 'workdir', 'tasks', 'arms', 'baselineArm', 'models', 'repeats', 'maxTurns', 'allowedTools', 'eval', 'fix', 'build', 'verify', 'designRules', 'sequence', 'seed'];
   for (const k of Object.keys(s)) if (!known.includes(k)) errs.push(`unknown key "${k}"`);
   if (typeof s.name !== 'string' || !NAME.test(s.name)) errs.push('name must be lowercase letters, digits and "-"');
   if (!s.repo || typeof s.repo.source !== 'string' || !s.repo.source) errs.push('repo.source must be a git URL or a local path');
@@ -54,6 +54,9 @@ export function validateStudy(s, studyDir) {
           if (typeof m.model !== 'string' || !m.model) errs.push(`models[${i}].model must name the agent's model, for example "ollama/qwen3.6:35b-a3b-coding"`);
           if (m.baseUrl !== undefined && typeof m.baseUrl !== 'string') errs.push(`models[${i}].baseUrl must be a URL`);
           if (m.maxTurns !== undefined && !(Number.isInteger(m.maxTurns) && m.maxTurns > 0)) errs.push(`models[${i}].maxTurns must be a positive integer`);
+          if (m.timeoutSec !== undefined && !(Number.isInteger(m.timeoutSec) && m.timeoutSec > 0)) errs.push(`models[${i}].timeoutSec must be a positive integer`);
+          // USD per million tokens, for agents that report tokens but no cost (codex)
+          if (m.price !== undefined && !(m.price && ['input', 'cacheWrite', 'cacheRead', 'output'].every((k) => typeof m.price[k] === 'number' && m.price[k] >= 0))) errs.push(`models[${i}].price must give input, cacheWrite, cacheRead and output in USD per million tokens`);
         }
         if (id && seen.has(id)) errs.push(`models[${i}] id "${id}" is used twice`);
         seen.add(id);
@@ -81,6 +84,7 @@ export function validateStudy(s, studyDir) {
     if (s.build?.timeoutSec !== undefined && !(Number.isInteger(s.build.timeoutSec) && s.build.timeoutSec > 0)) errs.push('build.timeoutSec must be a positive integer');
   }
   if (s.sequence !== undefined && typeof s.sequence !== 'boolean') errs.push('sequence must be true or false');
+  if (s.seed !== undefined && !(Number.isInteger(s.seed) && s.seed >= 0)) errs.push('seed must be a non-negative integer');
   if (s.designRules !== undefined && !isStrList(s.designRules)) errs.push('designRules must be a non-empty list of rule ids');
   if (s.verify !== undefined) {
     const v = s.verify;

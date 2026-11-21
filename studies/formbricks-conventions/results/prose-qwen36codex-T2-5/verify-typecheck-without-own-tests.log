@@ -1,0 +1,14 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(15,1): error TS6133: 'ResourceNotFoundError' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(31,21): error TS6133: 'req' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(31,76): error TS6133: 'instance' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(35,41): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(35,56): error TS2339: Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(53,11): error TS6133: 'organizationId' is declared but its value is never read.
+modules/integrations/webhooks/components/webhook-row-data.tsx(80,3): error TS6133: 'workspaceId' is declared but its value is never read.
+modules/integrations/webhooks/components/webhook-row-data.tsx(101,15): error TS6133: 'result' is declared but its value is never read.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

@@ -6,8 +6,8 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { loopArgs } from './loop.mjs';
 
-const LOOP = '.claude/codemyrules';
 const SESSION = 'pi'; // one session per pi process; the scripts key their turn file on it
 
 // pi's edit and write calls as the Claude Code hook input the scripts read.
@@ -34,8 +34,8 @@ export default function (pi) {
     }
   });
 
-  if (!fs.existsSync(path.join(cwd, LOOP, 'lint-edited.mjs'))) return;
-  const run = (script, input) => spawnSync('node', [path.join(cwd, LOOP, script)], {
+  if (!loopArgs(cwd, 'lint-edited.mjs')) return;
+  const run = (script, input) => spawnSync('node', loopArgs(cwd, script), {
     cwd, encoding: 'utf8', input: JSON.stringify({ ...input, session_id: SESSION, cwd }),
     env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
   });

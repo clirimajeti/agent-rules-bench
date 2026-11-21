@@ -1,0 +1,283 @@
+diff --git a/apps/react-vite/src/features/users/components/delete-user.tsx b/apps/react-vite/src/features/users/components/delete-user.tsx
+index 3078e16..bdeff66 100644
+--- a/apps/react-vite/src/features/users/components/delete-user.tsx
++++ b/apps/react-vite/src/features/users/components/delete-user.tsx
+@@ -30,7 +30,11 @@ export const DeleteUser = ({ id }: DeleteUserProps) => {
+       icon="danger"
+       title="Delete User"
+       body="Are you sure you want to delete this user?"
+-      triggerButton={<Button variant="destructive">Delete</Button>}
++      triggerButton={
++        <Button type="button" variant="destructive">
++          Delete
++        </Button>
++      }
+       confirmButton={
+         <Button
+           isLoading={deleteUserMutation.isPending}
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..2bd3cf6 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,11 +1,25 @@
++import { Download } from 'lucide-react';
++
++import { Button } from '@/components/ui/button';
++import { Form, Input, Select } from '@/components/ui/form';
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
++import { ROLES } from '@/lib/authorization';
++import { downloadCsv } from '@/utils/csv';
+ import { formatDate } from '@/utils/format';
+ 
+ import { useUsers } from '../api/get-users';
++import { filterUsers, usersFilterSchema } from '../utils/filter-users';
++import { getUsersCsv } from '../utils/users-csv';
+ 
+ import { DeleteUser } from './delete-user';
+ 
++const roleFilterOptions = [
++  { label: 'All roles', value: 'ALL' },
++  { label: 'Admin', value: ROLES.ADMIN },
++  { label: 'User', value: ROLES.USER },
++];
++
+ export const UsersList = () => {
+   const usersQuery = useUsers();
+ 
+@@ -22,40 +36,85 @@ export const UsersList = () => {
+   if (!users) return null;
+ 
+   return (
+-    <Table
+-      data={users}
+-      columns={[
+-        {
+-          title: 'First Name',
+-          field: 'firstName',
+-        },
+-        {
+-          title: 'Last Name',
+-          field: 'lastName',
+-        },
+-        {
+-          title: 'Email',
+-          field: 'email',
+-        },
+-        {
+-          title: 'Role',
+-          field: 'role',
+-        },
+-        {
+-          title: 'Created At',
+-          field: 'createdAt',
+-          Cell({ entry: { createdAt } }) {
+-            return <span>{formatDate(createdAt)}</span>;
+-          },
+-        },
+-        {
+-          title: '',
+-          field: 'id',
+-          Cell({ entry: { id } }) {
+-            return <DeleteUser id={id} />;
+-          },
+-        },
+-      ]}
+-    />
++    <Form
++      schema={usersFilterSchema}
++      options={{ defaultValues: { search: '', role: 'ALL' } }}
++      onSubmit={() => {}}
++    >
++      {({ register, watch }) => {
++        const visibleUsers = filterUsers(users, watch());
++
++        return (
++          <div className="space-y-4">
++            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
++              <div className="flex-1">
++                <Input
++                  label="Search"
++                  placeholder="Name or email"
++                  registration={register('search')}
++                />
++              </div>
++              <div className="sm:w-48">
++                <Select
++                  label="Role"
++                  options={roleFilterOptions}
++                  registration={register('role')}
++                />
++              </div>
++              <Button
++                type="button"
++                variant="outline"
++                icon={<Download className="size-4" />}
++                disabled={visibleUsers.length === 0}
++                onClick={() =>
++                  downloadCsv(
++                    `users-${new Date().toISOString().slice(0, 10)}.csv`,
++                    getUsersCsv(visibleUsers),
++                  )
++                }
++              >
++                Export CSV
++              </Button>
++            </div>
++
++            <Table
++              data={visibleUsers}
++              columns={[
++                {
++                  title: 'First Name',
++                  field: 'firstName',
++                },
++                {
++                  title: 'Last Name',
++                  field: 'lastName',
++                },
++                {
++                  title: 'Email',
++                  field: 'email',
++                },
++                {
++                  title: 'Role',
++                  field: 'role',
++                },
++                {
++                  title: 'Created At',
++                  field: 'createdAt',
++                  Cell({ entry: { createdAt } }) {
++                    return <span>{formatDate(createdAt)}</span>;
++                  },
++                },
++                {
++                  title: '',
++                  field: 'id',
++                  Cell({ entry: { id } }) {
++                    return <DeleteUser id={id} />;
++                  },
++                },
++              ]}
++            />
++          </div>
++        );
++      }}
++    </Form>
+   );
+ };
+diff --git a/apps/react-vite/src/features/users/utils/filter-users.ts b/apps/react-vite/src/features/users/utils/filter-users.ts
+new file mode 100644
+index 0000000..3515191
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/filter-users.ts
+@@ -0,0 +1,34 @@
++import { z } from 'zod';
++
++import { ROLES } from '@/lib/authorization';
++import { User } from '@/types/api';
++
++export const usersFilterSchema = z.object({
++  search: z.string(),
++  role: z.union([
++    z.literal('ALL'),
++    z.literal(ROLES.ADMIN),
++    z.literal(ROLES.USER),
++  ]),
++});
++
++export type UsersFilterValues = z.infer<typeof usersFilterSchema>;
++
++export const filterUsers = (
++  users: User[],
++  { search, role }: UsersFilterValues,
++) => {
++  const query = search.trim().toLowerCase();
++
++  return users.filter((user) => {
++    if (role !== 'ALL' && user.role !== role) return false;
++
++    if (!query) return true;
++
++    const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
++
++    return (
++      fullName.includes(query) || user.email.toLowerCase().includes(query)
++    );
++  });
++};
+diff --git a/apps/react-vite/src/features/users/utils/users-csv.ts b/apps/react-vite/src/features/users/utils/users-csv.ts
+new file mode 100644
+index 0000000..3f23dc6
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/users-csv.ts
+@@ -0,0 +1,19 @@
++import { User } from '@/types/api';
++import { toCsv } from '@/utils/csv';
++
++export const getUsersCsv = (users: User[]) =>
++  toCsv<User>(
++    [
++      {
++        header: 'Name',
++        value: (user) => `${user.firstName} ${user.lastName}`,
++      },
++      { header: 'Email', value: (user) => user.email },
++      { header: 'Role', value: (user) => user.role },
++      {
++        header: 'Joined',
++        value: (user) => new Date(user.createdAt).toISOString(),
++      },
++    ],
++    users,
++  );
+diff --git a/apps/react-vite/src/utils/csv.ts b/apps/react-vite/src/utils/csv.ts
+new file mode 100644
+index 0000000..305a5ac
+--- /dev/null
++++ b/apps/react-vite/src/utils/csv.ts
+@@ -0,0 +1,44 @@
++export type CsvColumn<Row> = {
++  header: string;
++  value: (row: Row) => string | number | null | undefined;
++};
++
++// Cells that start with these characters are evaluated as formulas by
++// spreadsheet apps, so they are prefixed with an apostrophe to stay plain text.
++const FORMULA_PREFIXES = ['=', '+', '-', '@', '\t', '\r'];
++
++const escapeCsvCell = (value: string | number | null | undefined) => {
++  let text = value == null ? '' : String(value);
++
++  if (FORMULA_PREFIXES.some((prefix) => text.startsWith(prefix))) {
++    text = `'${text}`;
++  }
++
++  return `"${text.replace(/"/g, '""')}"`;
++};
++
++export const toCsv = <Row>(columns: CsvColumn<Row>[], rows: Row[]) => {
++  const lines = [
++    columns.map(({ header }) => escapeCsvCell(header)),
++    ...rows.map((row) =>
++      columns.map(({ value }) => escapeCsvCell(value(row))),
++    ),
++  ];
++
++  return lines.map((line) => line.join(',')).join('\r\n');
++};
++
++export const downloadCsv = (filename: string, csv: string) => {
++  // The UTF-8 byte order mark makes spreadsheet apps read non-ASCII names correctly.
++  const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' });
++  const url = URL.createObjectURL(blob);
++
++  const link = document.createElement('a');
++  link.href = url;
++  link.download = filename;
++  document.body.appendChild(link);
++  link.click();
++  link.remove();
++
++  setTimeout(() => URL.revokeObjectURL(url), 0);
++};

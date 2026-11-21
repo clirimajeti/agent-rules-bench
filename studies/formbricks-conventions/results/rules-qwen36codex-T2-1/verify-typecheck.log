@@ -1,0 +1,21 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(15,5): error TS2322: Type 'Promise<{ data: { id: string; workspaceId: string; url: string; createdAt: Date; updatedAt: Date; name: string | null; triggers: PipelineTriggers[]; surveyIds: string[]; source: WebhookSource; secret: string | null; }; }>' is not assignable to type 'MaybePromise<Response>'.
+  Type 'Promise<{ data: { id: string; workspaceId: string; url: string; createdAt: Date; updatedAt: Date; name: string | null; triggers: PipelineTriggers[]; surveyIds: string[]; source: WebhookSource; secret: string | null; }; }>' is not assignable to type 'Promise<Response>'.
+    Type '{ data: { id: string; workspaceId: string; url: string; createdAt: Date; updatedAt: Date; name: string | null; triggers: PipelineTriggers[]; surveyIds: string[]; source: WebhookSource; secret: string | null; }; }' is missing the following properties from type 'Response': headers, ok, redirected, status, and 12 more.
+app/api/v3/webhooks/lib/operations.ts(18,1): error TS6133: 'TV3WebhookIdParams' is declared but its value is never read.
+app/api/v3/webhooks/lib/operations.ts(24,3): error TS6133: 'requestId' is declared but its value is never read.
+app/api/v3/webhooks/lib/operations.ts(25,3): error TS6133: 'instance' is declared but its value is never read.
+app/api/v3/webhooks/lib/operations.ts(37,25): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/lib/operations.ts(37,40): error TS2339: Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/webhooks/lib/operations.ts(69,5): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/lib/operations.ts(69,20): error TS2339: Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+modules/integrations/webhooks/components/webhook-row-data.tsx(81,42): error TS2345: Argument of type '{ id: string; workspaceId: string; url: string; createdAt: Date; updatedAt: Date; name: string | null; triggers: PipelineTriggers[]; surveyIds: string[]; source: WebhookSource; secret: string | null; }' is not assignable to parameter of type 'boolean'.
+modules/integrations/webhooks/components/webhook-row-data.tsx(82,16): error TS2741: Property 'kind' is missing in type '{}' but required in type 'Readonly<RestrictedSurveyHintProps>'.
+modules/integrations/webhooks/components/webhook-row-data.tsx(88,10): error TS2322: Type '{ children: string; className: string; variant: string; }' is not assignable to type 'IntrinsicAttributes & BadgeProps'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & BadgeProps'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

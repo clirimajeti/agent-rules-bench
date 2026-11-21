@@ -1,0 +1,8 @@
+Generating route types...
+✓ Types generated successfully
+app/(app)/account/settings/profile/page.tsx(120,13): error TS2322: Type '{ organizationId: string; organizationName: string; role: "owner" | "manager" | "member" | "billing"; }[]' is not assignable to type 'OrganizationMembership[]'.
+  Property 'name' is missing in type '{ organizationId: string; organizationName: string; role: "owner" | "manager" | "member" | "billing"; }' but required in type 'OrganizationMembership'.
+lib/membership/service.ts(140,37): error TS2304: Cannot find name 'lookupAuthorizedOrganizationIds'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

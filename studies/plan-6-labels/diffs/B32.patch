@@ -1,0 +1,231 @@
+diff --git a/apps/react-vite/src/features/discussions/components/discussions-list.tsx b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+index 9aa5fba..1c5d995 100644
+--- a/apps/react-vite/src/features/discussions/components/discussions-list.tsx
++++ b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+@@ -12,6 +12,13 @@ import { useDiscussions } from '../api/get-discussions';
+ 
+ import { DeleteDiscussion } from './delete-discussion';
+ 
++const formatCommentInfo = (commentCount: number, lastCommentAt: number | null): string => {
++  if (commentCount === 0) {
++    return 'No comments yet';
++  }
++  return lastCommentAt ? `Last comment: ${formatDate(lastCommentAt)}` : `${commentCount} comment${commentCount > 1 ? 's' : ''}`;
++};
++
+ export type DiscussionsListProps = {
+   onDiscussionPrefetch?: (id: string) => void;
+ };
+@@ -47,6 +54,13 @@ export const DiscussionsList = ({
+           title: 'Title',
+           field: 'title',
+         },
++        {
++          title: 'Comments',
++          field: 'commentCount',
++          Cell({ entry: { commentCount, lastCommentAt } }) {
++            return <span>{formatCommentInfo(commentCount, lastCommentAt)}</span>;
++          },
++        },
+         {
+           title: 'Created At',
+           field: 'createdAt',
+diff --git a/apps/react-vite/src/testing/mocks/db.ts b/apps/react-vite/src/testing/mocks/db.ts
+index 59c0f1a..0143527 100644
+--- a/apps/react-vite/src/testing/mocks/db.ts
++++ b/apps/react-vite/src/testing/mocks/db.ts
+@@ -96,6 +96,112 @@ export const initializeDb = async () => {
+   });
+ };
+ 
++export const seedData = () => {
++  // Seed some teams first so users can be linked to them
++  if (db.team.getAll().length === 0) {
++    const team1 = db.team.create({ name: 'Engineering', description: 'Engineering team' });
++    const team2 = db.team.create({ name: 'Design', description: 'Design team' });
++
++    // Seed users
++    const user1 = db.user.create({
++      firstName: 'John',
++      lastName: 'Doe',
++      email: 'john@bulletproof.com',
++      password: '123456',
++      role: 'ADMIN',
++      teamId: team1.id,
++      bio: 'Admin user',
++    });
++    const user2 = db.user.create({
++      firstName: 'Jane',
++      lastName: 'Smith',
++      email: 'jane@bulletproof.com',
++      password: '123456',
++      role: 'USER',
++      teamId: team1.id,
++      bio: 'Regular user',
++    });
++    const user3 = db.user.create({
++      firstName: 'Alex',
++      lastName: 'Johnson',
++      email: 'alex@bulletproof.com',
++      password: '123456',
++      role: 'ADMIN',
++      teamId: team2.id,
++      bio: 'Design admin',
++    });
++
++    // Seed discussions
++    const discussion1 = db.discussion.create({
++      title: 'Welcome to the team!',
++      body: 'This is a welcome discussion for new team members.',
++      authorId: user1.id,
++      teamId: team1.id,
++    });
++    const discussion2 = db.discussion.create({
++      title: 'Project roadmap Q4',
++      body: 'Let us discuss the project roadmap for Q4.',
++      authorId: user1.id,
++      teamId: team1.id,
++    });
++    const discussion3 = db.discussion.create({
++      title: 'Design system updates',
++      body: 'Updates to our design system components.',
++      authorId: user3.id,
++      teamId: team2.id,
++    });
++    const discussion4 = db.discussion.create({
++      title: 'Team building event',
++      body: 'Planning our next team building event.',
++      authorId: user2.id,
++      teamId: team1.id,
++    });
++
++    // Seed comments on discussion1 (3 comments)
++    db.comment.create({
++      body: 'Thanks for the warm welcome!',
++      authorId: user2.id,
++      discussionId: discussion1.id,
++      createdAt: Date.now() - 86400000 * 3,
++    });
++    db.comment.create({
++      body: 'Looking forward to working with everyone!',
++      authorId: user3.id,
++      discussionId: discussion1.id,
++      createdAt: Date.now() - 86400000 * 2,
++    });
++    db.comment.create({
++      body: 'Let me know if you need any help getting started.',
++      authorId: user1.id,
++      discussionId: discussion1.id,
++      createdAt: Date.now() - 86400000,
++    });
++
++    // Seed comments on discussion2 (2 comments)
++    db.comment.create({
++      body: 'I have some ideas for the roadmap.',
++      authorId: user2.id,
++      discussionId: discussion2.id,
++      createdAt: Date.now() - 86400000 * 5,
++    });
++    db.comment.create({
++      body: 'Great ideas! Let us sync on this next week.',
++      authorId: user1.id,
++      discussionId: discussion2.id,
++      createdAt: Date.now() - 86400000 * 1,
++    });
++
++    // discussion3 has NO comments
++    // discussion4 has 1 comment
++    db.comment.create({
++      body: 'I can help with the event planning!',
++      authorId: user3.id,
++      discussionId: discussion4.id,
++      createdAt: Date.now() - 86400000 * 4,
++    });
++  }
++};
++
+ export const resetDb = () => {
+   window.localStorage.clear();
+ };
+diff --git a/apps/react-vite/src/testing/mocks/handlers/discussions.ts b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+index 37c0797..7dd3930 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/discussions.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+@@ -2,7 +2,7 @@ import { HttpResponse, http } from 'msw';
+ 
+ import { env } from '@/config/env';
+ 
+-import { db, persistDb } from '../db';
++import { db, persistDb, seedData } from '../db';
+ import {
+   requireAuth,
+   requireAdmin,
+@@ -25,6 +25,8 @@ export const discussionsHandlers = [
+         return HttpResponse.json({ message: error }, { status: 401 });
+       }
+ 
++      seedData();
++
+       const url = new URL(request.url);
+ 
+       const page = Number(url.searchParams.get('page') || 1);
+@@ -57,9 +59,22 @@ export const discussionsHandlers = [
+               },
+             },
+           });
++          const comments = db.comment.findMany({
++            where: {
++              discussionId: {
++                equals: discussion.id,
++              },
++            },
++          });
++          const commentCount = comments.length;
++          const lastCommentAt = commentCount > 0
++            ? comments.reduce((latest, c) => (c.createdAt > latest ? c.createdAt : latest), 0)
++            : null;
+           return {
+             ...discussion,
+             author: author ? sanitizeUser(author) : {},
++            commentCount,
++            lastCommentAt,
+           };
+         });
+       return HttpResponse.json({
+@@ -115,9 +130,23 @@ export const discussionsHandlers = [
+           },
+         });
+ 
++        const comments = db.comment.findMany({
++          where: {
++            discussionId: {
++              equals: discussion.id,
++            },
++          },
++        });
++        const commentCount = comments.length;
++        const lastCommentAt = commentCount > 0
++          ? comments.reduce((latest, c) => (c.createdAt > latest ? c.createdAt : latest), 0)
++          : null;
++
+         const result = {
+           ...discussion,
+           author: author ? sanitizeUser(author) : {},
++          commentCount,
++          lastCommentAt,
+         };
+ 
+         return HttpResponse.json({ data: result });
+diff --git a/apps/react-vite/src/types/api.ts b/apps/react-vite/src/types/api.ts
+index dbdf434..ee68e48 100644
+--- a/apps/react-vite/src/types/api.ts
++++ b/apps/react-vite/src/types/api.ts
+@@ -41,6 +41,8 @@ export type Discussion = Entity<{
+   body: string;
+   teamId: string;
+   author: User;
++  commentCount: number;
++  lastCommentAt: number | null;
+ }>;
+ 
+ export type Comment = Entity<{

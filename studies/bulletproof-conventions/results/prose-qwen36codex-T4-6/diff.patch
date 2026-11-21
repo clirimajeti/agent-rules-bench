@@ -1,0 +1,273 @@
+diff --git a/apps/react-vite/src/features/users/api/get-users.ts b/apps/react-vite/src/features/users/api/get-users.ts
+index e13d106..fb9322c 100644
+--- a/apps/react-vite/src/features/users/api/get-users.ts
++++ b/apps/react-vite/src/features/users/api/get-users.ts
+@@ -3,18 +3,33 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
+ import { api } from '@/lib/api-client';
+ import { QueryConfig } from '@/lib/react-query';
+ import { User } from '@/types/api';
++import { ROLES } from '@/lib/authorization';
++import { z } from 'zod';
+ 
+-export const getUsers = (): Promise<{ data: User[] }> => {
+-  return api.get(`/users`);
++export const getUsers = (params?: {
++  role?: ROLES.ADMIN | ROLES.USER;
++  search?: string;
++}): Promise<{ data: User[] }> => {
++  return api.get(`/users`, { params });
+ };
+ 
+-export const getUsersQueryOptions = () => {
++export const getUsersQueryOptions = (params?: {
++  role?: ROLES.ADMIN | ROLES.USER;
++  search?: string;
++}) => {
+   return queryOptions({
+-    queryKey: ['users'],
+-    queryFn: getUsers,
++    queryKey: params ? ['users', params] : ['users'],
++    queryFn: () => getUsers(params),
+   });
+ };
+ 
++export const getUsersQueryParamsSchema = z.object({
++  role: z.nativeEnum(ROLES).optional(),
++  search: z.string().optional(),
++});
++
++export type GetUsersQueryParams = z.infer<typeof getUsersQueryParamsSchema>;
++
+ type UseUsersOptions = {
+   queryConfig?: QueryConfig<typeof getUsersQueryOptions>;
+ };
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..d93463c 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,10 +1,16 @@
++import { Download } from 'lucide-react';
++import { useMemo } from 'react';
++
++import { Button } from '@/components/ui/button';
++import { Form, Input, Select } from '@/components/ui/form';
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
+ import { formatDate } from '@/utils/format';
+ 
+-import { useUsers } from '../api/get-users';
++import { useUsers, getUsersQueryParamsSchema } from '../api/get-users';
+ 
+ import { DeleteUser } from './delete-user';
++import { ROLES } from '@/lib/authorization';
+ 
+ export const UsersList = () => {
+   const usersQuery = useUsers();
+@@ -22,40 +28,126 @@ export const UsersList = () => {
+   if (!users) return null;
+ 
+   return (
+-    <Table
+-      data={users}
+-      columns={[
+-        {
+-          title: 'First Name',
+-          field: 'firstName',
+-        },
+-        {
+-          title: 'Last Name',
+-          field: 'lastName',
+-        },
+-        {
+-          title: 'Email',
+-          field: 'email',
+-        },
+-        {
+-          title: 'Role',
+-          field: 'role',
+-        },
+-        {
+-          title: 'Created At',
+-          field: 'createdAt',
+-          Cell({ entry: { createdAt } }) {
+-            return <span>{formatDate(createdAt)}</span>;
+-          },
+-        },
+-        {
+-          title: '',
+-          field: 'id',
+-          Cell({ entry: { id } }) {
+-            return <DeleteUser id={id} />;
+-          },
+-        },
+-      ]}
+-    />
++    <div className="space-y-4">
++      <Form
++        id="users-filters"
++        onSubmit={() => {}}
++        schema={getUsersQueryParamsSchema}
++      >
++        {(form) => {
++          const role = form.watch('role');
++          const search = form.watch('search');
++
++          const filteredUsers = useMemo(() => {
++            return users.filter((u) => {
++              if (role && u.role !== role) return false;
++              if (search) {
++                const lower = search.toLowerCase();
++                if (
++                  !u.firstName.toLowerCase().includes(lower) &&
++                  !u.lastName.toLowerCase().includes(lower) &&
++                  !u.email.toLowerCase().includes(lower)
++                ) {
++                  return false;
++                }
++              }
++              return true;
++            });
++          }, [users, role, search]);
++
++          const handleExport = () => {
++            const escapeCsv = (value: string) =>
++              `"${value.replace(/"/g, '""')}"`;
++
++            const header = 'Name,Email,Role,Joined\n';
++            const rows = filteredUsers
++              .map((u) => {
++                const name = escapeCsv(`${u.firstName} ${u.lastName}`);
++                const email = escapeCsv(u.email);
++                const role = escapeCsv(u.role);
++                const joined = escapeCsv(formatDate(u.createdAt));
++                return `${name},${email},${role},${joined}`;
++              })
++              .join('\n');
++            const csv = header + rows;
++            const blob = new Blob([csv], { type: 'text/csv' });
++            const url = URL.createObjectURL(blob);
++            const link = document.createElement('a');
++            link.href = url;
++            link.download = 'users.csv';
++            link.click();
++            URL.revokeObjectURL(blob);
++          };
++
++          return (
++            <>
++              <div className="flex items-end gap-4">
++                <div className="flex-1">
++                  <Select
++                    label="Filter by Role"
++                    options={[
++                      { label: 'All Roles', value: '' },
++                      { label: 'Admin', value: ROLES.ADMIN },
++                      { label: 'User', value: ROLES.USER },
++                    ]}
++                    defaultValue={role}
++                    registration={form.register('role')}
++                  />
++                </div>
++                <div className="flex-1">
++                  <Input
++                    label="Search by Name or Email"
++                    placeholder="Search..."
++                    registration={form.register('search')}
++                  />
++                </div>
++                <Button
++                  variant="outline"
++                  icon={<Download className="size-4" />}
++                  onClick={handleExport}
++                >
++                  Export CSV
++                </Button>
++              </div>
++              <Table
++                data={filteredUsers}
++                columns={[
++                  {
++                    title: 'First Name',
++                    field: 'firstName',
++                  },
++                  {
++                    title: 'Last Name',
++                    field: 'lastName',
++                  },
++                  {
++                    title: 'Email',
++                    field: 'email',
++                  },
++                  {
++                    title: 'Role',
++                    field: 'role',
++                  },
++                  {
++                    title: 'Created At',
++                    field: 'createdAt',
++                    Cell({ entry: { createdAt } }) {
++                      return <span>{formatDate(createdAt)}</span>;
++                    },
++                  },
++                  {
++                    title: '',
++                    field: 'id',
++                    Cell({ entry: { id } }) {
++                      return <DeleteUser id={id} />;
++                    },
++                  },
++                ]}
++              />
++            </>
++          );
++        }}
++      </Form>
++    </div>
+   );
+ };
+diff --git a/apps/react-vite/src/testing/mocks/handlers/users.ts b/apps/react-vite/src/testing/mocks/handlers/users.ts
+index 444b918..78acfdf 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/users.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/users.ts
+@@ -18,7 +18,7 @@ type ProfileBody = {
+ };
+ 
+ export const usersHandlers = [
+-  http.get(`${env.API_URL}/users`, async ({ cookies }) => {
++  http.get(`${env.API_URL}/users`, async ({ cookies, request }) => {
+     await networkDelay();
+ 
+     try {
+@@ -26,7 +26,10 @@ export const usersHandlers = [
+       if (error) {
+         return HttpResponse.json({ message: error }, { status: 401 });
+       }
+-      const result = db.user
++      const { role, search } = Object.fromEntries(
++        new URL(request.url).searchParams.entries(),
++      ) as { role?: 'ADMIN' | 'USER'; search?: string };
++      let result = db.user
+         .findMany({
+           where: {
+             teamId: {
+@@ -36,6 +39,20 @@ export const usersHandlers = [
+         })
+         .map(sanitizeUser);
+ 
++      if (role) {
++        result = result.filter((u) => u.role === role);
++      }
++
++      if (search) {
++        const lowerSearch = search.toLowerCase();
++        result = result.filter(
++          (u) =>
++            u.firstName.toLowerCase().includes(lowerSearch) ||
++            u.lastName.toLowerCase().includes(lowerSearch) ||
++            u.email.toLowerCase().includes(lowerSearch),
++        );
++      }
++
+       return HttpResponse.json({ data: result });
+     } catch (error: any) {
+       return HttpResponse.json(

@@ -1,0 +1,355 @@
+diff --git a/apps/web/app/api/v3/tags/bulk-delete-unused/route.ts b/apps/web/app/api/v3/tags/bulk-delete-unused/route.ts
+new file mode 100644
+index 000000000..0f6681a8d
+--- /dev/null
++++ b/apps/web/app/api/v3/tags/bulk-delete-unused/route.ts
+@@ -0,0 +1,69 @@
++/**
++ * DELETE /api/v3/tags/bulk-delete-unused — delete all unused tags of a workspace.
++ *
++ * Session-only. The workspace is resolved from the caller's authorization, not from the
++ * client-supplied `workspaceId` — the caller must pass it in the body so the route can
++ * validate it, but the workspace boundary is enforced server-side.
++ */
++import "server-only";
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { problemInternalError, problemUnprocessableContent, successResponse } from "@/app/api/v3/lib/response";
++import type { TV3Authentication } from "@/app/api/v3/lib/types";
++import { getUnusedTagsByWorkspaceId } from "@/lib/unusedTag/service";
++import { deleteTag } from "@/modules/workspaces/settings/lib/tag";
++import { z } from "zod";
++
++const ZBulkDeleteUnusedBody = z
++  .object({ workspaceId: z.string().cuid2() })
++  .strict()
++  .transform((body) => body);
++
++export const DELETE = withV3ApiWrapper({
++  auth: "session",
++  action: "deleted",
++  targetType: "tag",
++  schemas: { body: ZBulkDeleteUnusedBody },
++  handler: async ({ authentication, parsedInput, auditLog, requestId, instance }) => {
++    const { workspaceId } = parsedInput.body;
++
++    // Resolve the workspace from the caller's access to ensure the caller can only
++    // delete unused tags from workspaces they already have readWrite access to.
++    const access = await requireWorkspaceAccess(authentication, workspaceId, "readWrite", requestId, instance);
++    if (access instanceof Response) return access;
++
++    const unusedTagIds = await getUnusedTagsByWorkspaceId(access.workspaceId);
++
++    if (unusedTagIds.length === 0) {
++      return successResponse({ deletedCount: 0 }, { requestId });
++    }
++
++    // Delete tags one by one (cascade handles the junction table).
++    let deletedCount = 0;
++    for (const tagId of unusedTagIds) {
++      const result = await deleteTag(tagId);
++      if (result.ok) {
++        deletedCount++;
++        if (auditLog) {
++          auditLog.targetId = tagId;
++          auditLog.oldObject = result.data;
++        }
++      }
++    }
++
++    return successResponse({ deletedCount }, { requestId });
++  },
++});
++
++/** Minimal workspace-access check for this route; mirrors requireV3WorkspaceAccess. */
++async function requireWorkspaceAccess(
++  authentication: TV3Authentication,
++  workspaceId: string,
++  _action: string,
++  requestId: string,
++  instance: string | undefined
++): Promise<Response | { workspaceId: string; organizationId: string }> {
++  const { requireV3WorkspaceAccess } = await import("@/app/api/v3/lib/auth");
++  const access = await requireV3WorkspaceAccess(authentication, workspaceId, "readWrite", requestId, instance);
++  if (access instanceof Response) return access;
++  return { workspaceId: access.workspaceId, organizationId: access.organizationId };
++}
+diff --git a/apps/web/lib/unusedTag/service.ts b/apps/web/lib/unusedTag/service.ts
+new file mode 100644
+index 000000000..73043b17e
+--- /dev/null
++++ b/apps/web/lib/unusedTag/service.ts
+@@ -0,0 +1,29 @@
++import "server-only";
++import { cache as reactCache } from "react";
++import { prisma } from "@formbricks/database";
++import { ZId } from "@formbricks/types/common";
++import { validateInputs } from "@/lib/utils/validate";
++
++/**
++ * Find tags in a workspace that are not associated with any response.
++ * Uses an outer join to detect tags with no matching TagsOnResponses entry.
++ */
++export const getUnusedTagsByWorkspaceId = reactCache(
++  async (workspaceId: string): Promise<string[]> => {
++    validateInputs([workspaceId, ZId]);
++
++    const unusedTags = await prisma.tag.findMany({
++      where: {
++        workspaceId,
++        responses: {
++          none: {},
++        },
++      },
++      select: {
++        id: true,
++      },
++    });
++
++    return unusedTags.map((tag) => tag.id);
++  }
++);
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..aeab8ddc2 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -5170,7 +5170,11 @@
+       "tag_already_exists": "Tag already exists",
+       "tag_deleted": "Tag deleted successfully",
+       "tag_updated": "Tag updated successfully",
+-      "tags_merged": "Tags merged successfully"
++      "tags_merged": "Tags merged successfully",
++      "created": "Created",
++      "delete_unused_tags": "Delete unused tags",
++      "delete_unused_tags_confirmation": "This will permanently delete all tags that are not used on any response. Are you sure?",
++      "tags_deleted": "Deleted {count} unused tag(s)"
+     },
+     "teams": {
+       "manage_teams": "Manage teams",
+diff --git a/apps/web/modules/workspaces/settings/tags/components/edit-tags-wrapper.tsx b/apps/web/modules/workspaces/settings/tags/components/edit-tags-wrapper.tsx
+index b2618125a..2bd298813 100644
+--- a/apps/web/modules/workspaces/settings/tags/components/edit-tags-wrapper.tsx
++++ b/apps/web/modules/workspaces/settings/tags/components/edit-tags-wrapper.tsx
+@@ -3,12 +3,17 @@
+ import type { TFunction } from "i18next";
+ import { useTranslation } from "react-i18next";
+ import type { TV3Tag } from "@/app/api/v3/tags/serializers";
++import { formatDate } from "@/lib/time";
+ import { getV3ApiErrorMessage } from "@/modules/api/lib/v3-client";
+ import { Button } from "@/modules/ui/components/button";
++import { DeleteDialog } from "@/modules/ui/components/delete-dialog";
+ import { SettingsTable, type TSettingsTableColumn } from "@/modules/ui/components/settings-table";
+ import { TagNameInput } from "@/modules/workspaces/settings/tags/components/tag-name-input";
+ import { TagRowActions } from "@/modules/workspaces/settings/tags/components/tag-row-actions";
+ import { useTags } from "@/modules/workspaces/settings/tags/hooks/use-tags";
++import { useBulkDeleteUnusedTags } from "@/modules/workspaces/settings/tags/hooks/use-bulk-delete-unused-tags";
++import { useState } from "react";
++import { toast } from "react-hot-toast";
+ 
+ interface EditTagsWrapperProps {
+   workspaceId: string;
+@@ -29,22 +34,33 @@ export const getTagColumns = ({
+   workspaceId,
+   tags,
+   isReadOnly,
++  locale,
+ }: Readonly<{
+   t: TFunction;
+   workspaceId: string;
+   tags: TV3Tag[];
+   isReadOnly: boolean;
++  locale: string;
+ }>): TSettingsTableColumn<TV3Tag>[] => {
+   const columns: TSettingsTableColumn<TV3Tag>[] = [
+     {
+       id: "tag",
+       header: t("workspace.tags.tag"),
+-      headerClassName: "w-[50%]",
++      headerClassName: "w-[40%]",
+       skeletonWidth: "w-full",
+       cell: (tag) => (
+         <TagNameInput tagId={tag.id} tagName={tag.name} workspaceId={workspaceId} isReadOnly={isReadOnly} />
+       ),
+     },
++    {
++      id: "created",
++      header: t("workspace.tags.created"),
++      headerClassName: "w-[15%]",
++      align: "center",
++      cellClassName: "whitespace-nowrap text-slate-900",
++      skeletonWidth: "w-20",
++      cell: (tag) => formatDate(new Date(tag.createdAt), locale),
++    },
+     {
+       id: "count",
+       header: t("workspace.tags.count"),
+@@ -60,7 +76,7 @@ export const getTagColumns = ({
+     columns.push({
+       id: "actions",
+       header: t("common.actions"),
+-      headerClassName: "w-[35%]",
++      headerClassName: "w-[30%]",
+       align: "center",
+       skeletonWidth: "w-40",
+       cell: (tag) => (
+@@ -79,8 +95,9 @@ export const getTagColumns = ({
+   return columns;
+ };
+ 
+-export const EditTagsWrapper = ({ workspaceId, isReadOnly }: Readonly<EditTagsWrapperProps>) => {
+-  const { t } = useTranslation();
++const EditTagsWrapperInner = ({ workspaceId, isReadOnly }: Readonly<EditTagsWrapperProps>) => {
++  const { t, i18n } = useTranslation();
++  const locale = i18n.resolvedLanguage ?? i18n.language;
+   // The tag list lives in the query cache, so a rename, merge or delete invalidates it instead of
+   // calling `router.refresh()` to revalidate the whole route.
+   const { data: tags = [], isPending, isError, error, refetch } = useTags(workspaceId);
+@@ -101,7 +118,7 @@ export const EditTagsWrapper = ({ workspaceId, isReadOnly }: Readonly<EditTagsWr
+ 
+   return (
+     <SettingsTable
+-      columns={getTagColumns({ t, workspaceId, tags, isReadOnly })}
++      columns={getTagColumns({ t, workspaceId, tags, isReadOnly, locale })}
+       rows={tags}
+       getRowId={(tag) => tag.id}
+       // Keyed by the id the API returned, so `settings-tags.spec.ts` can address a row without matching
+@@ -113,3 +130,51 @@ export const EditTagsWrapper = ({ workspaceId, isReadOnly }: Readonly<EditTagsWr
+     />
+   );
+ };
++
++export const EditTagsWrapper = EditTagsWrapperInner;
++
++/**
++ * Button + confirmation dialog for bulk-deleting unused tags. Rendered as the `footer` of the
++ * `SettingsCard` so the action is visible but doesn't compete with the per-row controls.
++ */
++const BulkDeleteUnusedTags = ({ workspaceId }: Readonly<{ workspaceId: string }>) => {
++  const { t } = useTranslation();
++  const [open, setOpen] = useState(false);
++  const bulkDelete = useBulkDeleteUnusedTags(workspaceId);
++  const [deletedCount, setDeletedCount] = useState<number | null>(null);
++
++  const handleConfirm = async () => {
++    try {
++      const result = await bulkDelete.mutateAsync({ workspaceId });
++      setDeletedCount(result.deletedCount);
++      setOpen(false);
++      toast.success(t("workspace.tags.tags_deleted", { count: result.deletedCount }));
++    } catch {
++      toast.error(t("common.something_went_wrong_please_try_again"));
++    }
++  };
++
++  return (
++    <>
++      <Button variant="destructive" size="sm" onClick={() => setOpen(true)} disabled={bulkDelete.isPending}>
++        {t("workspace.tags.delete_unused_tags")}
++      </Button>
++      <DeleteDialog
++        open={open}
++        setOpen={setOpen}
++        deleteWhat={t("workspace.tags.delete_unused_tags")}
++        text={t("workspace.tags.delete_unused_tags_confirmation")}
++        onDelete={handleConfirm}
++        isDeleting={bulkDelete.isPending}
++        buttonLabel={t("common.delete")}
++      />
++      {deletedCount !== null && deletedCount > 0 && (
++        <p className="text-sm text-green-600">
++          {t("workspace.tags.tags_deleted", { count: deletedCount })}
++        </p>
++      )}
++    </>
++  );
++};
++
++EditTagsWrapper.BulkDeleteUnusedTags = BulkDeleteUnusedTags;
+diff --git a/apps/web/modules/workspaces/settings/tags/hooks/use-bulk-delete-unused-tags.ts b/apps/web/modules/workspaces/settings/tags/hooks/use-bulk-delete-unused-tags.ts
+new file mode 100644
+index 000000000..48e9b55a6
+--- /dev/null
++++ b/apps/web/modules/workspaces/settings/tags/hooks/use-bulk-delete-unused-tags.ts
+@@ -0,0 +1,14 @@
++"use client";
++
++import { useMutation, useQueryClient } from "@tanstack/react-query";
++import { bulkDeleteUnusedTags } from "../lib/api-client";
++import { tagKeys } from "../lib/query";
++
++/** Delete all unused tags in a workspace, then invalidate the list. */
++export const useBulkDeleteUnusedTags = (workspaceId: string) => {
++  const queryClient = useQueryClient();
++  return useMutation({
++    mutationFn: ({ workspaceId: wid }: { workspaceId: string }) => bulkDeleteUnusedTags({ workspaceId: wid }),
++    onSuccess: () => queryClient.invalidateQueries({ queryKey: tagKeys.list(workspaceId) }),
++  });
++};
+diff --git a/apps/web/modules/workspaces/settings/tags/lib/api-client.ts b/apps/web/modules/workspaces/settings/tags/lib/api-client.ts
+index 91ec2dadf..6b174682a 100644
+--- a/apps/web/modules/workspaces/settings/tags/lib/api-client.ts
++++ b/apps/web/modules/workspaces/settings/tags/lib/api-client.ts
+@@ -40,6 +40,14 @@ export async function mergeTags(params: { tagId: string; newTagId: string }): Pr
+   return request<{ id: string }>(`${BASE_PATH}/${params.tagId}/merge`, {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+-    body: JSON.stringify({ newTagId: params.newTagId }),
++    body: JSON.stringify({ newTagId }),
++  });
++}
++
++export async function bulkDeleteUnusedTags(params: { workspaceId: string }): Promise<{ deletedCount: number }> {
++  return request<{ deletedCount: number }>(`${BASE_PATH}/bulk-delete-unused`, {
++    method: "DELETE",
++    headers: { "Content-Type": "application/json" },
++    body: JSON.stringify({ workspaceId: params.workspaceId }),
+   });
+ }
+diff --git a/apps/web/modules/workspaces/settings/tags/loading.tsx b/apps/web/modules/workspaces/settings/tags/loading.tsx
+index fc7ba72ef..08817b15b 100644
+--- a/apps/web/modules/workspaces/settings/tags/loading.tsx
++++ b/apps/web/modules/workspaces/settings/tags/loading.tsx
+@@ -8,7 +8,8 @@ import { SettingsTableSkeleton } from "@/modules/ui/components/settings-table";
+ import { getTagColumns } from "@/modules/workspaces/settings/tags/components/edit-tags-wrapper";
+ 
+ export const TagsLoading = () => {
+-  const { t } = useTranslation();
++  const { t, i18n } = useTranslation();
++  const locale = i18n.resolvedLanguage ?? i18n.language;
+   return (
+     <PageContentWrapper>
+       <PageHeader pageTitle={t("common.tags")} />
+@@ -22,13 +23,13 @@ export const TagsLoading = () => {
+ 
+           `isReadOnly: false` is a genuine limitation rather than a choice: a route `loading.tsx` receives
+           no props and has no auth context, so it cannot know whether the actions column will be there. It
+-          renders the editor's three columns, which is the common case. The widths do not rely on summing
+-          to exactly 100% — `table-auto` rescales the rest when a column is absent.
++          renders the editor's four columns, which is the common case. The widths do not rely on summing to
++          exactly 100% — `table-auto` rescales the rest when a column is absent.
+ 
+           `workspaceId` and `tags` are never read: the skeleton renders headers and placeholder bars, and
+           never calls `cell`.
+         */}
+-        <SettingsTableSkeleton columns={getTagColumns({ t, workspaceId: "", tags: [], isReadOnly: false })} />
++        <SettingsTableSkeleton columns={getTagColumns({ t, workspaceId: "", tags: [], isReadOnly: false, locale })} />
+       </SettingsCard>
+     </PageContentWrapper>
+   );
+diff --git a/apps/web/modules/workspaces/settings/tags/page.tsx b/apps/web/modules/workspaces/settings/tags/page.tsx
+index 3b57a1500..50d3dbca1 100644
+--- a/apps/web/modules/workspaces/settings/tags/page.tsx
++++ b/apps/web/modules/workspaces/settings/tags/page.tsx
+@@ -19,7 +19,12 @@ export const TagsPage = async (props: { params: Promise<{ workspaceId: string }>
+       <SettingsCard
+         title={t("workspace.tags.manage_tags")}
+         description={t("workspace.tags.manage_tags_description")}
+-        bodyVariant="flush">
++        bodyVariant="flush"
++        footer={
++          !isReadOnly ? (
++            <EditTagsWrapper.BulkDeleteUnusedTags workspaceId={params.workspaceId} />
++          ) : undefined
++        }>
+         <EditTagsWrapper workspaceId={params.workspaceId} isReadOnly={isReadOnly} />
+       </SettingsCard>
+     </PageContentWrapper>

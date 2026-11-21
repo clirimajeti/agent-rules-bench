@@ -1,0 +1,363 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..26fbebcb0 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -2,6 +2,7 @@ import { AuthenticationError } from "@formbricks/types/errors";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
++import { DownloadMyData } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+ import {
+   EMAIL_VERIFICATION_DISABLED,
+@@ -11,6 +12,7 @@ import {
+ } from "@/lib/constants";
+ import { getOrganizationsWhereUserIsSingleOwner } from "@/lib/organization/service";
+ import { getUser } from "@/lib/user/service";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
+ import { getTranslate } from "@/lingodotdev/server";
+ import { requiresPasswordConfirmationForAccountDeletion } from "@/modules/account/lib/account-deletion-auth";
+ import { getSession } from "@/modules/auth/lib/session";
+@@ -108,6 +110,28 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <dl className="space-y-3 pb-2 text-sm">
++            <div>
++              <dt className="font-medium text-slate-800">{t("workspace.settings.profile.account_created")}</dt>
++              <dd className="text-slate-600">{formatDateTimeForDisplay(user.createdAt, user.locale)}</dd>
++            </div>
++            <div>
++              <dt className="font-medium text-slate-800">{t("workspace.settings.profile.last_login")}</dt>
++              <dd className="text-slate-600">
++                {user.lastLoginAt
++                  ? formatDateTimeForDisplay(user.lastLoginAt, user.locale)
++                  : t("workspace.settings.profile.no_login_recorded")}
++              </dd>
++            </div>
++          </dl>
++          <div className="pb-2">
++            <DownloadMyData />
++          </div>
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx
+new file mode 100644
+index 000000000..698acf8cd
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx
+@@ -0,0 +1,63 @@
++"use client";
++
++import { QueryClient, QueryClientProvider, useMutation } from "@tanstack/react-query";
++import { useState } from "react";
++import toast from "react-hot-toast";
++import { useTranslation } from "react-i18next";
++import { parseV3ApiError } from "@/modules/api/lib/v3-client";
++import { Button } from "@/modules/ui/components/button";
++
++const EXPORT_FILE_NAME = "formbricks-account-data.json";
++
++const fetchAccountExport = async (): Promise<unknown> => {
++  const response = await fetch("/api/v3/account/export", { credentials: "same-origin" });
++  if (!response.ok) {
++    throw await parseV3ApiError(response);
++  }
++
++  const body = (await response.json()) as { data: unknown };
++  return body.data;
++};
++
++const saveAsJsonFile = (data: unknown) => {
++  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
++  const url = URL.createObjectURL(blob);
++  const link = document.createElement("a");
++  link.href = url;
++  link.download = EXPORT_FILE_NAME;
++  document.body.appendChild(link);
++  link.click();
++  link.remove();
++  URL.revokeObjectURL(url);
++};
++
++const DownloadMyDataButton = () => {
++  const { t } = useTranslation();
++  const { mutate, isPending } = useMutation({
++    mutationFn: fetchAccountExport,
++    onSuccess: saveAsJsonFile,
++    onError: () => {
++      toast.error(t("workspace.settings.profile.download_my_data_failed"));
++    },
++  });
++
++  return (
++    <Button variant="secondary" onClick={() => mutate()} loading={isPending}>
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
++
++/**
++ * There is no app-wide `QueryClientProvider` (see the tags settings layout), and this is the only query
++ * consumer on the profile page, so it mounts its own.
++ */
++export const DownloadMyData = () => {
++  const [queryClient] = useState(() => new QueryClient());
++
++  return (
++    <QueryClientProvider client={queryClient}>
++      <DownloadMyDataButton />
++    </QueryClientProvider>
++  );
++};
+diff --git a/apps/web/app/api/v3/account/export/lib/operations.ts b/apps/web/app/api/v3/account/export/lib/operations.ts
+new file mode 100644
+index 000000000..56a279515
+--- /dev/null
++++ b/apps/web/app/api/v3/account/export/lib/operations.ts
+@@ -0,0 +1,48 @@
++import "server-only";
++import { prisma } from "@formbricks/database";
++import { getV3SessionUserId } from "@/app/api/v3/lib/auth";
++import { problemUnauthorized, successResponse } from "@/app/api/v3/lib/response";
++import type { TV3Authentication } from "@/app/api/v3/lib/types";
++import { serializeV3AccountExport } from "../serializers";
++
++type TParams = {
++  authentication: TV3Authentication;
++  requestId: string;
++  instance?: string;
++};
++
++/**
++ * The user is always the session's own, never a client-supplied id, so there is nothing to forge.
++ * Only memberships the user has accepted are listed: a pending invite is not a membership yet.
++ */
++export async function exportV3AccountData({
++  authentication,
++  requestId,
++  instance,
++}: TParams): Promise<Response> {
++  const userId = getV3SessionUserId(authentication);
++  if (!userId) {
++    return problemUnauthorized(requestId, "Session required", instance);
++  }
++
++  const user = await prisma.user.findUnique({
++    where: { id: userId },
++    select: {
++      name: true,
++      email: true,
++      locale: true,
++      notificationSettings: true,
++      memberships: {
++        where: { accepted: true },
++        select: { role: true, organization: { select: { name: true } } },
++        orderBy: { organization: { name: "asc" } },
++      },
++    },
++  });
++
++  if (!user) {
++    return problemUnauthorized(requestId, "Session required", instance);
++  }
++
++  return successResponse(serializeV3AccountExport(user), { requestId });
++}
+diff --git a/apps/web/app/api/v3/account/export/route.ts b/apps/web/app/api/v3/account/export/route.ts
+new file mode 100644
+index 000000000..469e90be1
+--- /dev/null
++++ b/apps/web/app/api/v3/account/export/route.ts
+@@ -0,0 +1,15 @@
++/**
++ * GET /api/v3/account/export - the signed-in user's own personal data, for the "Download my data" button
++ * on the profile settings page.
++ *
++ * Session-only, deliberately: the data belongs to the person at the keyboard, so an API key (which is
++ * scoped to an organization, not to a person) has no business reading it.
++ */
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { exportV3AccountData } from "./lib/operations";
++
++export const GET = withV3ApiWrapper({
++  auth: "session",
++  handler: async ({ authentication, requestId, instance }) =>
++    exportV3AccountData({ authentication, requestId, instance }),
++});
+diff --git a/apps/web/app/api/v3/account/export/serializers.ts b/apps/web/app/api/v3/account/export/serializers.ts
+new file mode 100644
+index 000000000..1e38ec92c
+--- /dev/null
++++ b/apps/web/app/api/v3/account/export/serializers.ts
+@@ -0,0 +1,33 @@
++import type { TUserNotificationSettings } from "@formbricks/types/user";
++
++export type TV3AccountExportMembership = {
++  organizationName: string;
++  role: string;
++};
++
++export type TV3AccountExport = {
++  name: string;
++  email: string;
++  locale: string;
++  notificationSettings: TUserNotificationSettings;
++  memberships: TV3AccountExportMembership[];
++};
++
++type TAccountExportSource = {
++  name: string;
++  email: string;
++  locale: string;
++  notificationSettings: unknown;
++  memberships: { role: string; organization: { name: string } }[];
++};
++
++export const serializeV3AccountExport = (user: TAccountExportSource): TV3AccountExport => ({
++  name: user.name,
++  email: user.email,
++  locale: user.locale,
++  notificationSettings: user.notificationSettings as TUserNotificationSettings,
++  memberships: user.memberships.map((membership) => ({
++    organizationName: membership.organization.name,
++    role: membership.role,
++  })),
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..da489ae91 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "When your account was created and when you last logged in.",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,11 +3753,15 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
++        "download_my_data_failed": "Could not download your data. Please try again.",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
+         "lost_access": "Lost access",
++        "no_login_recorded": "No login recorded",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+         "permanent_removal_of_all_of_your_personal_information_and_data": "Permanent removal of all of your personal information and data",
+diff --git a/docs/api-v3-reference/src/components/schemas/AccountExport.yml b/docs/api-v3-reference/src/components/schemas/AccountExport.yml
+new file mode 100644
+index 000000000..12c03de57
+--- /dev/null
++++ b/docs/api-v3-reference/src/components/schemas/AccountExport.yml
+@@ -0,0 +1,33 @@
++type: object
++required:
++  - name
++  - email
++  - locale
++  - notificationSettings
++  - memberships
++properties:
++  name:
++    type: string
++  email:
++    type: string
++  locale:
++    type: string
++    description: Interface language of the account, for example `en-US`.
++  notificationSettings:
++    type: object
++    description: The account's notification preferences, as stored.
++    additionalProperties: true
++  memberships:
++    type: array
++    description: Accepted organization memberships, ordered by organization name.
++    items:
++      type: object
++      required:
++        - organizationName
++        - role
++      properties:
++        organizationName:
++          type: string
++        role:
++          type: string
++          description: Role in the organization, for example `owner`, `manager` or `member`.
+diff --git a/docs/api-v3-reference/src/openapi.yml b/docs/api-v3-reference/src/openapi.yml
+index 22d57e490..e789740f7 100644
+--- a/docs/api-v3-reference/src/openapi.yml
++++ b/docs/api-v3-reference/src/openapi.yml
+@@ -480,6 +480,8 @@ paths:
+     $ref: paths/api_v3_contacts_attribute-values.yml
+   /api/v3/segments:
+     $ref: paths/api_v3_segments.yml
++  /api/v3/account/export:
++    $ref: paths/api_v3_account_export.yml
+   /api/v3/tags:
+     $ref: paths/api_v3_tags.yml
+   /api/v3/tags/{tagId}:
+diff --git a/docs/api-v3-reference/src/paths/api_v3_account_export.yml b/docs/api-v3-reference/src/paths/api_v3_account_export.yml
+new file mode 100644
+index 000000000..40826a684
+--- /dev/null
++++ b/docs/api-v3-reference/src/paths/api_v3_account_export.yml
+@@ -0,0 +1,43 @@
++get:
++  operationId: exportAccountV3
++  # Session-only by design: the data belongs to the signed-in person, and an API key is scoped to an
++  # organization, so it would only ever get a 401. Kept out of the generated docs pages like the other
++  # session-only operations (ENG-2533); the operation stays in the bundle for the contract tests.
++  x-excluded: true
++  summary: Export my account data
++  description: |
++    Returns the signed-in user's own name, email, locale, notification settings and accepted organization
++    memberships. Backs the "Download my data" button on the profile settings page.
++
++    Session cookie only. It does not accept `x-api-key`.
++  tags:
++    - V3 Account
++  responses:
++    "200":
++      description: Account data retrieved successfully
++      headers:
++        X-Request-Id:
++          schema:
++            type: string
++          description: Request correlation ID
++        Cache-Control:
++          schema:
++            type: string
++          example: private, no-store
++      content:
++        application/json:
++          schema:
++            type: object
++            required:
++              - data
++            properties:
++              data:
++                $ref: ../components/schemas/AccountExport.yml
++    "401":
++      $ref: ../components/responses/V3UnauthorizedSession.yml
++    "429":
++      $ref: ../components/responses/V3TooManyRequests.yml
++    "500":
++      $ref: ../components/responses/V3InternalServerError.yml
++  security:
++    - sessionAuth: []

@@ -1,0 +1,243 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..401bebdab 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,6 +1,7 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
++import { DownloadUserDataButton } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadUserDataButton";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+ import {
+@@ -9,10 +10,13 @@ import {
+   IS_FORMBRICKS_CLOUD,
+   PASSWORD_RESET_DISABLED,
+ } from "@/lib/constants";
++import { getAcceptedMembershipsWithOrganizationByUserId } from "@/lib/membership/service";
+ import { getOrganizationsWhereUserIsSingleOwner } from "@/lib/organization/service";
+ import { getUser } from "@/lib/user/service";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
+ import { getTranslate } from "@/lingodotdev/server";
+ import { requiresPasswordConfirmationForAccountDeletion } from "@/modules/account/lib/account-deletion-auth";
++import { buildUserDataExport } from "@/modules/account/lib/user-data-export";
+ import { getSession } from "@/modules/auth/lib/session";
+ import { LiteLicenseTip } from "@/modules/ee/license-check/components/lite-license-tip";
+ import { getEnterpriseLicense } from "@/modules/ee/license-check/lib/license";
+@@ -38,6 +42,8 @@ const Page = async () => {
+   if (!user) {
+     throw new AuthenticationError(t("common.not_authenticated"));
+   }
++  const memberships = await getAcceptedMembershipsWithOrganizationByUserId(session.user.id);
++  const userDataExport = buildUserDataExport(user, memberships);
+ 
+   // Two-factor upgrade points at the user's organization billing page (org-scoped after the refactor).
+   const layoutData = await getSettingsLayoutData(session.user.id);
+@@ -99,6 +105,22 @@ const Page = async () => {
+             isPasswordResetEnabled={isPasswordResetEnabled}
+           />
+         </SettingsCard>
++
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
++            <dt className="font-medium text-slate-800">{t("workspace.settings.profile.account_created")}</dt>
++            <dd className="text-slate-600">{formatDateTimeForDisplay(user.createdAt, user.locale)}</dd>
++            <dt className="font-medium text-slate-800">{t("workspace.settings.profile.last_login")}</dt>
++            <dd className="text-slate-600">
++              {user.lastLoginAt
++                ? formatDateTimeForDisplay(user.lastLoginAt, user.locale)
++                : t("workspace.settings.profile.never_logged_in")}
++            </dd>
++          </dl>
++        </SettingsCard>
++
+         {user.identityProvider === "email" && (
+           <SettingsCard
+             title={t("common.security")}
+@@ -108,6 +130,12 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.your_data")}
++          description={t("workspace.settings.profile.your_data_description")}>
++          <DownloadUserDataButton data={userDataExport} />
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadUserDataButton.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadUserDataButton.tsx
+new file mode 100644
+index 000000000..944382b59
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadUserDataButton.tsx
+@@ -0,0 +1,32 @@
++"use client";
++
++import { useTranslation } from "react-i18next";
++import { TUserDataExport } from "@/modules/account/lib/user-data-export";
++import { Button } from "@/modules/ui/components/button";
++
++interface DownloadUserDataButtonProps {
++  data: TUserDataExport;
++}
++
++export const DownloadUserDataButton = ({ data }: Readonly<DownloadUserDataButtonProps>) => {
++  const { t } = useTranslation();
++
++  const handleDownload = () => {
++    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
++    const url = URL.createObjectURL(blob);
++
++    const link = document.createElement("a");
++    link.href = url;
++    link.download = "formbricks-user-data.json";
++    link.click();
++
++    // Revoke after the click has been dispatched so the browser can start the download first.
++    setTimeout(() => URL.revokeObjectURL(url), 0);
++  };
++
++  return (
++    <Button type="button" variant="secondary" onClick={handleDownload}>
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
+diff --git a/apps/web/lib/membership/service.ts b/apps/web/lib/membership/service.ts
+index ef1310838..a0c09237b 100644
+--- a/apps/web/lib/membership/service.ts
++++ b/apps/web/lib/membership/service.ts
+@@ -5,7 +5,7 @@ import { Prisma, PrismaClient } from "@formbricks/database/prisma";
+ import { logger } from "@formbricks/logger";
+ import { ZString } from "@formbricks/types/common";
+ import { DatabaseError, UnknownError } from "@formbricks/types/errors";
+-import { TMembership, ZMembership } from "@formbricks/types/memberships";
++import { TMembership, TOrganizationRole, ZMembership } from "@formbricks/types/memberships";
+ import { reconcileOrganizationMembership } from "../authzed/organization-membership";
+ import { validateInputs } from "../utils/validate";
+ 
+@@ -126,3 +126,41 @@ export const createMembership = async (
+ 
+   return membership;
+ };
++
++export type TAcceptedMembershipWithOrganization = {
++  organizationName: string;
++  role: TOrganizationRole;
++};
++
++/**
++ * Accepted memberships of a user, each with the organization name. Pending memberships (`accepted: false`)
++ * are left out because the user has not joined those organizations yet.
++ */
++export const getAcceptedMembershipsWithOrganizationByUserId = reactCache(
++  async (userId: string): Promise<TAcceptedMembershipWithOrganization[]> => {
++    validateInputs([userId, ZString]);
++
++    try {
++      const memberships = await prisma.membership.findMany({
++        where: { userId, accepted: true },
++        select: {
++          role: true,
++          organization: { select: { name: true } },
++        },
++        orderBy: { organization: { name: "asc" } },
++      });
++
++      return memberships.map((membership) => ({
++        organizationName: membership.organization.name,
++        role: membership.role,
++      }));
++    } catch (error) {
++      if (error instanceof Prisma.PrismaClientKnownRequestError) {
++        logger.error(error, "Error getting accepted memberships by user id");
++        throw new DatabaseError(error.message);
++      }
++
++      throw error;
++    }
++  }
++);
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..348d79f46 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "When your account was created and when you last logged in.",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,11 +3753,14 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
+         "lost_access": "Lost access",
++        "never_logged_in": "Never",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+         "permanent_removal_of_all_of_your_personal_information_and_data": "Permanent removal of all of your personal information and data",
+@@ -3773,7 +3779,9 @@
+         "update_personal_info": "Update your personal information",
+         "warning_cannot_delete_account": "You are the only owner of this organization. Please transfer ownership to another member first.",
+         "warning_cannot_undo": "This cannot be undone",
+-        "wrong_password": "Wrong password"
++        "wrong_password": "Wrong password",
++        "your_data": "Your data",
++        "your_data_description": "Download a JSON file with your name, email, locale, notification settings and organization memberships."
+       },
+       "teams": {
+         "add_members_description": "Add members to the team and determine their role.",
+diff --git a/apps/web/modules/account/lib/user-data-export.ts b/apps/web/modules/account/lib/user-data-export.ts
+new file mode 100644
+index 000000000..ee6251082
+--- /dev/null
++++ b/apps/web/modules/account/lib/user-data-export.ts
+@@ -0,0 +1,33 @@
++import type { TOrganizationRole } from "@formbricks/types/memberships";
++import type { TUser, TUserLocale, TUserNotificationSettings } from "@formbricks/types/user";
++
++export type TUserDataExportOrganization = {
++  name: string;
++  role: TOrganizationRole;
++};
++
++export type TUserDataExport = {
++  name: string;
++  email: string;
++  locale: TUserLocale;
++  notificationSettings: TUserNotificationSettings;
++  organizations: TUserDataExportOrganization[];
++};
++
++/**
++ * The data the account "Download my data" button exports. Only the fields listed here are included;
++ * the object is serialized as-is, so anything added to it becomes part of the downloaded file.
++ */
++export const buildUserDataExport = (
++  user: Pick<TUser, "name" | "email" | "locale" | "notificationSettings">,
++  organizations: TUserDataExportOrganization[]
++): TUserDataExport => ({
++  name: user.name,
++  email: user.email,
++  locale: user.locale,
++  notificationSettings: user.notificationSettings,
++  organizations: organizations.map((organization) => ({
++    name: organization.name,
++    role: organization.role,
++  })),
++});

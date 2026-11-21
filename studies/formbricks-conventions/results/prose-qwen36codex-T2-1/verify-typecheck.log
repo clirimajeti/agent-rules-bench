@@ -1,0 +1,18 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(40,5): error TS6133: 'requestId' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(41,5): error TS6133: 'instance' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(46,41): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(46,56): error TS2339: Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(55,5): error TS18048: 'auditLog' is possibly 'undefined'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(56,5): error TS18048: 'auditLog' is possibly 'undefined'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(67,59): error TS2339: Property 'data' does not exist on type 'WebhookWithoutSecret'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(67,88): error TS2339: Property 'data' does not exist on type 'WebhookWithoutSecret'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(68,30): error TS2339: Property 'data' does not exist on type 'WebhookWithoutSecret'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(70,35): error TS2339: Property 'data' does not exist on type 'WebhookWithoutSecret'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(71,36): error TS2339: Property 'data' does not exist on type 'WebhookWithoutSecret'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(76,5): error TS18048: 'auditLog' is possibly 'undefined'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

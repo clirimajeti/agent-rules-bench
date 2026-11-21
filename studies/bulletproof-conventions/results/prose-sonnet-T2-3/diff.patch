@@ -1,0 +1,83 @@
+diff --git a/apps/react-vite/src/features/discussions/components/discussions-list.tsx b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+index 9aa5fba..382f4db 100644
+--- a/apps/react-vite/src/features/discussions/components/discussions-list.tsx
++++ b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+@@ -54,6 +54,21 @@ export const DiscussionsList = ({
+             return <span>{formatDate(createdAt)}</span>;
+           },
+         },
++        {
++          title: 'Comments',
++          field: 'commentCount',
++        },
++        {
++          title: 'Last Comment',
++          field: 'lastCommentAt',
++          Cell({ entry: { lastCommentAt } }) {
++            return (
++              <span>
++                {lastCommentAt ? formatDate(lastCommentAt) : 'No comments yet'}
++              </span>
++            );
++          },
++        },
+         {
+           title: '',
+           field: 'id',
+diff --git a/apps/react-vite/src/testing/mocks/handlers/discussions.ts b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+index 37c0797..cb0507d 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/discussions.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+@@ -15,6 +15,23 @@ type DiscussionBody = {
+   body: string;
+ };
+ 
++const getCommentStats = (discussionId: string) => {
++  const comments = db.comment.findMany({
++    where: {
++      discussionId: {
++        equals: discussionId,
++      },
++    },
++  });
++
++  return {
++    commentCount: comments.length,
++    lastCommentAt: comments.length
++      ? Math.max(...comments.map((comment) => comment.createdAt))
++      : null,
++  };
++};
++
+ export const discussionsHandlers = [
+   http.get(`${env.API_URL}/discussions`, async ({ cookies, request }) => {
+     await networkDelay();
+@@ -59,6 +76,7 @@ export const discussionsHandlers = [
+           });
+           return {
+             ...discussion,
++            ...getCommentStats(discussion.id),
+             author: author ? sanitizeUser(author) : {},
+           };
+         });
+@@ -117,6 +135,7 @@ export const discussionsHandlers = [
+ 
+         const result = {
+           ...discussion,
++          ...getCommentStats(discussion.id),
+           author: author ? sanitizeUser(author) : {},
+         };
+ 
+diff --git a/apps/react-vite/src/types/api.ts b/apps/react-vite/src/types/api.ts
+index dbdf434..ee68e48 100644
+--- a/apps/react-vite/src/types/api.ts
++++ b/apps/react-vite/src/types/api.ts
+@@ -41,6 +41,8 @@ export type Discussion = Entity<{
+   body: string;
+   teamId: string;
+   author: User;
++  commentCount: number;
++  lastCommentAt: number | null;
+ }>;
+ 
+ export type Comment = Entity<{

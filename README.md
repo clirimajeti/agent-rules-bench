@@ -74,7 +74,8 @@ node bench/bench.mjs summarize studies/<study>/study.json   # summary.md and run
    It never touches the source repo and refuses a workdir inside it.
    The workdir defaults to `~/.cache/agent-rules-bench/workdirs/<study>` (or `$BENCH_WORKDIRS`), outside any project: Claude Code loads every `CLAUDE.md` in the folders above a session, so `prepare` and `run` refuse a workdir below one.
 2. **run** resets each copy to `bench-base` before every session and runs `claude -p` with project settings only (no personal hooks or plugins), the study's model, turn cap and allowed tools, and no terminal input.
-   Arms run in parallel, sessions within an arm one after another.
+   Arms run in parallel, sessions within an arm one after another; with a `seed` in the study the runs are shuffled, so the arms interleave in time.
+   Each `result.json` records when the run started, the model ids the agent reported, and the versions of the harness (commit), Node and the agent CLI.
    After each session it counts rule breaks on the lines the agent added, using the study's checkers.
    For arms with `"fix": true`, a run that broke a rule gets one more session with the study's review feedback.
    An optional build command runs at the end.

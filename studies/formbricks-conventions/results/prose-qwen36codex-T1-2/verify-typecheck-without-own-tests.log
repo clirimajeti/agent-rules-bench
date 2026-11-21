@@ -1,0 +1,15 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(9,33): error TS2307: Cannot find module '../lib/schemas' or its corresponding type declarations.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(10,39): error TS2307: Cannot find module '../lib/operations' or its corresponding type declarations.
+app/api/v3/api-keys/lib/operations.ts(31,17): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/api-keys/lib/operations.ts(31,35): error TS2367: This comparison appears to be unintentional because the types '"apiKey"' and '"session"' have no overlap.
+app/api/v3/api-keys/lib/operations.ts(33,42): error TS2339: Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/api-keys/lib/operations.ts(37,24): error TS18047: 'authentication' is possibly 'null'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(134,13): error TS2304: Cannot find name 'handleOpenRotateKeyModal'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(178,18): error TS2304: Cannot find name 'useMutation'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(235,9): error TS6133: 'handleOpenRotateKeyModal' is declared but its value is never read.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(258,9): error TS6133: 'handleCancelRotateKey' is declared but its value is never read.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

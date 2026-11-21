@@ -1,0 +1,128 @@
+diff --git a/apps/react-vite/src/app/routes/app/discussions/discussion.tsx b/apps/react-vite/src/app/routes/app/discussions/discussion.tsx
+index 035afd0..d17e9f3 100644
+--- a/apps/react-vite/src/app/routes/app/discussions/discussion.tsx
++++ b/apps/react-vite/src/app/routes/app/discussions/discussion.tsx
+@@ -1,4 +1,5 @@
+ import { QueryClient } from '@tanstack/react-query';
++import { useEffect } from 'react';
+ import { ErrorBoundary } from 'react-error-boundary';
+ import { useParams, LoaderFunctionArgs } from 'react-router';
+ 
+@@ -10,6 +11,7 @@ import {
+   useDiscussion,
+   getDiscussionQueryOptions,
+ } from '@/features/discussions/api/get-discussion';
++import { useInvalidateDiscussions } from '@/features/discussions/api/get-discussions';
+ import { DiscussionView } from '@/features/discussions/components/discussion-view';
+ 
+ export const clientLoader =
+@@ -41,6 +43,15 @@ const DiscussionRoute = () => {
+   const discussionQuery = useDiscussion({
+     discussionId,
+   });
++  const invalidateDiscussions = useInvalidateDiscussions();
++
++  useEffect(() => {
++    // The discussions list shows comment stats that may change on this page,
++    // so mark it stale when leaving to refetch fresh values.
++    return () => {
++      invalidateDiscussions();
++    };
++  }, [invalidateDiscussions, discussionId]);
+ 
+   if (discussionQuery.isLoading) {
+     return (
+diff --git a/apps/react-vite/src/features/discussions/api/get-discussions.ts b/apps/react-vite/src/features/discussions/api/get-discussions.ts
+index fd92874..fa7a1b9 100644
+--- a/apps/react-vite/src/features/discussions/api/get-discussions.ts
++++ b/apps/react-vite/src/features/discussions/api/get-discussions.ts
+@@ -1,13 +1,19 @@
+-import { queryOptions, useQuery } from '@tanstack/react-query';
++import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
++import { useCallback } from 'react';
+ 
+ import { api } from '@/lib/api-client';
+ import { QueryConfig } from '@/lib/react-query';
+ import { Discussion, Meta } from '@/types/api';
+ 
++export type DiscussionListItem = Discussion & {
++  commentsCount: number;
++  lastCommentAt: number | null;
++};
++
+ export const getDiscussions = (
+   page = 1,
+ ): Promise<{
+-  data: Discussion[];
++  data: DiscussionListItem[];
+   meta: Meta;
+ }> => {
+   return api.get(`/discussions`, {
+@@ -40,3 +46,15 @@ export const useDiscussions = ({
+     ...queryConfig,
+   });
+ };
++
++export const useInvalidateDiscussions = () => {
++  const queryClient = useQueryClient();
++
++  return useCallback(
++    () =>
++      queryClient.invalidateQueries({
++        queryKey: getDiscussionsQueryOptions().queryKey,
++      }),
++    [queryClient],
++  );
++};
+diff --git a/apps/react-vite/src/features/discussions/components/discussions-list.tsx b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+index 9aa5fba..a3d5cec 100644
+--- a/apps/react-vite/src/features/discussions/components/discussions-list.tsx
++++ b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+@@ -54,6 +54,21 @@ export const DiscussionsList = ({
+             return <span>{formatDate(createdAt)}</span>;
+           },
+         },
++        {
++          title: 'Comments',
++          field: 'commentsCount',
++        },
++        {
++          title: 'Last Comment',
++          field: 'lastCommentAt',
++          Cell({ entry: { lastCommentAt } }) {
++            return (
++              <span>
++                {lastCommentAt ? formatDate(lastCommentAt) : 'No comments yet'}
++              </span>
++            );
++          },
++        },
+         {
+           title: '',
+           field: 'id',
+diff --git a/apps/react-vite/src/testing/mocks/handlers/discussions.ts b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+index 37c0797..d9ca49d 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/discussions.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+@@ -57,9 +57,21 @@ export const discussionsHandlers = [
+               },
+             },
+           });
++          const comments = db.comment.findMany({
++            where: {
++              discussionId: {
++                equals: discussion.id,
++              },
++            },
++          });
++          const lastCommentAt = comments.length
++            ? Math.max(...comments.map((comment) => comment.createdAt))
++            : null;
+           return {
+             ...discussion,
+             author: author ? sanitizeUser(author) : {},
++            commentsCount: comments.length,
++            lastCommentAt,
+           };
+         });
+       return HttpResponse.json({

@@ -1,0 +1,130 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..bc5aa8e7b 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,5 +1,6 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
++import { DownloadMyData } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+@@ -9,7 +10,8 @@ import {
+   IS_FORMBRICKS_CLOUD,
+   PASSWORD_RESET_DISABLED,
+ } from "@/lib/constants";
+-import { getOrganizationsWhereUserIsSingleOwner } from "@/lib/organization/service";
++import { getOrganizationsByUserId, getOrganizationsWhereUserIsSingleOwner } from "@/lib/organization/service";
++import { getMembershipsByUserId } from "@/modules/organization/settings/teams/lib/membership";
+ import { getUser } from "@/lib/user/service";
+ import { getTranslate } from "@/lingodotdev/server";
+ import { requiresPasswordConfirmationForAccountDeletion } from "@/modules/account/lib/account-deletion-auth";
+@@ -83,6 +85,23 @@ const Page = async () => {
+     );
+   }
+ 
++  const [memberships, organizations] = await Promise.all([
++    getMembershipsByUserId(user.id),
++    getOrganizationsByUserId(user.id),
++  ]);
++  const myData = {
++    name: user.name,
++    email: user.email,
++    locale: user.locale,
++    notificationSettings: user.notificationSettings,
++    organizations: memberships.map((membership) => ({
++      name: organizations.find((org) => org.id === membership.organizationId)?.name ?? null,
++      role: membership.role,
++    })),
++  };
++  const formatDateTime = (date: Date | null) =>
++    date ? date.toLocaleString(user.locale) : t("workspace.settings.profile.never_logged_in");
++
+   const isPasswordResetEnabled = !PASSWORD_RESET_DISABLED && user.identityProvider === "email";
+   const requiresPasswordConfirmation = requiresPasswordConfirmationForAccountDeletion(user);
+ 
+@@ -108,6 +127,24 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <dl className="space-y-2 text-sm">
++            <div className="flex gap-2">
++              <dt className="font-medium text-slate-700">{t("workspace.settings.profile.account_created")}</dt>
++              <dd className="text-slate-600">{formatDateTime(user.createdAt)}</dd>
++            </div>
++            <div className="flex gap-2">
++              <dt className="font-medium text-slate-700">{t("workspace.settings.profile.last_login")}</dt>
++              <dd className="text-slate-600">{formatDateTime(user.lastLoginAt)}</dd>
++            </div>
++          </dl>
++          <div className="mt-4">
++            <DownloadMyData data={myData} />
++          </div>
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx
+new file mode 100644
+index 000000000..f59de02c0
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyData.tsx
+@@ -0,0 +1,25 @@
++"use client";
++
++import { useTranslation } from "react-i18next";
++import { Button } from "@/modules/ui/components/button";
++
++export const DownloadMyData = ({ data }: Readonly<{ data: unknown }>) => {
++  const { t } = useTranslation();
++
++  const download = () => {
++    const url = URL.createObjectURL(
++      new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
++    );
++    const link = document.createElement("a");
++    link.href = url;
++    link.download = "my-data.json";
++    link.click();
++    URL.revokeObjectURL(url);
++  };
++
++  return (
++    <Button type="button" variant="secondary" onClick={download}>
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..b904a2be3 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "When your account was created and last used. Download a copy of your data.",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,11 +3753,14 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
+         "lost_access": "Lost access",
++        "never_logged_in": "Never",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+         "permanent_removal_of_all_of_your_personal_information_and_data": "Permanent removal of all of your personal information and data",

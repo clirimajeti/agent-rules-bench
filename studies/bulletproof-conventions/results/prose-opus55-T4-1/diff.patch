@@ -1,0 +1,318 @@
+diff --git a/apps/react-vite/src/components/ui/form/form.tsx b/apps/react-vite/src/components/ui/form/form.tsx
+index bc2faee..90d4ef0 100644
+--- a/apps/react-vite/src/components/ui/form/form.tsx
++++ b/apps/react-vite/src/components/ui/form/form.tsx
+@@ -172,6 +172,7 @@ FormMessage.displayName = 'FormMessage';
+ 
+ type FormProps<TFormValues extends FieldValues, Schema> = {
+   onSubmit: SubmitHandler<TFormValues>;
++  onChange?: (values: TFormValues) => void;
+   schema: Schema;
+   className?: string;
+   children: (methods: UseFormReturn<TFormValues>) => React.ReactNode;
+@@ -184,6 +185,7 @@ const Form = <
+   TFormValues extends FieldValues = z.infer<Schema>,
+ >({
+   onSubmit,
++  onChange,
+   children,
+   className,
+   options,
+@@ -191,6 +193,13 @@ const Form = <
+   schema,
+ }: FormProps<TFormValues, Schema>) => {
+   const form = useForm({ ...options, resolver: zodResolver(schema) });
++
++  React.useEffect(() => {
++    if (!onChange) return;
++    const subscription = form.watch(() => onChange(form.getValues()));
++    return () => subscription.unsubscribe();
++  }, [form, onChange]);
++
+   return (
+     <FormProvider {...form}>
+       <form
+diff --git a/apps/react-vite/src/features/users/api/get-users.ts b/apps/react-vite/src/features/users/api/get-users.ts
+index e13d106..1fb69b5 100644
+--- a/apps/react-vite/src/features/users/api/get-users.ts
++++ b/apps/react-vite/src/features/users/api/get-users.ts
+@@ -1,9 +1,33 @@
+ import { queryOptions, useQuery } from '@tanstack/react-query';
++import { z } from 'zod';
+ 
+ import { api } from '@/lib/api-client';
++import { ROLES, hasRole } from '@/lib/authorization';
+ import { QueryConfig } from '@/lib/react-query';
+ import { User } from '@/types/api';
+ 
++export const usersFilterInputSchema = z.object({
++  search: z.string(),
++  // An empty string means "all roles".
++  role: z.union([z.nativeEnum(ROLES), z.literal('')]),
++});
++
++export type UsersFilterInput = z.infer<typeof usersFilterInputSchema>;
++
++export const filterUsers = (users: User[], filters: UsersFilterInput) => {
++  const search = filters.search.trim().toLowerCase();
++
++  return users.filter((user) => {
++    if (filters.role && !hasRole(user, [filters.role])) return false;
++    if (!search) return true;
++
++    const name = `${user.firstName} ${user.lastName}`.toLowerCase();
++    return (
++      name.includes(search) || user.email.toLowerCase().includes(search)
++    );
++  });
++};
++
+ export const getUsers = (): Promise<{ data: User[] }> => {
+   return api.get(`/users`);
+ };
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..47225d3 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,13 +1,54 @@
++import { Download } from 'lucide-react';
++import * as React from 'react';
++
++import { Button } from '@/components/ui/button';
++import { Form, Input, Select } from '@/components/ui/form';
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
++import { ROLES } from '@/lib/authorization';
++import { User } from '@/types/api';
++import { downloadCsv, toCsv } from '@/utils/csv';
+ import { formatDate } from '@/utils/format';
+ 
+-import { useUsers } from '../api/get-users';
++import {
++  UsersFilterInput,
++  filterUsers,
++  useUsers,
++  usersFilterInputSchema,
++} from '../api/get-users';
+ 
+ import { DeleteUser } from './delete-user';
+ 
++const defaultFilters: UsersFilterInput = { search: '', role: '' };
++
++const exportUsersCsv = (users: User[]) => {
++  const csv = toCsv(
++    ['Name', 'Email', 'Role', 'Joined'],
++    users.map((user) => [
++      `${user.firstName} ${user.lastName}`,
++      user.email,
++      user.role,
++      formatDate(user.createdAt),
++    ]),
++  );
++  downloadCsv('users.csv', csv);
++};
++
+ export const UsersList = () => {
+   const usersQuery = useUsers();
++  const [filters, setFilters] =
++    React.useState<UsersFilterInput>(defaultFilters);
++  const handleFiltersChange = React.useCallback(
++    (values: UsersFilterInput) => setFilters(values),
++    [],
++  );
++
++  const users = usersQuery.data?.data;
++
++  const filteredUsers = React.useMemo(
++    () => (users ? filterUsers(users, filters) : []),
++    [users, filters],
++  );
+ 
+   if (usersQuery.isLoading) {
+     return (
+@@ -17,45 +58,87 @@ export const UsersList = () => {
+     );
+   }
+ 
+-  const users = usersQuery.data?.data;
+-
+   if (!users) return null;
+ 
+   return (
+-    <Table
+-      data={users}
+-      columns={[
+-        {
+-          title: 'First Name',
+-          field: 'firstName',
+-        },
+-        {
+-          title: 'Last Name',
+-          field: 'lastName',
+-        },
+-        {
+-          title: 'Email',
+-          field: 'email',
+-        },
+-        {
+-          title: 'Role',
+-          field: 'role',
+-        },
+-        {
+-          title: 'Created At',
+-          field: 'createdAt',
+-          Cell({ entry: { createdAt } }) {
+-            return <span>{formatDate(createdAt)}</span>;
++    <div className="space-y-4">
++      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
++        <Form
++          className="flex flex-1 flex-col gap-4 space-y-0 sm:flex-row sm:items-end"
++          schema={usersFilterInputSchema}
++          options={{ defaultValues: defaultFilters }}
++          onSubmit={handleFiltersChange}
++          onChange={handleFiltersChange}
++        >
++          {({ register }) => (
++            <>
++              <div className="sm:w-80">
++                <Input
++                  label="Search"
++                  type="search"
++                  placeholder="Search by name or email"
++                  registration={register('search')}
++                />
++              </div>
++              <div className="sm:w-48">
++                <Select
++                  label="Role"
++                  registration={register('role')}
++                  options={[
++                    { label: 'All roles', value: '' },
++                    { label: 'Admin', value: ROLES.ADMIN },
++                    { label: 'User', value: ROLES.USER },
++                  ]}
++                />
++              </div>
++            </>
++          )}
++        </Form>
++        <Button
++          type="button"
++          variant="outline"
++          icon={<Download className="size-4" />}
++          disabled={filteredUsers.length === 0}
++          onClick={() => exportUsersCsv(filteredUsers)}
++        >
++          Export CSV
++        </Button>
++      </div>
++      <Table
++        data={filteredUsers}
++        columns={[
++          {
++            title: 'First Name',
++            field: 'firstName',
++          },
++          {
++            title: 'Last Name',
++            field: 'lastName',
++          },
++          {
++            title: 'Email',
++            field: 'email',
++          },
++          {
++            title: 'Role',
++            field: 'role',
++          },
++          {
++            title: 'Created At',
++            field: 'createdAt',
++            Cell({ entry: { createdAt } }) {
++              return <span>{formatDate(createdAt)}</span>;
++            },
+           },
+-        },
+-        {
+-          title: '',
+-          field: 'id',
+-          Cell({ entry: { id } }) {
+-            return <DeleteUser id={id} />;
++          {
++            title: '',
++            field: 'id',
++            Cell({ entry: { id } }) {
++              return <DeleteUser id={id} />;
++            },
+           },
+-        },
+-      ]}
+-    />
++        ]}
++      />
++    </div>
+   );
+ };
+diff --git a/apps/react-vite/src/lib/authorization.tsx b/apps/react-vite/src/lib/authorization.tsx
+index 563fca3..787add3 100644
+--- a/apps/react-vite/src/lib/authorization.tsx
++++ b/apps/react-vite/src/lib/authorization.tsx
+@@ -11,6 +11,11 @@ export enum ROLES {
+ 
+ type RoleTypes = keyof typeof ROLES;
+ 
++export const hasRole = (user: User, allowedRoles: RoleTypes[]) => {
++  if (allowedRoles.length === 0) return true;
++  return allowedRoles.includes(user.role);
++};
++
+ export const POLICIES = {
+   'comment:delete': (user: User, comment: Comment) => {
+     if (user.role === 'ADMIN') {
+@@ -34,11 +39,8 @@ export const useAuthorization = () => {
+ 
+   const checkAccess = React.useCallback(
+     ({ allowedRoles }: { allowedRoles: RoleTypes[] }) => {
+-      if (allowedRoles && allowedRoles.length > 0 && user.data) {
+-        return allowedRoles?.includes(user.data.role);
+-      }
+-
+-      return true;
++      if (!user.data) return true;
++      return hasRole(user.data, allowedRoles ?? []);
+     },
+     [user.data],
+   );
+diff --git a/apps/react-vite/src/utils/csv.ts b/apps/react-vite/src/utils/csv.ts
+new file mode 100644
+index 0000000..936bb73
+--- /dev/null
++++ b/apps/react-vite/src/utils/csv.ts
+@@ -0,0 +1,27 @@
++type CsvValue = string | number | null | undefined;
++
++const escapeCsvValue = (value: CsvValue) => {
++  const text = value === null || value === undefined ? '' : String(value);
++  // Neutralize spreadsheet formula injection.
++  const safeText = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
++  return /[",\r\n]/.test(safeText)
++    ? `"${safeText.replace(/"/g, '""')}"`
++    : safeText;
++};
++
++export const toCsv = (headers: string[], rows: CsvValue[][]) =>
++  [headers, ...rows]
++    .map((row) => row.map(escapeCsvValue).join(','))
++    .join('\r\n');
++
++export const downloadCsv = (fileName: string, csv: string) => {
++  const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' });
++  const url = URL.createObjectURL(blob);
++  const link = document.createElement('a');
++  link.href = url;
++  link.download = fileName;
++  document.body.appendChild(link);
++  link.click();
++  link.remove();
++  URL.revokeObjectURL(url);
++};

@@ -1,0 +1,9 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/webhooks/lib/duplicate-operations.ts(6,3): error TS6133: 'problemForbidden' is declared but its value is never read.
+app/api/v3/webhooks/lib/duplicate-operations.ts(8,3): error TS6133: 'problemUnauthorized' is declared but its value is never read.
+app/api/v3/webhooks/lib/duplicate-operations.ts(46,7): error TS2345: Argument of type '"write"' is not assignable to parameter of type '"read" | "manage" | "readWrite"'.
+modules/integrations/webhooks/components/webhook-row-data.tsx(81,9): error TS6133: 'handleDuplicate' is declared but its value is never read.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

@@ -1,0 +1,9 @@
+src/features/users/components/users-list.tsx(90,9): error TS2322: Type '{ id: string; firstName: string; lastName: string; email: string; role: "ADMIN" | "USER"; createdAt: number; }[]' is not assignable to type 'SearchableUser[]'.
+  Type '{ id: string; firstName: string; lastName: string; email: string; role: "ADMIN" | "USER"; createdAt: number; }' is not assignable to type 'SearchableUser'.
+    Types of property 'role' are incompatible.
+      Type '"ADMIN" | "USER"' is not assignable to type 'ROLES'.
+        Type '"ADMIN"' is not assignable to type 'ROLES'.
+src/features/users/components/users-list.tsx(108,12): error TS2741: Property 'registration' is missing in type '{ type: "text"; placeholder: string; value: string; onChange: (e: ChangeEvent<HTMLInputElement>) => void; className: string; }' but required in type '{ className?: string | undefined; registration: Partial<UseFormRegisterReturn>; }'.
+src/features/users/components/users-list.tsx(123,13): error TS2322: Type '{ options: RoleOption[]; className: string; registration: {}; defaultValue: "" | ROLES; onChange: (e: any) => void; }' is not assignable to type 'IntrinsicAttributes & FieldWrapperPassThroughProps & { options: Option[]; className?: string | undefined; defaultValue?: string | undefined; registration: Partial<...>; }'.
+  Property 'onChange' does not exist on type 'IntrinsicAttributes & FieldWrapperPassThroughProps & { options: Option[]; className?: string | undefined; defaultValue?: string | undefined; registration: Partial<...>; }'.
+src/features/users/components/users-list.tsx(123,24): error TS7006: Parameter 'e' implicitly has an 'any' type.

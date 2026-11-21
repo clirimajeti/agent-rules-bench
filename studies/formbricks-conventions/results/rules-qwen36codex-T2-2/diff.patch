@@ -1,0 +1,268 @@
+diff --git a/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts b/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts
+new file mode 100644
+index 000000000..31b608985
+--- /dev/null
++++ b/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts
+@@ -0,0 +1,71 @@
++/**
++ * POST /api/v3/webhooks/{webhookId}/duplicate — clone a webhook into a new one.
++ *
++ * Reads the source webhook, asserts workspace.write authorization, and creates a copy with
++ * "Copy of <name>" as the default name.
++ */
++import { z } from "zod";
++import { ZId } from "@formbricks/types/common";
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { assertCan } from "@/lib/authorization";
++import { capturePostHogEvent } from "@/lib/posthog";
++import { assertNewlyAttachedSurveysWorkspaceVisible } from "@/lib/survey/visibility/outbound";
++import { getOrganizationIdFromWebhookId, getWorkspaceIdFromWebhookId } from "@/lib/utils/helper";
++import { getWebhook } from "@/modules/api/v2/management/webhooks/[webhookId]/lib/webhook";
++import { applyRateLimit } from "@/modules/core/rate-limit/helpers";
++import { rateLimitConfigs } from "@/modules/core/rate-limit/rate-limit-configs";
++import { createWebhook } from "@/modules/integrations/webhooks/lib/webhook";
++import { problemNotFound, successResponse } from "@/app/api/v3/lib/response";
++
++export const POST = withV3ApiWrapper({
++  auth: "both",
++  action: "created",
++  targetType: "webhook",
++  schemas: { params: z.object({ webhookId: ZId }).strict() },
++  handler: async ({ req, parsedInput, authentication, auditLog, requestId, instance }) => {
++    const webhookId = parsedInput.params.webhookId;
++    const organizationId = await getOrganizationIdFromWebhookId(webhookId);
++    const webhookResult = await getWebhook(webhookId);
++
++    if (!webhookResult.ok) {
++      return problemNotFound(requestId, "Webhook", webhookId, instance);
++    }
++
++    const existing = webhookResult.data;
++
++    const workspaceId = await getWorkspaceIdFromWebhookId(webhookId);
++    await assertCan({ type: "user", id: authentication.userId }, "workspace.write", {
++      type: "workspace",
++      id: workspaceId,
++    });
++    await applyRateLimit(rateLimitConfigs.actions.stateMutation, workspaceId);
++    await assertNewlyAttachedSurveysWorkspaceVisible(existing.surveyIds);
++
++    const newWebhook = await createWebhook(workspaceId, {
++      name: `Copy of ${existing.name ?? "Webhook"}`,
++      url: existing.url,
++      source: existing.source,
++      triggers: existing.triggers,
++      surveyIds: existing.surveyIds,
++    });
++
++    auditLog!.objectType = "webhook";
++    auditLog!.objectId = newWebhook.id;
++    auditLog!.objectName = newWebhook.name ?? undefined;
++    auditLog!.organizationId = organizationId;
++    auditLog!.workspaceId = workspaceId;
++
++    capturePostHogEvent(
++      authentication.userId,
++      "integration_connected",
++      {
++        integration_type: "webhook",
++        organization_id: organizationId,
++        workspace_id: workspaceId,
++      },
++      { organizationId, workspaceId }
++    );
++
++    return successResponse(newWebhook, { requestId });
++  },
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..3f1080c5d 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -2916,7 +2916,10 @@
+         "webhook_name_placeholder": "Optional: Label your webhook for easy identification",
+         "webhook_test_failed_due_to": "Webhook Test Failed due to",
+         "webhook_updated_successfully": "Webhook updated successfully",
+-        "webhook_url_placeholder": "Paste the URL you want the event to trigger on"
++        "webhook_url_placeholder": "Paste the URL you want the event to trigger on",
++        "duplicate_webhook": "Duplicate webhook",
++        "webhook_duplicated_successfully": "Webhook duplicated successfully",
++        "webhook_duplicated_error": "Failed to duplicate webhook"
+       },
+       "website_or_app_integration_description": "Integrate Formbricks into your Website or App",
+       "zapier_integration_description": "Integrate Formbricks with 5000+ apps via Zapier"
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+index d11f09b77..7cc8a6d4c 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+@@ -8,6 +8,11 @@ import { timeSince } from "@/lib/time";
+ import { RestrictedSurveyHint } from "@/modules/survey/visibility/components/restricted-survey-hint";
+ import { hasRestrictedAttachedSurvey } from "@/modules/survey/visibility/lib/outbound";
+ import { Badge } from "@/modules/ui/components/badge";
++import { Button } from "@/modules/ui/components/button";
++import { CopyIcon } from "lucide-react";
++import { toast } from "react-hot-toast";
++import { useDuplicateWebhook } from "@/modules/integrations/webhooks/hooks/use-duplicate-webhook";
++import { getV3ApiErrorMessage } from "@/modules/api/lib/v3-client";
+ 
+ const renderSelectedSurveysText = (webhook: Webhook, allSurveys: TSurvey[]) => {
+   let surveyNames: string[];
+@@ -75,10 +80,22 @@ export const WebhookRowData = ({
+ }: Readonly<{ webhook: Webhook; surveys: TSurvey[]; surveyVisibilityEnabled: boolean }>) => {
+   const { t, i18n } = useTranslation();
+   const locale = i18n.resolvedLanguage ?? i18n.language ?? "en-US";
++  const { mutate: duplicate, isPending } = useDuplicateWebhook();
++
++  const handleDuplicate = () => {
++    duplicate(webhook.id, {
++      onSuccess: () => {
++        toast.success(t("workspace.integrations.webhooks.webhook_duplicated_successfully"));
++      },
++      onError: (_err) => {
++        toast.error(getV3ApiErrorMessage(_err, t("workspace.integrations.webhooks.webhook_duplicated_error")));
++      },
++    });
++  };
+ 
+   return (
+     <div className="mt-2 grid h-auto grid-cols-12 content-center rounded-lg py-2 hover:bg-slate-100">
+-      <div className="col-span-3 flex items-center truncate pl-6 text-sm">
++      <div className="col-span-2 flex items-center truncate pl-6 text-sm">
+         <div className="flex items-center">
+           <div className="text-left">
+             {webhook.name ? (
+@@ -95,7 +112,7 @@ export const WebhookRowData = ({
+       <div className="col-span-1 my-auto text-center text-sm text-slate-800">
+         <Badge type="gray" size="tiny" text={webhook.source || t("common.user")} className="capitalize" />
+       </div>
+-      <div className="col-span-4 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
++      <div className="col-span-3 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
+         {renderSelectedSurveysText(webhook, surveys)}
+         {hasRestrictedAttachedSurvey(surveyVisibilityEnabled, webhook.surveyIds, surveys) && (
+           <RestrictedSurveyHint kind="paused" />
+@@ -105,9 +122,24 @@ export const WebhookRowData = ({
+         {renderSelectedTriggersText(webhook, t)}
+       </div>
+       <div className="col-span-2 my-auto text-center text-sm whitespace-nowrap text-slate-500">
+-        {timeSince(webhook.updatedAt.toString(), locale)}
++        <div className="text-slate-400 text-xs">{t("common.created")}</div>
++        <div>{timeSince(webhook.createdAt.toString(), locale)}</div>
++      </div>
++      <div className="col-span-2 my-auto text-center text-sm whitespace-nowrap text-slate-500">
++        <div className="text-slate-400 text-xs">{t("common.updated")}</div>
++        <div>{timeSince(webhook.updatedAt.toString(), locale)}</div>
++      </div>
++      <div className="my-auto flex items-center justify-center">
++        <Button
++          size="sm"
++          variant="secondary"
++          loading={isPending}
++          onClick={handleDuplicate}
++          disabled={isPending}
++          title={t("workspace.integrations.webhooks.duplicate_webhook")}>
++          <CopyIcon className="size-4" />
++        </Button>
+       </div>
+-      <div className="text-center"></div>
+     </div>
+   );
+ };
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+index 0c5945508..ed9781ca3 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+@@ -6,10 +6,11 @@ export const WebhookTableHeading = async () => {
+     <>
+       <div className="grid h-12 grid-cols-12 content-center rounded-lg bg-slate-100 text-left text-sm font-semibold text-slate-900">
+         <span className="sr-only">{t("common.edit")}</span>
+-        <div className="col-span-3 pl-6">{t("common.webhook")}</div>
++        <div className="col-span-2 pl-6">{t("common.webhook")}</div>
+         <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.source")}</div>
+-        <div className="col-span-4 text-center">{t("common.surveys")}</div>
++        <div className="col-span-3 text-center">{t("common.surveys")}</div>
+         <div className="col-span-2 text-center">{t("workspace.integrations.webhooks.triggers")}</div>
++        <div className="col-span-2 text-center">{t("common.created")}</div>
+         <div className="col-span-2 text-center">{t("common.updated")}</div>
+       </div>
+     </>
+diff --git a/apps/web/modules/integrations/webhooks/hooks/use-duplicate-webhook.ts b/apps/web/modules/integrations/webhooks/hooks/use-duplicate-webhook.ts
+new file mode 100644
+index 000000000..dcdded1b7
+--- /dev/null
++++ b/apps/web/modules/integrations/webhooks/hooks/use-duplicate-webhook.ts
+@@ -0,0 +1,22 @@
++"use client";
++
++import { useMutation, useQueryClient } from "@tanstack/react-query";
++import { duplicateWebhook } from "@/modules/integrations/webhooks/lib/api-client";
++import { webhookKeys } from "@/modules/integrations/webhooks/lib/query";
++
++/**
++ * Hook that duplicates a webhook via the v3 API.
++ *
++ * On success, invalidates the workspace's webhook list so the table refreshes with the new row.
++ */
++export const useDuplicateWebhook = () => {
++  const queryClient = useQueryClient();
++
++  return useMutation({
++    mutationFn: (webhookId: string) => duplicateWebhook(webhookId),
++    onSuccess: (_data, webhookId) => {
++      // Invalidate all workspace-scoped webhook lists so the table picks up the new row.
++      queryClient.invalidateQueries({ queryKey: webhookKeys.lists() });
++    },
++  });
++};
+diff --git a/apps/web/modules/integrations/webhooks/lib/api-client.ts b/apps/web/modules/integrations/webhooks/lib/api-client.ts
+new file mode 100644
+index 000000000..82d3fd499
+--- /dev/null
++++ b/apps/web/modules/integrations/webhooks/lib/api-client.ts
+@@ -0,0 +1,28 @@
++import { parseV3ApiError } from "@/modules/api/lib/v3-client";
++import { Webhook } from "@formbricks/database/prisma";
++
++/**
++ * Client fetchers for the internal webhook management routes.
++ */
++
++const BASE_PATH = "/api/v3/webhooks";
++const MUTATION_TIMEOUT_MS = 15_000;
++
++/**
++ * Duplicate (clone) a webhook. The new webhook gets the name "Copy of <original name>".
++ *
++ * Resolves with the newly created webhook on success; throws a parsed `V3ApiError` on a
++ * non-2xx response.
++ */
++export async function duplicateWebhook(webhookId: string): Promise<Webhook> {
++  const response = await fetch(`${BASE_PATH}/${encodeURIComponent(webhookId)}/duplicate`, {
++    method: "POST",
++    signal: AbortSignal.timeout(MUTATION_TIMEOUT_MS),
++  });
++
++  if (!response.ok) {
++    throw await parseV3ApiError(response);
++  }
++
++  return ((await response.json()) as { data: Webhook }).data;
++}
+diff --git a/apps/web/modules/integrations/webhooks/lib/query.ts b/apps/web/modules/integrations/webhooks/lib/query.ts
+new file mode 100644
+index 000000000..7a0762d80
+--- /dev/null
++++ b/apps/web/modules/integrations/webhooks/lib/query.ts
+@@ -0,0 +1,13 @@
++import type { Webhook } from "@formbricks/database/prisma-browser";
++
++/**
++ * Typed query-key factory for webhook-related queries.
++ */
++export const webhookKeys = {
++  all: ["webhooks"] as const,
++  lists: () => [...webhookKeys.all, "list"] as const,
++  list: (workspaceId: string) => [...webhookKeys.lists(), workspaceId] as const,
++  webhook: (webhookId: string) => [...webhookKeys.all, webhookId] as const,
++  /** Infer the result type of a query so the caller never has to type `data` manually. */
++  webhookType: () => null as unknown as Webhook,
++};

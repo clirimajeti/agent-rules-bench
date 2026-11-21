@@ -1,0 +1,57 @@
+{
+  "id": "rules-haiku-T4-5",
+  "arm": "rules",
+  "model": "haiku",
+  "agent": "claude",
+  "task": "T4",
+  "rep": 5,
+  "ok": true,
+  "capped": false,
+  "timedOut": false,
+  "turns": 24,
+  "taskCost": 0.020439520000000003,
+  "fixCost": 0.00400113,
+  "usage": {
+    "input": 32,
+    "cacheWrite": 38919,
+    "cacheRead": 519402,
+    "output": 14917
+  },
+  "fixUsage": {
+    "input": 6,
+    "cacheWrite": 11789,
+    "cacheRead": 55323,
+    "output": 2179
+  },
+  "seconds": 91,
+  "fixed": true,
+  "breaksAfterTask": 1,
+  "breaksFinal": 1,
+  "byRule": {
+    "local/role-checks-through-authorization": 1
+  },
+  "breaksAfterTaskAt": [
+    {
+      "ruleId": "local/role-checks-through-authorization",
+      "file": "apps/react-vite/src/features/users/utils/filter-users.ts",
+      "line": 14
+    }
+  ],
+  "evalNotes": [],
+  "changedFiles": 3,
+  "hookCatches": 5,
+  "ignoredCatches": 1,
+  "build": null,
+  "startedAt": "2026-11-15T12:01:39.119Z",
+  "modelIds": [
+    "claude-haiku-5-5"
+  ],
+  "versions": {
+    "harness": "f30502f21fb0bda68ba8b06bef14138107add302",
+    "node": "v24.14.1",
+    "platform": "darwin-arm64",
+    "agent": {
+      "claude": "2.1.325 (Claude Code)"
+    }
+  }
+}

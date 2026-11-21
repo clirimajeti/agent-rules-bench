@@ -1,0 +1,8 @@
+Generating route types...
+✓ Types generated successfully
+modules/ee/data-retention/hooks/use-retention-runs.test.ts(8,32): error TS2307: Cannot find module '../lib/file-download' or its corresponding type declarations.
+modules/ee/data-retention/hooks/use-retention-runs.test.ts(12,42): error TS2307: Cannot find module '../lib/file-download' or its corresponding type declarations.
+modules/ee/data-retention/lib/file-download.test.ts(5,63): error TS2307: Cannot find module './file-download' or its corresponding type declarations.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

@@ -1,0 +1,196 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..2d9d4784c 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,7 +1,13 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
++import { AccountActivity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
++import {
++  DownloadAccountDataButton,
++  type TAccountData,
++} from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadAccountDataButton";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
++import { getUserOrganizationMemberships } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/user";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+ import {
+   EMAIL_VERIFICATION_DISABLED,
+@@ -86,6 +92,18 @@ const Page = async () => {
+   const isPasswordResetEnabled = !PASSWORD_RESET_DISABLED && user.identityProvider === "email";
+   const requiresPasswordConfirmation = requiresPasswordConfirmationForAccountDeletion(user);
+ 
++  const memberships = await getUserOrganizationMemberships(user.id);
++  const accountData: TAccountData = {
++    name: user.name,
++    email: user.email,
++    locale: user.locale,
++    notificationSettings: user.notificationSettings,
++    organizationMemberships: memberships.map((membership) => ({
++      organizationName: membership.organization.name,
++      role: membership.role,
++    })),
++  };
++
+   return (
+     <PageContentWrapper>
+       <PageHeader pageTitle={t("common.profile")} />
+@@ -99,6 +117,12 @@ const Page = async () => {
+             isPasswordResetEnabled={isPasswordResetEnabled}
+           />
+         </SettingsCard>
++
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <AccountActivity createdAt={user.createdAt} lastLoginAt={user.lastLoginAt} locale={user.locale} />
++        </SettingsCard>
+         {user.identityProvider === "email" && (
+           <SettingsCard
+             title={t("common.security")}
+@@ -108,6 +132,12 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.download_my_data")}
++          description={t("workspace.settings.profile.download_my_data_description")}>
++          <DownloadAccountDataButton accountData={accountData} />
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
+new file mode 100644
+index 000000000..42f9f367f
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
+@@ -0,0 +1,37 @@
++import { getTranslate } from "@/lingodotdev/server";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
++
++// Explicit UTC with the zone name shown: the stored timestamps are UTC, and a browser or server default
++// zone would make the same sign-in read differently on different machines.
++const ACCOUNT_DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
++  year: "numeric",
++  month: "short",
++  day: "numeric",
++  hour: "numeric",
++  minute: "2-digit",
++  timeZone: "UTC",
++  timeZoneName: "short",
++};
++
++interface AccountActivityProps {
++  createdAt: Date;
++  lastLoginAt: Date | null;
++  locale: string;
++}
++
++export const AccountActivity = async ({ createdAt, lastLoginAt, locale }: Readonly<AccountActivityProps>) => {
++  const t = await getTranslate();
++
++  return (
++    <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
++      <dt className="font-medium text-slate-700">{t("workspace.settings.profile.account_created")}</dt>
++      <dd className="text-slate-600">{formatDateTimeForDisplay(createdAt, locale, ACCOUNT_DATE_TIME_OPTIONS)}</dd>
++      <dt className="font-medium text-slate-700">{t("workspace.settings.profile.last_login")}</dt>
++      <dd className="text-slate-600">
++        {lastLoginAt
++          ? formatDateTimeForDisplay(lastLoginAt, locale, ACCOUNT_DATE_TIME_OPTIONS)
++          : t("workspace.settings.profile.last_login_not_recorded")}
++      </dd>
++    </dl>
++  );
++};
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadAccountDataButton.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadAccountDataButton.tsx
+new file mode 100644
+index 000000000..d3796d4d9
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadAccountDataButton.tsx
+@@ -0,0 +1,35 @@
++"use client";
++
++import { useTranslation } from "react-i18next";
++import { TUser } from "@formbricks/types/user";
++import { saveBlobAsFile } from "@/modules/ee/data-retention/lib/file-download";
++import { Button } from "@/modules/ui/components/button";
++
++export interface TAccountData {
++  name: string;
++  email: string;
++  locale: string;
++  notificationSettings: TUser["notificationSettings"];
++  organizationMemberships: { organizationName: string; role: string }[];
++}
++
++interface DownloadAccountDataButtonProps {
++  accountData: TAccountData;
++}
++
++export const DownloadAccountDataButton = ({ accountData }: Readonly<DownloadAccountDataButtonProps>) => {
++  const { t } = useTranslation();
++
++  const handleDownload = () => {
++    const exportedAt = new Date();
++    const json = JSON.stringify({ exportedAt: exportedAt.toISOString(), ...accountData }, null, 2);
++    const blob = new Blob([json], { type: "application/json;charset=utf-8" });
++    saveBlobAsFile(blob, `formbricks-account-data-${exportedAt.toISOString().slice(0, 10)}.json`);
++  };
++
++  return (
++    <Button variant="secondary" onClick={handleDownload}>
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/user.ts b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/user.ts
+index cb1d4a84c..e293a074e 100644
+--- a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/user.ts
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/user.ts
+@@ -13,3 +13,15 @@ export const getIsEmailUnique = reactCache(async (email: string): Promise<boolea
+ 
+   return !user;
+ });
++
++// Only accepted memberships: a pending row is an invitation the user has not joined yet.
++export const getUserOrganizationMemberships = reactCache(async (userId: string) =>
++  prisma.membership.findMany({
++    where: { userId, accepted: true },
++    select: {
++      role: true,
++      organization: { select: { name: true } },
++    },
++    orderBy: { organization: { name: "asc" } },
++  })
++);
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..a8ba12fa4 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "When your account was created and when you last signed in.",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,10 +3753,14 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Download a JSON file with your name, email, language, notification settings and organization memberships.",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
++        "last_login_not_recorded": "No sign-in recorded",
+         "lost_access": "Lost access",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",

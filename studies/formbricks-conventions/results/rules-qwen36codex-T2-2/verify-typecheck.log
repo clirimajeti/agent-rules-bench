@@ -1,0 +1,17 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(25,21): error TS6133: 'req' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(37,41): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(37,56): error TS2339: Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(52,15): error TS2339: Property 'objectType' does not exist on type 'TAuditEventInput'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(53,15): error TS2339: Property 'objectId' does not exist on type 'TAuditEventInput'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(54,15): error TS2339: Property 'objectName' does not exist on type 'TAuditEventInput'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(56,15): error TS2339: Property 'workspaceId' does not exist on type 'TAuditEventInput'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(59,7): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(59,22): error TS2339: Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+modules/integrations/webhooks/hooks/use-duplicate-webhook.ts(17,24): error TS6133: 'webhookId' is declared but its value is never read.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

@@ -1,0 +1,24 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(21,41): error TS2339: Property 'id' does not exist on type 'string'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(24,41): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(24,56): error TS2339: Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(29,49): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(29,64): error TS2339: Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'userId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(32,5): error TS18048: 'auditLog' is possibly 'undefined'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(33,5): error TS18048: 'auditLog' is possibly 'undefined'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(33,14): error TS2339: Property 'objectId' does not exist on type 'TAuditEventInput'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(34,5): error TS18048: 'auditLog' is possibly 'undefined'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(220,57): error TS2559: Type 'Error' has no properties in common with type '{ serverError?: string | undefined; validationErrors?: unknown; }'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(310,9): error TS2322: Type 'boolean | undefined' is not assignable to type 'boolean'.
+  Type 'undefined' is not assignable to type 'boolean'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(321,11): error TS2322: Type 'boolean | undefined' is not assignable to type 'boolean'.
+  Type 'undefined' is not assignable to type 'boolean'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(342,11): error TS2322: Type '{ children: "" | Element | undefined; open: boolean; setOpen: (open: boolean) => void; deleteWhat: string; onDelete: () => Promise<void>; isDeleting: boolean | undefined; text: string; confirmLabel: string; cancelLabel: string; }' is not assignable to type 'IntrinsicAttributes & DeleteDialogProps'.
+  Property 'confirmLabel' does not exist on type 'IntrinsicAttributes & DeleteDialogProps'.
+modules/organization/settings/api-keys/lib/api-client.ts(10,7): error TS6133: 'JSON_HEADERS' is declared but its value is never read.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

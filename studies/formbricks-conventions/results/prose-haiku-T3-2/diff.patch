@@ -1,0 +1,323 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..cd95d745b 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -10,8 +10,10 @@ import {
+   PASSWORD_RESET_DISABLED,
+ } from "@/lib/constants";
+ import { getOrganizationsWhereUserIsSingleOwner } from "@/lib/organization/service";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
+ import { getUser } from "@/lib/user/service";
+ import { getTranslate } from "@/lingodotdev/server";
++import { DownloadPersonalDataButton } from "@/modules/account/components/download-personal-data-button";
+ import { requiresPasswordConfirmationForAccountDeletion } from "@/modules/account/lib/account-deletion-auth";
+ import { getSession } from "@/modules/auth/lib/session";
+ import { LiteLicenseTip } from "@/modules/ee/license-check/components/lite-license-tip";
+@@ -23,6 +25,7 @@ import { IdBadge } from "@/modules/ui/components/id-badge";
+ import { PageContentWrapper } from "@/modules/ui/components/page-content-wrapper";
+ import { PageHeader } from "@/modules/ui/components/page-header";
+ import { UpgradePrompt } from "@/modules/ui/components/upgrade-prompt";
++import { ProfileQueryClientProvider } from "./query-client-provider";
+ 
+ const Page = async () => {
+   const isTwoFactorAuthEnabled = await getIsTwoFactorAuthEnabled();
+@@ -108,6 +111,29 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
++            <dt className="text-slate-600">{t("common.created_at")}</dt>
++            <dd className="text-slate-900">{formatDateTimeForDisplay(user.createdAt, user.locale)}</dd>
++            <dt className="text-slate-600">{t("common.last_sign_in")}</dt>
++            <dd className="text-slate-900">
++              {user.lastLoginAt
++                ? formatDateTimeForDisplay(user.lastLoginAt, user.locale)
++                : t("workspace.settings.profile.never_signed_in")}
++            </dd>
++          </dl>
++        </SettingsCard>
++
++        <SettingsCard
++          title={t("workspace.settings.profile.personal_data")}
++          description={t("workspace.settings.profile.personal_data_description")}>
++          <ProfileQueryClientProvider>
++            <DownloadPersonalDataButton />
++          </ProfileQueryClientProvider>
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/(app)/account/settings/profile/query-client-provider.tsx b/apps/web/app/(app)/account/settings/profile/query-client-provider.tsx
+new file mode 100644
+index 000000000..601b688b9
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/query-client-provider.tsx
+@@ -0,0 +1,14 @@
++"use client";
++
++import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
++import { type ReactNode, useState } from "react";
++
++/**
++ * There is no app-wide `QueryClientProvider`, so the profile page mounts its own for the personal data
++ * download, which is a TanStack Query mutation. Without it the button throws on render.
++ */
++export const ProfileQueryClientProvider = ({ children }: Readonly<{ children: ReactNode }>) => {
++  const [queryClient] = useState(() => new QueryClient());
++
++  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
++};
+diff --git a/apps/web/app/api/internal/account/data-export/route.ts b/apps/web/app/api/internal/account/data-export/route.ts
+new file mode 100644
+index 000000000..b045fe6fd
+--- /dev/null
++++ b/apps/web/app/api/internal/account/data-export/route.ts
+@@ -0,0 +1,34 @@
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { problemUnauthorized } from "@/app/api/v3/lib/response";
++import { rateLimitConfigs } from "@/modules/core/rate-limit/rate-limit-configs";
++import { getPersonalDataExport } from "@/modules/account/lib/personal-data-export";
++
++export const runtime = "nodejs";
++export const dynamic = "force-dynamic";
++
++/**
++ * `GET /api/internal/account/data-export`: the signed-in user's own personal data as a JSON file.
++ * Internal (session-only, no OpenAPI entry); the profile page's "Download my data" button is the only caller.
++ */
++export const GET = withV3ApiWrapper({
++  auth: "session",
++  customRateLimitConfig: rateLimitConfigs.api.internalAccountDataExport,
++  handler: async ({ authentication, requestId, instance }) => {
++    const userId = authentication && "user" in authentication ? authentication.user?.id : undefined;
++    if (!userId) {
++      return problemUnauthorized(requestId, "Not authenticated", instance);
++    }
++
++    const data = await getPersonalDataExport(userId);
++
++    return new Response(JSON.stringify(data, null, 2), {
++      status: 200,
++      headers: {
++        "Content-Type": "application/json; charset=utf-8",
++        "Content-Disposition": 'attachment; filename="formbricks-personal-data.json"',
++        "Cache-Control": "no-store",
++        "X-Request-Id": requestId,
++      },
++    });
++  },
++});
+diff --git a/apps/web/modules/ee/data-retention/lib/file-download.test.ts b/apps/web/lib/utils/file-download.test.ts
+similarity index 100%
+rename from apps/web/modules/ee/data-retention/lib/file-download.test.ts
+rename to apps/web/lib/utils/file-download.test.ts
+diff --git a/apps/web/modules/ee/data-retention/lib/file-download.ts b/apps/web/lib/utils/file-download.ts
+similarity index 100%
+rename from apps/web/modules/ee/data-retention/lib/file-download.ts
+rename to apps/web/lib/utils/file-download.ts
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..7ab030866 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,8 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "When your account was created and when you last signed in.",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,14 +3752,18 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
+         "lost_access": "Lost access",
++        "never_signed_in": "Never",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+         "permanent_removal_of_all_of_your_personal_information_and_data": "Permanent removal of all of your personal information and data",
++        "personal_data": "Personal data",
++        "personal_data_description": "Download your name, email, locale, notification settings and organization memberships as a JSON file.",
+         "personal_information": "Personal information",
+         "please_enter_email_to_confirm_account_deletion": "Please enter {email} in the following field to confirm the definitive deletion of your account:",
+         "profile_updated_successfully": "Your profile was updated successfully",
+diff --git a/apps/web/modules/account/components/download-personal-data-button.tsx b/apps/web/modules/account/components/download-personal-data-button.tsx
+new file mode 100644
+index 000000000..61c0fc796
+--- /dev/null
++++ b/apps/web/modules/account/components/download-personal-data-button.tsx
+@@ -0,0 +1,33 @@
++"use client";
++
++import { useMutation } from "@tanstack/react-query";
++import toast from "react-hot-toast";
++import { useTranslation } from "react-i18next";
++import { saveBlobAsFile } from "@/lib/utils/file-download";
++import { fetchPersonalDataExport } from "@/modules/account/lib/personal-data-api-client";
++import { Button } from "@/modules/ui/components/button";
++
++const PERSONAL_DATA_FILE_NAME = "formbricks-personal-data.json";
++
++export const DownloadPersonalDataButton = () => {
++  const { t } = useTranslation();
++
++  const downloadMutation = useMutation({
++    mutationFn: async () => {
++      const blob = await fetchPersonalDataExport();
++      saveBlobAsFile(blob, PERSONAL_DATA_FILE_NAME);
++    },
++    onError: () => {
++      toast.error(t("common.something_went_wrong_please_try_again"));
++    },
++  });
++
++  return (
++    <Button
++      variant="secondary"
++      loading={downloadMutation.isPending}
++      onClick={() => downloadMutation.mutate()}>
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
+diff --git a/apps/web/modules/account/lib/personal-data-api-client.ts b/apps/web/modules/account/lib/personal-data-api-client.ts
+new file mode 100644
+index 000000000..3ce385a43
+--- /dev/null
++++ b/apps/web/modules/account/lib/personal-data-api-client.ts
+@@ -0,0 +1,13 @@
++import { parseV3ApiError } from "@/modules/api/lib/v3-client";
++
++const PERSONAL_DATA_EXPORT_URL = "/api/internal/account/data-export";
++
++/**
++ * The personal data JSON, fetched rather than linked: a failure is problem JSON, which a plain download
++ * link would save as the "file". Throws a `V3ApiError` on a refusal.
++ */
++export async function fetchPersonalDataExport(): Promise<Blob> {
++  const response = await fetch(PERSONAL_DATA_EXPORT_URL, { method: "GET", cache: "no-store" });
++  if (!response.ok) throw await parseV3ApiError(response);
++  return response.blob();
++}
+diff --git a/apps/web/modules/account/lib/personal-data-export.ts b/apps/web/modules/account/lib/personal-data-export.ts
+new file mode 100644
+index 000000000..30ab5feca
+--- /dev/null
++++ b/apps/web/modules/account/lib/personal-data-export.ts
+@@ -0,0 +1,45 @@
++import "server-only";
++import { prisma } from "@formbricks/database";
++import { ResourceNotFoundError } from "@formbricks/types/errors";
++import { TUserNotificationSettings, TUserLocale } from "@formbricks/types/user";
++import { getUser } from "@/lib/user/service";
++
++export type TPersonalDataExport = {
++  name: string;
++  email: string;
++  locale: TUserLocale;
++  notificationSettings: TUserNotificationSettings;
++  organizations: { name: string; role: string }[];
++};
++
++/**
++ * The personal data a user can download as JSON: their name, email, locale, notification settings and
++ * the organizations they belong to with their role in each. Only accepted memberships are included; a
++ * pending invitation is not yet a membership of the user.
++ */
++export const getPersonalDataExport = async (userId: string): Promise<TPersonalDataExport> => {
++  const user = await getUser(userId);
++  if (!user) {
++    throw new ResourceNotFoundError("User", userId);
++  }
++
++  const memberships = await prisma.membership.findMany({
++    where: { userId, accepted: true },
++    select: {
++      role: true,
++      organization: { select: { name: true } },
++    },
++    orderBy: { organization: { name: "asc" } },
++  });
++
++  return {
++    name: user.name,
++    email: user.email,
++    locale: user.locale,
++    notificationSettings: user.notificationSettings,
++    organizations: memberships.map((membership) => ({
++      name: membership.organization.name,
++      role: membership.role,
++    })),
++  };
++};
+diff --git a/apps/web/modules/core/rate-limit/rate-limit-configs.ts b/apps/web/modules/core/rate-limit/rate-limit-configs.ts
+index f943ef9f0..1dcc1e2ba 100644
+--- a/apps/web/modules/core/rate-limit/rate-limit-configs.ts
++++ b/apps/web/modules/core/rate-limit/rate-limit-configs.ts
+@@ -87,6 +87,11 @@ export const rateLimitConfigs = {
+       allowedPerInterval: 5,
+       namespace: "api:internal:feedback-datasets:purge",
+     }, // 5 per hour — irreversible and dataset-wide; nobody legitimately purges more often than that
++    internalAccountDataExport: {
++      interval: 3600,
++      allowedPerInterval: 5,
++      namespace: "api:internal:account:data-export",
++    }, // 5 per hour per user - the export is small, so this only stops repeated downloads
+     internalRetentionExport: {
+       interval: 3600,
+       allowedPerInterval: 10,
+diff --git a/apps/web/modules/ee/data-retention/hooks/use-retention-runs.test.ts b/apps/web/modules/ee/data-retention/hooks/use-retention-runs.test.ts
+index c40e32f75..83e78bfbf 100644
+--- a/apps/web/modules/ee/data-retention/hooks/use-retention-runs.test.ts
++++ b/apps/web/modules/ee/data-retention/hooks/use-retention-runs.test.ts
+@@ -5,11 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+ import { act, renderHook, waitFor } from "@testing-library/react";
+ import { type ReactNode, createElement } from "react";
+ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+-import { saveBlobAsFile } from "../lib/file-download";
++import { saveBlobAsFile } from "@/lib/utils/file-download";
+ import { useDownloadRetentionExport, useRetentionRuns } from "./use-retention-runs";
+ 
+-vi.mock("../lib/file-download", async (importOriginal) => ({
+-  ...(await importOriginal<typeof import("../lib/file-download")>()),
++vi.mock("@/lib/utils/file-download", async (importOriginal) => ({
++  ...(await importOriginal<typeof import("@/lib/utils/file-download")>()),
+   saveBlobAsFile: vi.fn(),
+ }));
+ 
+diff --git a/apps/web/modules/ee/data-retention/hooks/use-retention-runs.ts b/apps/web/modules/ee/data-retention/hooks/use-retention-runs.ts
+index 212f8df8b..a1f80a4b0 100644
+--- a/apps/web/modules/ee/data-retention/hooks/use-retention-runs.ts
++++ b/apps/web/modules/ee/data-retention/hooks/use-retention-runs.ts
+@@ -3,7 +3,7 @@
+ import { keepPreviousData, useInfiniteQuery, useMutation } from "@tanstack/react-query";
+ import { useEffect, useRef } from "react";
+ import { type TRetentionRunListInput, fetchRetentionExport, listRetentionRuns } from "../lib/api-client";
+-import { saveBlobAsFile } from "../lib/file-download";
++import { saveBlobAsFile } from "@/lib/utils/file-download";
+ import { flattenRetentionRunPages, retentionRunKeys } from "../lib/query";
+ 
+ /** History, newest first, one keyset page at a time ("Load more"). */
+diff --git a/apps/web/modules/ee/data-retention/lib/api-client.ts b/apps/web/modules/ee/data-retention/lib/api-client.ts
+index fd6c293cb..a97828a03 100644
+--- a/apps/web/modules/ee/data-retention/lib/api-client.ts
++++ b/apps/web/modules/ee/data-retention/lib/api-client.ts
+@@ -8,7 +8,7 @@ import type {
+   TRetentionRun,
+   TSurveyRetention,
+ } from "../types";
+-import { getContentDispositionFileName } from "./file-download";
++import { getContentDispositionFileName } from "@/lib/utils/file-download";
+ import type { TRetentionHealthIssue } from "./health";
+ 
+ const BASE_PATH = "/api/internal/retention-runs";

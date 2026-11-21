@@ -1,0 +1,281 @@
+diff --git a/apps/react-vite/src/features/users/api/get-users.ts b/apps/react-vite/src/features/users/api/get-users.ts
+index e13d106..fc3ca95 100644
+--- a/apps/react-vite/src/features/users/api/get-users.ts
++++ b/apps/react-vite/src/features/users/api/get-users.ts
+@@ -4,14 +4,21 @@ import { api } from '@/lib/api-client';
+ import { QueryConfig } from '@/lib/react-query';
+ import { User } from '@/types/api';
+ 
+-export const getUsers = (): Promise<{ data: User[] }> => {
+-  return api.get(`/users`);
++export type GetUsersParams = {
++  role?: string;
++  search?: string;
+ };
+ 
+-export const getUsersQueryOptions = () => {
++export const getUsers = (
++  params?: GetUsersParams,
++): Promise<{ data: User[] }> => {
++  return api.get(`/users`, { params });
++};
++
++export const getUsersQueryOptions = (params?: GetUsersParams) => {
+   return queryOptions({
+-    queryKey: ['users'],
+-    queryFn: getUsers,
++    queryKey: ['users', params],
++    queryFn: () => getUsers(params),
+   });
+ };
+ 
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..8d9710e 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,13 +1,77 @@
++import { Download, Search } from 'lucide-react';
++import * as React from 'react';
++
++import { Button } from '@/components/ui/button/button';
+ import { Spinner } from '@/components/ui/spinner';
+-import { Table } from '@/components/ui/table';
++import { Table } from '@/components/ui/table/table';
+ import { formatDate } from '@/utils/format';
+ 
+-import { useUsers } from '../api/get-users';
++import { ROLES } from '@/lib/authorization';
++
++import { getUsersQueryOptions, useUsers } from '../api/get-users';
+ 
+ import { DeleteUser } from './delete-user';
+ 
+-export const UsersList = () => {
+-  const usersQuery = useUsers();
++const roleOptions = [
++  { label: 'All', value: '' },
++  { label: ROLES.ADMIN, value: ROLES.ADMIN },
++  { label: ROLES.USER, value: ROLES.USER },
++];
++
++type UsersListProps = {
++  defaultRole?: string;
++  defaultSearch?: string;
++};
++
++export const UsersList = ({
++  defaultRole = '',
++  defaultSearch = '',
++}: UsersListProps) => {
++  const [role, setRole] = React.useState(defaultRole);
++  const [search, setSearch] = React.useState(defaultSearch);
++  const [debouncedRole, setDebouncedRole] = React.useState(defaultRole);
++  const [debouncedSearch, setDebouncedSearch] = React.useState(defaultSearch);
++
++  React.useEffect(() => {
++    const timer = setTimeout(() => {
++      setDebouncedRole(role);
++    }, 300);
++    return () => clearTimeout(timer);
++  }, [role]);
++
++  React.useEffect(() => {
++    const timer = setTimeout(() => {
++      setDebouncedSearch(search);
++    }, 300);
++    return () => clearTimeout(timer);
++  }, [search]);
++
++  const usersQuery = useUsers({
++    queryConfig: getUsersQueryOptions({
++      role: debouncedRole || undefined,
++      search: debouncedSearch || undefined,
++    }),
++  });
++
++  const handleExport = () => {
++    const data = usersQuery.data?.data ?? [];
++    const headers = ['Name', 'Email', 'Role', 'Joined'];
++    const rows = data.map((user) => {
++      const name = `${user.firstName} ${user.lastName}`;
++      const joined = formatDate(user.createdAt);
++      return [name, user.email, user.role, joined].map((v) =>
++        `"${String(v).replace(/"/g, '""')}"`,
++      );
++    });
++    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
++    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
++    const url = URL.createObjectURL(blob);
++    const link = document.createElement('a');
++    link.href = url;
++    link.download = 'users.csv';
++    link.click();
++    URL.revokeObjectURL(url);
++  };
+ 
+   if (usersQuery.isLoading) {
+     return (
+@@ -21,41 +85,85 @@ export const UsersList = () => {
+ 
+   if (!users) return null;
+ 
++  const filteredUsers = users.filter((user) => {
++    if (debouncedRole && user.role !== debouncedRole) {
++      return false;
++    }
++    if (debouncedSearch) {
++      const q = debouncedSearch.toLowerCase();
++      const name = `${user.firstName} ${user.lastName}`.toLowerCase();
++      const email = user.email.toLowerCase();
++      if (!name.includes(q) && !email.includes(q)) {
++        return false;
++      }
++    }
++    return true;
++  });
++
+   return (
+-    <Table
+-      data={users}
+-      columns={[
+-        {
+-          title: 'First Name',
+-          field: 'firstName',
+-        },
+-        {
+-          title: 'Last Name',
+-          field: 'lastName',
+-        },
+-        {
+-          title: 'Email',
+-          field: 'email',
+-        },
+-        {
+-          title: 'Role',
+-          field: 'role',
+-        },
+-        {
+-          title: 'Created At',
+-          field: 'createdAt',
+-          Cell({ entry: { createdAt } }) {
+-            return <span>{formatDate(createdAt)}</span>;
++    <div className="space-y-4">
++      <div className="flex items-center gap-4">
++        <div className="relative flex-1">
++          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
++          <input
++            type="text"
++            placeholder="Search by name or email"
++            className="h-9 w-full rounded-md border border-input bg-transparent pl-9 pr-3 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
++            value={search}
++            onChange={(e) => setSearch(e.target.value)}
++          />
++        </div>
++        <select
++          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
++          value={role}
++          onChange={(e) => setRole(e.target.value)}
++        >
++          {roleOptions.map(({ label, value }) => (
++            <option key={value} value={value}>
++              {label}
++            </option>
++          ))}
++        </select>
++        <Button variant="outline" size="sm" onClick={handleExport}>
++          <Download className="mr-2 size-4" />
++          Export CSV
++        </Button>
++      </div>
++      <Table
++        data={filteredUsers}
++        columns={[
++          {
++            title: 'First Name',
++            field: 'firstName',
++          },
++          {
++            title: 'Last Name',
++            field: 'lastName',
++          },
++          {
++            title: 'Email',
++            field: 'email',
++          },
++          {
++            title: 'Role',
++            field: 'role',
++          },
++          {
++            title: 'Created At',
++            field: 'createdAt',
++            Cell({ entry: { createdAt } }) {
++              return <span>{formatDate(createdAt)}</span>;
++            },
+           },
+-        },
+-        {
+-          title: '',
+-          field: 'id',
+-          Cell({ entry: { id } }) {
+-            return <DeleteUser id={id} />;
++          {
++            title: '',
++            field: 'id',
++            Cell({ entry: { id } }) {
++              return <DeleteUser id={id} />;
++            },
+           },
+-        },
+-      ]}
+-    />
++        ]}
++      />
++    </div>
+   );
+ };
+diff --git a/apps/react-vite/src/testing/mocks/handlers/users.ts b/apps/react-vite/src/testing/mocks/handlers/users.ts
+index 444b918..c27428f 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/users.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/users.ts
+@@ -18,7 +18,7 @@ type ProfileBody = {
+ };
+ 
+ export const usersHandlers = [
+-  http.get(`${env.API_URL}/users`, async ({ cookies }) => {
++  http.get(`${env.API_URL}/users`, async ({ cookies, request }) => {
+     await networkDelay();
+ 
+     try {
+@@ -26,7 +26,10 @@ export const usersHandlers = [
+       if (error) {
+         return HttpResponse.json({ message: error }, { status: 401 });
+       }
+-      const result = db.user
++      const url = new URL(request.url);
++      const role = url.searchParams.get('role') || undefined;
++      const search = url.searchParams.get('search') || undefined;
++      let result = db.user
+         .findMany({
+           where: {
+             teamId: {
+@@ -36,6 +39,19 @@ export const usersHandlers = [
+         })
+         .map(sanitizeUser);
+ 
++      if (role) {
++        result = result.filter((u) => u.role === role);
++      }
++      if (search) {
++        const q = search.toLowerCase();
++        result = result.filter(
++          (u) =>
++            u.firstName.toLowerCase().includes(q) ||
++            u.lastName.toLowerCase().includes(q) ||
++            u.email.toLowerCase().includes(q),
++        );
++      }
++
+       return HttpResponse.json({ data: result });
+     } catch (error: any) {
+       return HttpResponse.json(

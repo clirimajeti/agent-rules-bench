@@ -1,0 +1,223 @@
+diff --git a/apps/react-vite/src/features/discussions/api/update-discussion-pinned.ts b/apps/react-vite/src/features/discussions/api/update-discussion-pinned.ts
+new file mode 100644
+index 0000000..64741e6
+--- /dev/null
++++ b/apps/react-vite/src/features/discussions/api/update-discussion-pinned.ts
+@@ -0,0 +1,51 @@
++import { useMutation, useQueryClient } from '@tanstack/react-query';
++
++import { useNotifications } from '@/components/ui/notifications';
++import { api } from '@/lib/api-client';
++import { MutationConfig } from '@/lib/react-query';
++
++import { getDiscussionQueryOptions } from './get-discussion';
++import { getDiscussionsQueryOptions } from './get-discussions';
++
++export const updateDiscussionPinned = ({
++  discussionId,
++  pinned,
++}: {
++  discussionId: string;
++  pinned: boolean;
++}) => {
++  return api.patch(`/discussions/${discussionId}/pinned`, { pinned });
++};
++
++type UseUpdateDiscussionPinnedOptions = {
++  mutationConfig?: MutationConfig<typeof updateDiscussionPinned>;
++};
++
++export const useUpdateDiscussionPinned = ({
++  mutationConfig,
++}: UseUpdateDiscussionPinnedOptions = {}) => {
++  const queryClient = useQueryClient();
++  const { addNotification } = useNotifications();
++
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (data, variables, ...args) => {
++      queryClient.refetchQueries({
++        queryKey: getDiscussionQueryOptions(data.id).queryKey,
++      });
++      queryClient.invalidateQueries({
++        queryKey: getDiscussionsQueryOptions().queryKey,
++      });
++      addNotification({
++        type: 'success',
++        title: variables.pinned
++          ? 'Discussion pinned'
++          : 'Discussion unpinned',
++      });
++      onSuccess?.(data, variables, ...args);
++    },
++    ...restConfig,
++    mutationFn: updateDiscussionPinned,
++  });
++};
+diff --git a/apps/react-vite/src/features/discussions/components/discussion-view.tsx b/apps/react-vite/src/features/discussions/components/discussion-view.tsx
+index 47d42b0..db4746a 100644
+--- a/apps/react-vite/src/features/discussions/components/discussion-view.tsx
++++ b/apps/react-vite/src/features/discussions/components/discussion-view.tsx
+@@ -1,10 +1,17 @@
++import { Pin, PinOff } from 'lucide-react';
++
+ import { MDPreview } from '@/components/ui/md-preview';
+ import { Spinner } from '@/components/ui/spinner';
++import { paths } from '@/config/paths';
+ import { formatDate } from '@/utils/format';
+ 
+ import { useDiscussion } from '../api/get-discussion';
+ import { UpdateDiscussion } from '../components/update-discussion';
+ 
++import { useUpdateDiscussionPinned } from '../api/update-discussion-pinned';
++import { Authorization, ROLES } from '@/lib/authorization';
++import { Button } from '@/components/ui/button';
++
+ export const DiscussionView = ({ discussionId }: { discussionId: string }) => {
+   const discussionQuery = useDiscussion({
+     discussionId,
+@@ -46,6 +53,35 @@ export const DiscussionView = ({ discussionId }: { discussionId: string }) => {
+           </div>
+         </div>
+       </div>
++      <div className="mt-4 flex justify-end">
++        <Authorization allowedRoles={[ROLES.ADMIN]}>
++          <PinDiscussionToggle discussionId={discussionId} pinned={discussion.pinned} />
++        </Authorization>
++      </div>
+     </div>
+   );
+ };
++
++const PinDiscussionToggle = ({
++  discussionId,
++  pinned,
++}: {
++  discussionId: string;
++  pinned: boolean;
++}) => {
++  const pinMutation = useUpdateDiscussionPinned({});
++
++  return (
++    <Button
++      variant="outline"
++      size="sm"
++      isLoading={pinMutation.isPending}
++      onClick={() =>
++        pinMutation.mutate({ discussionId, pinned: !pinned })
++      }
++      icon={pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
++    >
++      {pinned ? 'Unpin' : 'Pin'}
++    </Button>
++  );
++};
+diff --git a/apps/react-vite/src/features/discussions/components/discussions-list.tsx b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+index 9aa5fba..8145857 100644
+--- a/apps/react-vite/src/features/discussions/components/discussions-list.tsx
++++ b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+@@ -1,4 +1,5 @@
+ import { useQueryClient } from '@tanstack/react-query';
++import { Pin } from 'lucide-react';
+ import { useSearchParams } from 'react-router';
+ 
+ import { Link } from '@/components/ui/link';
+@@ -46,6 +47,14 @@ export const DiscussionsList = ({
+         {
+           title: 'Title',
+           field: 'title',
++          Cell({ entry: { title, pinned } }) {
++            return (
++              <div className="flex items-center gap-2">
++                {pinned && <Pin className="size-4 text-amber-500" />}
++                <span>{title}</span>
++              </div>
++            );
++          },
+         },
+         {
+           title: 'Created At',
+diff --git a/apps/react-vite/src/testing/mocks/db.ts b/apps/react-vite/src/testing/mocks/db.ts
+index 59c0f1a..446ac75 100644
+--- a/apps/react-vite/src/testing/mocks/db.ts
++++ b/apps/react-vite/src/testing/mocks/db.ts
+@@ -25,6 +25,7 @@ const models = {
+     body: String,
+     authorId: String,
+     teamId: String,
++    pinned: Boolean,
+     createdAt: Date.now,
+   },
+   comment: {
+diff --git a/apps/react-vite/src/testing/mocks/handlers/discussions.ts b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+index 37c0797..d5c63ec 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/discussions.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+@@ -49,6 +49,7 @@ export const discussionsHandlers = [
+           take: 10,
+           skip: 10 * (page - 1),
+         })
++        .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
+         .map(({ authorId, ...discussion }) => {
+           const author = db.user.findFirst({
+             where: {
+@@ -144,6 +145,7 @@ export const discussionsHandlers = [
+         teamId: user?.teamId,
+         authorId: user?.id,
+         ...data,
++        pinned: false,
+       });
+       await persistDb('discussion');
+       return HttpResponse.json(result);
+@@ -190,6 +192,38 @@ export const discussionsHandlers = [
+     },
+   ),
+ 
++  http.patch(
++    `${env.API_URL}/discussions/:discussionId/pinned`,
++    async ({ request, params, cookies }) => {
++      await networkDelay();
++
++      try {
++        const { user, error } = requireAuth(cookies);
++        if (error) {
++          return HttpResponse.json({ message: error }, { status: 401 });
++        }
++        const discussionId = params.discussionId as string;
++        requireAdmin(user);
++        const { pinned } = (await request.json()) as { pinned: boolean };
++        const result = db.discussion.update({
++          where: {
++            id: {
++              equals: discussionId,
++            },
++          },
++          data: { pinned },
++        });
++        await persistDb('discussion');
++        return HttpResponse.json(result);
++      } catch (error: any) {
++        return HttpResponse.json(
++          { message: error?.message || 'Server Error' },
++          { status: 500 },
++        );
++      }
++    },
++  ),
++
+   http.delete(
+     `${env.API_URL}/discussions/:discussionId`,
+     async ({ cookies, params }) => {
+diff --git a/apps/react-vite/src/types/api.ts b/apps/react-vite/src/types/api.ts
+index dbdf434..11ee002 100644
+--- a/apps/react-vite/src/types/api.ts
++++ b/apps/react-vite/src/types/api.ts
+@@ -37,6 +37,7 @@ export type Team = Entity<{
+ }>;
+ 
+ export type Discussion = Entity<{
++  pinned: boolean;
+   title: string;
+   body: string;
+   teamId: string;

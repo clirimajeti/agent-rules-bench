@@ -1,0 +1,310 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..1253aa14a 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,6 +1,8 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
++import { AccountActivity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
++import { DownloadMyDataButton } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+ import {
+@@ -108,6 +110,18 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.account_created")}
++          description={t("workspace.settings.profile.account_created_description")}>
++          <AccountActivity user={user} />
++        </SettingsCard>
++
++        <SettingsCard
++          title={t("workspace.settings.profile.download_my_data")}
++          description={t("workspace.settings.profile.download_my_data_description")}>
++          <DownloadMyDataButton />
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/actions.ts b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/actions.ts
+index 81438a6c9..7f3a2eefe 100644
+--- a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/actions.ts
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/actions.ts
+@@ -5,6 +5,7 @@ import {
+   AuthenticationError,
+   AuthorizationError,
+   OperationNotAllowedError,
++  ResourceNotFoundError,
+   TooManyRequestsError,
+ } from "@formbricks/types/errors";
+ import {
+@@ -13,6 +14,7 @@ import {
+   ZUserPersonalInfoUpdateInput,
+ } from "@formbricks/types/user";
+ import { getIsEmailUnique } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/lib/user";
++import { prisma } from "@formbricks/database";
+ import { EMAIL_VERIFICATION_DISABLED, PASSWORD_RESET_DISABLED, WEBAPP_URL } from "@/lib/constants";
+ import { verifyUserPassword } from "@/lib/user/password";
+ import { getUser, updateUser } from "@/lib/user/service";
+@@ -147,3 +149,48 @@ export const resetPasswordAction = authenticatedActionClient.action(
+     return { success: true };
+   })
+ );
++
++/**
++ * Server action to download the user's personal data as a JSON file.
++ *
++ * Returns name, email, locale, notification settings, and organization memberships
++ * (name + role) so the client can build and download the blob without exposing
++ * credentials or internal IDs.
++ */
++export const downloadUserDataAction = authenticatedActionClient.action(
++  withAuditLogging("dataExport", "user", async ({ ctx }) => {
++    const user = await getUser(ctx.user.id);
++    if (!user) {
++      throw new ResourceNotFoundError("user", ctx.user.id);
++    }
++
++    // Fetch organization memberships
++    const memberships = await prisma.membership.findMany({
++      where: {
++        userId: ctx.user.id,
++        accepted: true,
++      },
++      select: {
++        organization: {
++          select: {
++            name: true,
++          },
++        },
++        role: true,
++      },
++    });
++
++    const data = {
++      name: user.name,
++      email: user.email,
++      locale: user.locale,
++      notificationSettings: user.notificationSettings,
++      organizationMemberships: memberships.map((m) => ({
++        organization: m.organization.name,
++        role: m.role,
++      })),
++    };
++
++    return data;
++  })
++);
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
+new file mode 100644
+index 000000000..fbf678095
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
+@@ -0,0 +1,39 @@
++"use client";
++
++import { useTranslation } from "react-i18next";
++import { TUser } from "@formbricks/types/user";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
++
++interface AccountActivityProps {
++  user: TUser;
++}
++
++export const AccountActivity: React.FC<Readonly<AccountActivityProps>> = ({ user }) => {
++  const { t } = useTranslation();
++
++  const formatDate = (date: Date | null): string => {
++    if (!date) return t("common.not_available");
++    return formatDateTimeForDisplay(date, user.locale);
++  };
++
++  return (
++    <div className="space-y-3">
++      <div className="flex items-center justify-between">
++        <span className="text-sm text-slate-600">
++          {t("workspace.settings.profile.account_created")}
++        </span>
++        <span className="text-sm font-medium text-slate-800">
++          {formatDate(user.createdAt)}
++        </span>
++      </div>
++      <div className="flex items-center justify-between">
++        <span className="text-sm text-slate-600">
++          {t("workspace.settings.profile.last_login")}
++        </span>
++        <span className="text-sm font-medium text-slate-800">
++          {formatDate(user.lastLoginAt)}
++        </span>
++      </div>
++    </div>
++  );
++};
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx
+new file mode 100644
+index 000000000..7f27ea150
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx
+@@ -0,0 +1,49 @@
++"use client";
++
++import { useState } from "react";
++import { useTranslation } from "react-i18next";
++import { Button } from "@/modules/ui/components/button";
++
++export const DownloadMyDataButton: React.FC<Readonly<{}>> = () => {
++  const { t } = useTranslation();
++  const [isDownloading, setIsDownloading] = useState(false);
++
++  const handleDownload = async () => {
++    setIsDownloading(true);
++    try {
++      const response = await fetch("/api/v3/me/data-export", {
++        method: "GET",
++      });
++      if (!response.ok) {
++        return;
++      }
++      const data = await response.json();
++      const jsonString = JSON.stringify(data, null, 2);
++      const blob = new Blob([jsonString], { type: "application/json" });
++      const url = URL.createObjectURL(blob);
++      const link = document.createElement("a");
++      link.href = url;
++      link.download = "formbricks-data-export.json";
++      document.body.appendChild(link);
++      link.click();
++      document.body.removeChild(link);
++      URL.revokeObjectURL(url);
++    } catch {
++      // Silently handle errors — the user can retry
++    } finally {
++      setIsDownloading(false);
++    }
++  };
++
++  return (
++    <Button
++      type="button"
++      variant="secondary"
++      size="sm"
++      onClick={handleDownload}
++      loading={isDownloading}
++      disabled={isDownloading}>
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
+diff --git a/apps/web/app/api/v3/me/data-export/route.ts b/apps/web/app/api/v3/me/data-export/route.ts
+new file mode 100644
+index 000000000..8cb3ab0da
+--- /dev/null
++++ b/apps/web/app/api/v3/me/data-export/route.ts
+@@ -0,0 +1,68 @@
++/**
++ * GET /api/v3/me/data-export — personal data export for the authenticated user.
++ * Returns name, email, locale, notification settings, and organization memberships.
++ */
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { prisma } from "@formbricks/database";
++import { getUser } from "@/lib/user/service";
++import { TAuditAction, TAuditTarget } from "@/modules/ee/audit-logs/types/audit-log";
++import { queueV3AuditLog } from "@/app/api/v3/lib/audit";
++
++export const GET = withV3ApiWrapper({
++  auth: "session",
++  rateLimit: true,
++  action: "dataExport" as TAuditAction,
++  targetType: "user" as TAuditTarget,
++  handler: async ({ authentication, auditLog }) => {
++    if (!authentication?.session?.user) {
++      return new Response("Unauthorized", { status: 401 });
++    }
++
++    const user = await getUser(authentication.session.user.id);
++    if (!user) {
++      return new Response("Not found", { status: 404 });
++    }
++
++    const memberships = await prisma.membership.findMany({
++      where: {
++        userId: user.id,
++        accepted: true,
++      },
++      select: {
++        organization: {
++          select: {
++            name: true,
++          },
++        },
++        role: true,
++      },
++    });
++
++    const data = {
++      name: user.name,
++      email: user.email,
++      locale: user.locale,
++      notificationSettings: user.notificationSettings,
++      organizationMemberships: memberships.map((m) => ({
++        organization: m.organization.name,
++        role: m.role,
++      })),
++    };
++
++    queueV3AuditLog({
++      auditLog,
++      action: "dataExport",
++      targetType: "user",
++      userId: user.id,
++      oldObject: null,
++      newObject: data,
++    });
++
++    return new Response(JSON.stringify(data, null, 2), {
++      status: 200,
++      headers: {
++        "Content-Type": "application/json",
++      },
++    });
++  },
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..f8bc5cd61 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -693,7 +693,8 @@
+     "you_have_reached_your_monthly_response_limit_of_count": "You have reached your monthly response limit of {count}.",
+     "you_will_be_downgraded_to_the_community_edition_on_date": "You will be downgraded to the Community Edition on {date}.",
+     "your_license_has_expired_please_renew": "Your enterprise license has expired. Please renew it to continue using enterprise features.",
+-    "your_profile": "Your Profile"
++    "your_profile": "Your Profile",
++    "not_available": "N/A"
+   },
+   "emails": {
+     "accept": "Accept",
+@@ -3773,7 +3774,12 @@
+         "update_personal_info": "Update your personal information",
+         "warning_cannot_delete_account": "You are the only owner of this organization. Please transfer ownership to another member first.",
+         "warning_cannot_undo": "This cannot be undone",
+-        "wrong_password": "Wrong password"
++        "wrong_password": "Wrong password",
++        "account_created": "Account created",
++        "last_login": "Last login",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Export your personal information and organization memberships",
++        "account_created_description": "When your account was created and your last login date"
+       },
+       "teams": {
+         "add_members_description": "Add members to the team and determine their role.",
+@@ -5610,4 +5616,4 @@
+       "smileys_description": "Emoji-based satisfaction rating"
+     }
+   }
+-}
++}
+\ No newline at end of file

@@ -1,0 +1,248 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..55cd1a3a6 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,4 +1,5 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
++import { AccountActivityCard } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivityCard";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+@@ -13,6 +14,10 @@ import { getOrganizationsWhereUserIsSingleOwner } from "@/lib/organization/servi
+ import { getUser } from "@/lib/user/service";
+ import { getTranslate } from "@/lingodotdev/server";
+ import { requiresPasswordConfirmationForAccountDeletion } from "@/modules/account/lib/account-deletion-auth";
++import {
++  buildAccountDataExport,
++  getAccountOrganizationMemberships,
++} from "@/modules/account/lib/account-data-export";
+ import { getSession } from "@/modules/auth/lib/session";
+ import { LiteLicenseTip } from "@/modules/ee/license-check/components/lite-license-tip";
+ import { getEnterpriseLicense } from "@/modules/ee/license-check/lib/license";
+@@ -85,6 +90,8 @@ const Page = async () => {
+ 
+   const isPasswordResetEnabled = !PASSWORD_RESET_DISABLED && user.identityProvider === "email";
+   const requiresPasswordConfirmation = requiresPasswordConfirmationForAccountDeletion(user);
++  const organizationMemberships = await getAccountOrganizationMemberships(session.user.id);
++  const accountDataExport = buildAccountDataExport(user, organizationMemberships);
+ 
+   return (
+     <PageContentWrapper>
+@@ -99,6 +106,12 @@ const Page = async () => {
+             isPasswordResetEnabled={isPasswordResetEnabled}
+           />
+         </SettingsCard>
++        <AccountActivityCard
++          createdAt={user.createdAt}
++          lastLoginAt={user.lastLoginAt}
++          locale={user.locale}
++          exportData={accountDataExport}
++        />
+         {user.identityProvider === "email" && (
+           <SettingsCard
+             title={t("common.security")}
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivityCard.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivityCard.tsx
+new file mode 100644
+index 000000000..32405cc1f
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivityCard.tsx
+@@ -0,0 +1,47 @@
++import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
++import { getTranslate } from "@/lingodotdev/server";
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
++import type { TAccountDataExport } from "@/modules/account/lib/account-data-export";
++import { DownloadMyDataButton } from "./DownloadMyDataButton";
++
++interface AccountActivityCardProps {
++  createdAt: Date;
++  lastLoginAt: Date | null;
++  locale: string;
++  exportData: TAccountDataExport;
++}
++
++// Dates are formatted on the server with the user's locale so the server render and the hydrated
++// client render always agree, regardless of the time zone of the browser.
++export const AccountActivityCard = async ({
++  createdAt,
++  lastLoginAt,
++  locale,
++  exportData,
++}: Readonly<AccountActivityCardProps>) => {
++  const t = await getTranslate();
++
++  return (
++    <SettingsCard
++      title={t("workspace.settings.profile.account_activity")}
++      description={t("workspace.settings.profile.account_activity_description")}>
++      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
++        <dt className="text-slate-600">{t("workspace.settings.profile.account_created")}</dt>
++        <dd className="text-slate-900">{formatDateTimeForDisplay(createdAt, locale)}</dd>
++        <dt className="text-slate-600">{t("workspace.settings.profile.last_login")}</dt>
++        <dd className="text-slate-900">
++          {lastLoginAt
++            ? formatDateTimeForDisplay(lastLoginAt, locale)
++            : t("workspace.settings.profile.last_login_never")}
++        </dd>
++      </dl>
++
++      <div className="mt-6 flex flex-col gap-2 border-t border-slate-200 pt-4">
++        <p className="text-xs text-slate-600">{t("workspace.settings.profile.download_my_data_description")}</p>
++        <div>
++          <DownloadMyDataButton data={exportData} />
++        </div>
++      </div>
++    </SettingsCard>
++  );
++};
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx
+new file mode 100644
+index 000000000..55f57586e
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadMyDataButton.tsx
+@@ -0,0 +1,38 @@
++"use client";
++
++import { DownloadIcon } from "lucide-react";
++import { useTranslation } from "react-i18next";
++import type { TAccountDataExport } from "@/modules/account/lib/account-data-export";
++import { Button } from "@/modules/ui/components/button";
++
++const EXPORT_FILE_NAME = "formbricks-my-data.json";
++
++interface DownloadMyDataButtonProps {
++  data: TAccountDataExport;
++}
++
++export const DownloadMyDataButton = ({ data }: Readonly<DownloadMyDataButtonProps>) => {
++  const { t } = useTranslation();
++
++  const handleDownload = () => {
++    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
++    const url = URL.createObjectURL(blob);
++
++    const link = document.createElement("a");
++    link.href = url;
++    link.download = EXPORT_FILE_NAME;
++    document.body.appendChild(link);
++    link.click();
++    link.remove();
++
++    // Give the browser a moment to start the download before the object URL is released.
++    setTimeout(() => URL.revokeObjectURL(url), 0);
++  };
++
++  return (
++    <Button variant="secondary" onClick={handleDownload}>
++      <DownloadIcon />
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..868d23f1e 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "See when your account was created and when you last logged in.",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,10 +3753,14 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
+-        "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Download a JSON file with your name, email, language, notification settings and organization memberships.",
++        "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator":"Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
++        "last_login_never": "Never",
+         "lost_access": "Lost access",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+diff --git a/apps/web/modules/account/lib/account-data-export.ts b/apps/web/modules/account/lib/account-data-export.ts
+new file mode 100644
+index 000000000..c04365342
+--- /dev/null
++++ b/apps/web/modules/account/lib/account-data-export.ts
+@@ -0,0 +1,72 @@
++import "server-only";
++import { cache as reactCache } from "react";
++import { prisma } from "@formbricks/database";
++import { Prisma } from "@formbricks/database/prisma";
++import { ZId } from "@formbricks/types/common";
++import { DatabaseError } from "@formbricks/types/errors";
++import type { TOrganizationRole } from "@formbricks/types/memberships";
++import type { TUserNotificationSettings } from "@formbricks/types/user";
++import { validateInputs } from "@/lib/utils/validate";
++
++export interface TAccountDataExportMembership {
++  organizationName: string;
++  role: TOrganizationRole;
++}
++
++export interface TAccountDataExport {
++  name: string;
++  email: string;
++  locale: string;
++  notificationSettings: TUserNotificationSettings;
++  organizationMemberships: TAccountDataExportMembership[];
++}
++
++/**
++ * Accepted organization memberships of a user, with the organization name, for the account data export.
++ * Pending invitations are left out: they are not memberships the user holds yet.
++ */
++export const getAccountOrganizationMemberships = reactCache(async (userId: string) => {
++  validateInputs([userId, ZId]);
++
++  try {
++    return await prisma.membership.findMany({
++      where: {
++        userId,
++        accepted: true,
++      },
++      select: {
++        role: true,
++        organization: {
++          select: {
++            name: true,
++          },
++        },
++      },
++      orderBy: {
++        organization: {
++          name: "asc",
++        },
++      },
++    });
++  } catch (error) {
++    if (error instanceof Prisma.PrismaClientKnownRequestError) {
++      throw new DatabaseError(error.message);
++    }
++
++    throw error;
++  }
++});
++
++export const buildAccountDataExport = (
++  user: { name: string; email: string; locale: string; notificationSettings: TUserNotificationSettings },
++  memberships: { role: TOrganizationRole; organization: { name: string } }[]
++): TAccountDataExport => ({
++  name: user.name,
++  email: user.email,
++  locale: user.locale,
++  notificationSettings: user.notificationSettings,
++  organizationMemberships: memberships.map((membership) => ({
++    organizationName: membership.organization.name,
++    role: membership.role,
++  })),
++});

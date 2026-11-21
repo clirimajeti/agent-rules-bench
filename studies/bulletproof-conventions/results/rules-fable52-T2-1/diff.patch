@@ -1,0 +1,102 @@
+diff --git a/apps/react-vite/src/app/routes/app/discussions/__tests__/discussions.test.tsx b/apps/react-vite/src/app/routes/app/discussions/__tests__/discussions.test.tsx
+index dbc08e6..9dd18c2 100644
+--- a/apps/react-vite/src/app/routes/app/discussions/__tests__/discussions.test.tsx
++++ b/apps/react-vite/src/app/routes/app/discussions/__tests__/discussions.test.tsx
+@@ -55,7 +55,7 @@ test(
+     const row = await screen.findByRole(
+       'row',
+       {
+-        name: `${newDiscussion.title} ${formatDate(newDiscussion.createdAt)} View Delete Discussion`,
++        name: `${newDiscussion.title} ${formatDate(newDiscussion.createdAt)} 0 No comments yet View Delete Discussion`,
+       },
+       { timeout: 5000 },
+     );
+diff --git a/apps/react-vite/src/features/discussions/api/get-discussions.ts b/apps/react-vite/src/features/discussions/api/get-discussions.ts
+index fd92874..7a58d1a 100644
+--- a/apps/react-vite/src/features/discussions/api/get-discussions.ts
++++ b/apps/react-vite/src/features/discussions/api/get-discussions.ts
+@@ -4,10 +4,17 @@ import { api } from '@/lib/api-client';
+ import { QueryConfig } from '@/lib/react-query';
+ import { Discussion, Meta } from '@/types/api';
+ 
++// The list endpoint returns each discussion with a summary of its comments.
++export type DiscussionListItem = Discussion & {
++  commentsCount: number;
++  // null when the discussion has no comments
++  lastCommentAt: number | null;
++};
++
+ export const getDiscussions = (
+   page = 1,
+ ): Promise<{
+-  data: Discussion[];
++  data: DiscussionListItem[];
+   meta: Meta;
+ }> => {
+   return api.get(`/discussions`, {
+diff --git a/apps/react-vite/src/features/discussions/components/discussions-list.tsx b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+index 9aa5fba..887733f 100644
+--- a/apps/react-vite/src/features/discussions/components/discussions-list.tsx
++++ b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+@@ -23,6 +23,12 @@ export const DiscussionsList = ({
+ 
+   const discussionsQuery = useDiscussions({
+     page: +(searchParams.get('page') || 1),
++    queryConfig: {
++      // The comment summary changes when comments are added or deleted,
++      // and those mutations belong to another feature that does not
++      // invalidate this query. Always refetch when the list is shown.
++      refetchOnMount: 'always',
++    },
+   });
+   const queryClient = useQueryClient();
+ 
+@@ -54,6 +60,23 @@ export const DiscussionsList = ({
+             return <span>{formatDate(createdAt)}</span>;
+           },
+         },
++        {
++          title: 'Comments',
++          field: 'commentsCount',
++        },
++        {
++          title: 'Last Comment',
++          field: 'lastCommentAt',
++          Cell({ entry: { lastCommentAt } }) {
++            return (
++              <span>
++                {lastCommentAt === null
++                  ? 'No comments yet'
++                  : formatDate(lastCommentAt)}
++              </span>
++            );
++          },
++        },
+         {
+           title: '',
+           field: 'id',
+diff --git a/apps/react-vite/src/testing/mocks/handlers/discussions.ts b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+index 37c0797..7b0c3bd 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/discussions.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+@@ -57,9 +57,20 @@ export const discussionsHandlers = [
+               },
+             },
+           });
++          const comments = db.comment.findMany({
++            where: {
++              discussionId: {
++                equals: discussion.id,
++              },
++            },
++          });
+           return {
+             ...discussion,
+             author: author ? sanitizeUser(author) : {},
++            commentsCount: comments.length,
++            lastCommentAt: comments.length
++              ? Math.max(...comments.map((comment) => comment.createdAt))
++              : null,
+           };
+         });
+       return HttpResponse.json({

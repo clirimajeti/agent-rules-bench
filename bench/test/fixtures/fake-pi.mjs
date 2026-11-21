@@ -1,6 +1,7 @@
 // Stand-in for `pi -p --mode json` in tests: edits like fake-claude (rule-breaking unless the copy has a .rules
 // marker, fixed on review feedback), records its arguments and config folder, and prints pi-style JSON events.
 import fs from 'node:fs';
+if (process.argv.includes('--version')) { console.log('9.9.9 (fake pi)'); process.exit(0); }
 const prompt = process.argv.at(-1);
 const fix = /Code review/.test(prompt);
 let text = fs.existsSync('src.ts') ? fs.readFileSync('src.ts', 'utf8') : '';

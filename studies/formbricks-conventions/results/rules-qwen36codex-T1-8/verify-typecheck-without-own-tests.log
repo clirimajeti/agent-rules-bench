@@ -1,0 +1,9 @@
+Generating route types...
+✓ Types generated successfully
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(225,75): error TS2339: Property 'error' does not exist on type 'SafeActionResult<string, ZodObject<{ organizationId: ZodCUID2; apiKeyData: ZodObject<{ label: ZodString; workspacePermissions: ZodOptional<ZodArray<ZodObject<{ workspaceId: ZodString; permission: ZodEnum<{ read: "read"; manage: "manage"; write: "write"; }>; }, $strip>>>; organizationAccess: ZodObject<...>; }, $strip...'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(243,48): error TS18049: 'updateApiKeyResponse.data' is possibly 'null' or 'undefined'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(248,75): error TS2339: Property 'error' does not exist on type 'SafeActionResult<string, ZodObject<{ apiKeyId: ZodCUID2; apiKeyData: ZodObject<{ label: ZodString; }, $strip>; }, $strip>, { _errors?: string[] | undefined; } & { ...; }, { ...; } | null, object>'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(267,75): error TS2339: Property 'error' does not exist on type 'SafeActionResult<string, ZodObject<{ id: ZodCUID2; }, $strip>, { _errors?: string[] | undefined; } & { id?: { _errors?: string[] | undefined; } | undefined; }, { id: string; ... 7 more ...; organizationAccess: PrismaJson.OrganizationAccess; } | null, object>'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

@@ -1,0 +1,165 @@
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..c6081107b 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -2883,6 +2883,9 @@
+       "webhooks": {
+         "add_webhook": "Add Webhook",
+         "add_webhook_description": "Send survey response data to a custom endpoint",
++        "created_at": "Created at",
++        "duplicate": "Duplicate",
++        "webhook_duplicate_successfully": "Webhook duplicated successfully",
+         "all_current_and_new_surveys": "All current and new surveys",
+         "copy_secret_now": "Copy your signing secret",
+         "created_by_third_party": "Created by a Third Party",
+diff --git a/apps/web/modules/integrations/webhooks/actions.ts b/apps/web/modules/integrations/webhooks/actions.ts
+index f6795f301..8c074222f 100644
+--- a/apps/web/modules/integrations/webhooks/actions.ts
++++ b/apps/web/modules/integrations/webhooks/actions.ts
+@@ -160,3 +160,38 @@ export const testEndpointAction = authenticatedActionClient
+     await testEndpoint(parsedInput.url, secret);
+     return { success: true, secret };
+   });
++
++const ZDuplicateWebhookAction = z.object({
++  webhookId: ZId,
++});
++
++export const duplicateWebhookAction = authenticatedActionClient
++  .inputSchema(ZDuplicateWebhookAction)
++  .action(async ({ ctx, parsedInput }) => {
++    const existingResult = await getWebhook(parsedInput.webhookId);
++    if (!existingResult.ok || !existingResult.data) {
++      throw new ResourceNotFoundError("Webhook", parsedInput.webhookId);
++    }
++    const existing = existingResult.data;
++
++    const organizationId = await getOrganizationIdFromWebhookId(parsedInput.webhookId);
++    const workspaceId = await getWorkspaceIdFromWebhookId(parsedInput.webhookId);
++    await assertCan({ type: "user", id: ctx.user.id }, "workspace.write", {
++      type: "workspace",
++      id: workspaceId,
++    });
++    await applyRateLimit(rateLimitConfigs.actions.stateMutation, workspaceId);
++
++    const newWebhook = await createWebhook(workspaceId, {
++      name: `Copy of ${existing.name ?? ""}`,
++      url: existing.url,
++      source: "user" as const,
++      triggers: existing.triggers,
++      surveyIds: existing.surveyIds,
++    });
++
++    ctx.auditLoggingCtx.organizationId = organizationId;
++    ctx.auditLoggingCtx.newObject = { ...newWebhook };
++
++    return newWebhook;
++  });
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+index d11f09b77..991db9551 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+@@ -1,13 +1,18 @@
+ "use client";
+ 
++import { CopyIcon } from "lucide-react";
+ import { TFunction } from "i18next";
++import { useRouter } from "next/navigation";
+ import { useTranslation } from "react-i18next";
++import { toast } from "react-hot-toast";
+ import { Webhook } from "@formbricks/database/prisma-browser";
+ import { TSurvey } from "@formbricks/types/surveys/types";
+ import { timeSince } from "@/lib/time";
++import { getFormattedErrorMessage } from "@/lib/utils/error-message";
+ import { RestrictedSurveyHint } from "@/modules/survey/visibility/components/restricted-survey-hint";
+ import { hasRestrictedAttachedSurvey } from "@/modules/survey/visibility/lib/outbound";
+ import { Badge } from "@/modules/ui/components/badge";
++import { duplicateWebhookAction } from "../actions";
+ 
+ const renderSelectedSurveysText = (webhook: Webhook, allSurveys: TSurvey[]) => {
+   let surveyNames: string[];
+@@ -75,6 +80,21 @@ export const WebhookRowData = ({
+ }: Readonly<{ webhook: Webhook; surveys: TSurvey[]; surveyVisibilityEnabled: boolean }>) => {
+   const { t, i18n } = useTranslation();
+   const locale = i18n.resolvedLanguage ?? i18n.language ?? "en-US";
++  const router = useRouter();
++
++  const handleDuplicateWebhook = async () => {
++    try {
++      const result = await duplicateWebhookAction({ webhookId: webhook.id });
++      if (result?.data) {
++        toast.success(t("workspace.integrations.webhooks.webhook_duplicate_successfully"));
++        router.refresh();
++      } else {
++        toast.error(getFormattedErrorMessage(result) ?? t("common.something_went_wrong_please_try_again"));
++      }
++    } catch {
++      toast.error(t("common.something_went_wrong_please_try_again"));
++    }
++  };
+ 
+   return (
+     <div className="mt-2 grid h-auto grid-cols-12 content-center rounded-lg py-2 hover:bg-slate-100">
+@@ -95,7 +115,7 @@ export const WebhookRowData = ({
+       <div className="col-span-1 my-auto text-center text-sm text-slate-800">
+         <Badge type="gray" size="tiny" text={webhook.source || t("common.user")} className="capitalize" />
+       </div>
+-      <div className="col-span-4 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
++      <div className="col-span-3 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
+         {renderSelectedSurveysText(webhook, surveys)}
+         {hasRestrictedAttachedSurvey(surveyVisibilityEnabled, webhook.surveyIds, surveys) && (
+           <RestrictedSurveyHint kind="paused" />
+@@ -104,10 +124,21 @@ export const WebhookRowData = ({
+       <div className="col-span-2 my-auto text-center text-sm text-slate-800">
+         {renderSelectedTriggersText(webhook, t)}
+       </div>
+-      <div className="col-span-2 my-auto text-center text-sm whitespace-nowrap text-slate-500">
++      <div className="my-auto text-center text-sm text-slate-500">
++        {timeSince(webhook.createdAt.toString(), locale)}
++      </div>
++      <div className="my-auto text-center text-sm whitespace-nowrap text-slate-500">
+         {timeSince(webhook.updatedAt.toString(), locale)}
+       </div>
+-      <div className="text-center"></div>
++      <div className="my-auto text-center">
++        <button
++          type="button"
++          onClick={handleDuplicateWebhook}
++          className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700">
++          <CopyIcon className="size-3" />
++          {t("workspace.integrations.webhooks.duplicate")}
++        </button>
++      </div>
+     </div>
+   );
+ };
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+index 0c5945508..af5c71f5c 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+@@ -8,9 +8,10 @@ export const WebhookTableHeading = async () => {
+         <span className="sr-only">{t("common.edit")}</span>
+         <div className="col-span-3 pl-6">{t("common.webhook")}</div>
+         <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.source")}</div>
+-        <div className="col-span-4 text-center">{t("common.surveys")}</div>
++        <div className="col-span-3 text-center">{t("common.surveys")}</div>
+         <div className="col-span-2 text-center">{t("workspace.integrations.webhooks.triggers")}</div>
+-        <div className="col-span-2 text-center">{t("common.updated")}</div>
++        <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.created_at")}</div>
++        <div className="col-span-1 text-center">{t("common.updated")}</div>
+       </div>
+     </>
+   );
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-table.tsx b/apps/web/modules/integrations/webhooks/components/webhook-table.tsx
+index 04cd9866d..2f731a1b3 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-table.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-table.tsx
+@@ -54,7 +54,7 @@ export const WebhookTable = ({
+       ) : (
+         <div className="rounded-lg border border-slate-200">
+           {TableHeading}
+-          <div className="grid-cols-7">
++          <div className="grid-cols-12">
+             {webhooks.map((webhook, index) => (
+               <button
+                 type="button"

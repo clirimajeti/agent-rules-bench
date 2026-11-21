@@ -1,0 +1,60 @@
+{
+  "id": "prose-qwen36codex-T2-8",
+  "arm": "prose",
+  "model": "qwen36codex",
+  "agent": "codex",
+  "task": "T2",
+  "rep": 8,
+  "ok": true,
+  "capped": false,
+  "timedOut": false,
+  "turns": 144,
+  "taskCost": 0,
+  "fixCost": 0,
+  "usage": {
+    "input": 23446,
+    "cacheWrite": 0,
+    "cacheRead": 853584,
+    "output": 13107
+  },
+  "fixUsage": {
+    "input": 35344,
+    "cacheWrite": 0,
+    "cacheRead": 2604961,
+    "output": 15301
+  },
+  "seconds": 609,
+  "fixed": true,
+  "breaksAfterTask": 2,
+  "breaksFinal": 0,
+  "byRule": {},
+  "breaksAfterTaskAt": [
+    {
+      "ruleId": "local/no-new-server-actions",
+      "file": "apps/web/modules/integrations/webhooks/actions.ts",
+      "line": 126
+    },
+    {
+      "ruleId": "local/readonly-props",
+      "file": "apps/web/modules/integrations/webhooks/components/duplicate-webhook-button.tsx",
+      "line": 14
+    }
+  ],
+  "evalNotes": [],
+  "changedFiles": 8,
+  "hookCatches": 0,
+  "ignoredCatches": 0,
+  "build": null,
+  "startedAt": "2026-11-16T18:29:19.884Z",
+  "modelIds": [
+    "ollama/qwen3.6:35b-a3b-coding"
+  ],
+  "versions": {
+    "harness": "4610d19f5ca6388cce6be30b9831e33f66bb281f",
+    "node": "v24.14.1",
+    "platform": "darwin-arm64",
+    "agent": {
+      "codex": "codex-cli 0.166.0"
+    }
+  }
+}

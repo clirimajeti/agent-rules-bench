@@ -1,0 +1,638 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.12 [39m[90m/repo/apps/web[39m
+
+ [31m❯[39m [30m[42m unit [49m[39m modules/organization/settings/api-keys/lib/api-keys.test.ts [2m([22m[2m29 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 19[2mms[22m[39m
+[31m       [31m×[31m retrieves API keys successfully[39m[32m 7[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error[32m 1[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error[32m 0[2mms[22m[39m
+       [32m✓[39m returns api key with permissions for v2 format (fbk_secret) but does NOT update lastUsedAt when within 30s[32m 1[2mms[22m[39m
+       [32m✓[39m returns api key with permissions for v2 format and DOES update lastUsedAt when null (first use)[32m 1[2mms[22m[39m
+       [32m✓[39m returns api key with permissions for v2 format and DOES update lastUsedAt when older than 30s[32m 0[2mms[22m[39m
+       [32m✓[39m returns api key with permissions for v1 legacy format but does NOT update lastUsedAt when within 30s[32m 0[2mms[22m[39m
+       [32m✓[39m returns api key and DOES update lastUsedAt for legacy format when older than 30s[32m 0[2mms[22m[39m
+       [32m✓[39m returns null if v2 api key not found[32m 0[2mms[22m[39m
+       [32m✓[39m returns null if v2 api key bcrypt verification fails[32m 1[2mms[22m[39m
+       [32m✓[39m returns null if v1 api key not found[32m 0[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error for v2 key[32m 0[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error for v2 key[32m 1[2mms[22m[39m
+       [32m✓[39m uses workspace include without feedback directory relations in v2 lookup[32m 0[2mms[22m[39m
+       [32m✓[39m uses workspace include without feedback directory relations in legacy lookup[32m 0[2mms[22m[39m
+       [32m✓[39m deletes an API key successfully[32m 0[2mms[22m[39m
+       [32m✓[39m preserves a successful deletion when projection fails[32m 0[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error[32m 0[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error[32m 0[2mms[22m[39m
+       [32m✓[39m creates an API key successfully with v2 format[32m 1[2mms[22m[39m
+       [32m✓[39m creates an API key with environment permissions successfully[32m 0[2mms[22m[39m
+       [32m✓[39m rejects a workspace permission for a workspace outside the organization (ENG-1749)[32m 0[2mms[22m[39m
+       [32m✓[39m preserves the one-time API key when projection fails[32m 0[2mms[22m[39m
+       [32m✓[39m rejects create input with duplicate workspaceId[32m 1[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error[32m 0[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error[32m 0[2mms[22m[39m
+       [32m✓[39m updates an API key successfully[32m 0[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error[32m 0[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error[32m 0[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/hub/feedback-records-proxy.test.ts [2m([22m[2m36 tests[22m[2m)[22m[32m 212[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/lib/api/with-api-logging.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 2058[2mms[22m[39m
+     [33m[2m✓[22m[39m logs and audits on error response with API key authentication [33m 1474[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/mcp/route.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 288[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/guard-scopes.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 126[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/creatives.test.ts [2m([22m[2m41 tests[22m[2m)[22m[32m 116[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/surveys.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 78[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/feedback-records.test.ts [2m([22m[2m49 tests[22m[2m)[22m[32m 156[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/auth.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 245[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/creatives/lib/operations.test.ts [2m([22m[2m90 tests[22m[2m)[22m[32m 245[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/surveys/templates/lib/template-create.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 95[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/surveys/visibility/operations.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 56[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/server.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 124[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/lib/api-wrapper.test.ts [2m([22m[2m63 tests[22m[2m)[22m[32m 77[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/surveys/lib/operations.test.ts [2m([22m[2m91 tests[22m[2m)[22m[32m 81[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/surveys/import/stream/route.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/responses/route.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+[32mINFO[39m [2026-11-18 11:56:51.857 +0000] (formbricks): [36mEmbedded Data ingest dropped or flagged incoming keys[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mdropped[39m: {
+      "entries": [
+        {
+          "key": "rogue",
+          "reason": "unknown_key"
+        }
+      ],
+      "omitted": 0
+    }
+    [35mflags[39m: {
+      "entries": [],
+      "omitted": 0
+    }
+[32mINFO[39m [2026-11-18 11:56:51.860 +0000] (formbricks): [36mEmbedded Data ingest dropped or flagged incoming keys[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mdropped[39m: {
+      "entries": [
+        {
+          "key": "plan",
+          "reason": "locked_field"
+        }
+      ],
+      "omitted": 0
+    }
+    [35mflags[39m: {
+      "entries": [],
+      "omitted": 0
+    }
+[32mINFO[39m [2026-11-18 11:56:51.863 +0000] (formbricks): [36mEmbedded Data ingest dropped or flagged incoming keys[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mdropped[39m: {
+      "entries": [],
+      "omitted": 0
+    }
+    [35mflags[39m: {
+      "entries": [
+        {
+          "key": "note",
+          "reason": "truncated"
+        }
+      ],
+      "omitted": 0
+    }
+[32mINFO[39m [2026-11-18 11:56:51.869 +0000] (formbricks): [36mFolded duplicate response submission[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mresponseId[39m: "cm8f4x9mm0001gx9h5b7d7h3q"
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-runs/export/route.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/route.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/surveys/import/lib/operations.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/management/surveys/custom-head-scripts.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/organizations/[organizationId]/teams/[teamId]/route.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/surveys/generate/lib/operations.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/auth/tests/api-wrapper.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+[31mERROR[39m [2026-11-18 11:57:00.700 +0000] (formbricks): [36mError parsing JSON input[39m
+    [35murl[39m: "http://localhost/"
+    error: {}
+[31mERROR[39m [2026-11-18 11:57:00.703 +0000] (formbricks): [36mError parsing JSON input[39m
+    [35murl[39m: "http://localhost/"
+    error: {}
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/dashboards.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/responses.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/management/responses/route.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/workflows.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/hub/feedback-records-gateway.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/auth/tests/authenticate-request.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/organizations/[organizationId]/teams/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/(internal)/organizations/[organizationId]/usage/route.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+[90mstdout[2m | app/api/v3/responses/lib/operations.test.ts
+[22m[39m🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/lib/operations.test.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/batch-delete/route.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/environment/route.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/storage/route.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/creatives-licence.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 52[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-policies/route.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/envoy-auth/service.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/management/surveys/[surveyId]/singleUseIds/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-runs/route.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/lib/write-operations.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/[responseId]/route.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/audit-logs/lib/handler.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/traefik-auth/service.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/lib/validate-operations.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/survey-retention/[surveyId]/route.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/members/[userId]/reactivate/route.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/auth.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/[exemptionId]/route.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/me/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/route.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/contacts/api/v1/management/error-handling.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/workspaces.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/[exemptionId]/revoke/route.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/workspaces/lib/custom-css.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/survey-options/route.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/gateway-auth/lib/request.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/management/authorized-collection-routes.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/lib/api-key-auth.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+[90mstdout[2m | modules/api/v2/management/responses/route.test.ts
+[22m[39m🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ [32m✓[39m [30m[42m unit [49m[39m modules/organization/settings/api-keys/actions.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v2/client/[workspaceId]/storage/route.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/charts/generate/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-health/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/storage/[workspaceId]/[accessType]/[...filePath]/lib/auth.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/management/responses/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/auth/tests/authenticated-api-client.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m66 passed[39m[22m[90m (67)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1145 passed[39m[22m[90m (1146)[39m
+[2m   Start at [22m 11:56:21
+[2m   Duration [22m 75.47s[2m (transform 2.12s, setup 77.93s, import 442.62s, tests 5.19s, environment 4ms)[22m
+
+JSON report written to /repo/.verify-vitest.json
+related test files: 67, failing: 1, outside the baseline: 1
+  modules/organization/settings/api-keys/lib/api-keys.test.ts
+Warning: A vi.mock("./surveySummary") call in "/repo/apps/web/app/(app)/workspaces/[workspaceId]/surveys/[surveyId]/(analysis)/summary/lib/surveySummary.test.ts" is not at the top level of the module. Although it appears nested, it will be hoisted and executed before any tests run. Move it to the top level to reflect its actual execution order. This will become an error in a future version.
+See: https://vitest.dev/guide/mocking/modules#how-it-works
+(node:65) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 exit listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[42m unit [49m[39m modules/organization/settings/api-keys/lib/api-keys.test.ts[2m > [22mAPI Key Management[2m > [22mgetApiKeysWithEnvironmentPermissions[2m > [22mretrieves API keys successfully
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ { …(2) } ][90m
+
+Received:
+
+[1m  1st vi.fn() call:
+
+[22m[33m@@ -8,10 +8,11 @@[90m
+[2m          },[22m
+[2m        },[22m
+[2m        "createdAt": true,[22m
+[2m        "id": true,[22m
+[2m        "label": true,[22m
+[31m+       "lastUsedAt": true,[90m
+[2m        "organizationAccess": true,[22m
+[2m      },[22m
+[2m      "where": {[22m
+[2m        "organizationId": "clj28r6va000409j3ep7h8xzk",[22m
+[2m      },[22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m modules/organization/settings/api-keys/lib/api-keys.test.ts:[2m128:38[22m[39m
+    [90m126|[39m
+    [90m127|[39m       [34mexpect[39m(result)[33m.[39m[34mtoEqual[39m([mockApiKeyWithEnvironments])[33m;[39m
+    [90m128|[39m       [34mexpect[39m(prisma[33m.[39mapiKey[33m.[39mfindMany)[33m.[39m[34mtoHaveBeenCalledWith[39m({
+    [90m   |[39m                                      [31m^[39m
+    [90m129|[39m         where[33m:[39m {
+    [90m130|[39m           organizationId[33m:[39m [32m"clj28r6va000409j3ep7h8xzk"[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+===== attempt 2 =====
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.12 [39m[90m/repo/apps/web[39m
+
+ [31m❯[39m [30m[42m unit [49m[39m modules/organization/settings/api-keys/lib/api-keys.test.ts [2m([22m[2m29 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 23[2mms[22m[39m
+[31m       [31m×[31m retrieves API keys successfully[39m[32m 8[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error[32m 1[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error[32m 0[2mms[22m[39m
+       [32m✓[39m returns api key with permissions for v2 format (fbk_secret) but does NOT update lastUsedAt when within 30s[32m 2[2mms[22m[39m
+       [32m✓[39m returns api key with permissions for v2 format and DOES update lastUsedAt when null (first use)[32m 1[2mms[22m[39m
+       [32m✓[39m returns api key with permissions for v2 format and DOES update lastUsedAt when older than 30s[32m 1[2mms[22m[39m
+       [32m✓[39m returns api key with permissions for v1 legacy format but does NOT update lastUsedAt when within 30s[32m 0[2mms[22m[39m
+       [32m✓[39m returns api key and DOES update lastUsedAt for legacy format when older than 30s[32m 0[2mms[22m[39m
+       [32m✓[39m returns null if v2 api key not found[32m 1[2mms[22m[39m
+       [32m✓[39m returns null if v2 api key bcrypt verification fails[32m 1[2mms[22m[39m
+       [32m✓[39m returns null if v1 api key not found[32m 0[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error for v2 key[32m 0[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error for v2 key[32m 0[2mms[22m[39m
+       [32m✓[39m uses workspace include without feedback directory relations in v2 lookup[32m 0[2mms[22m[39m
+       [32m✓[39m uses workspace include without feedback directory relations in legacy lookup[32m 0[2mms[22m[39m
+       [32m✓[39m deletes an API key successfully[32m 0[2mms[22m[39m
+       [32m✓[39m preserves a successful deletion when projection fails[32m 0[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error[32m 0[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error[32m 0[2mms[22m[39m
+       [32m✓[39m creates an API key successfully with v2 format[32m 1[2mms[22m[39m
+       [32m✓[39m creates an API key with environment permissions successfully[32m 0[2mms[22m[39m
+       [32m✓[39m rejects a workspace permission for a workspace outside the organization (ENG-1749)[32m 0[2mms[22m[39m
+       [32m✓[39m preserves the one-time API key when projection fails[32m 0[2mms[22m[39m
+       [32m✓[39m rejects create input with duplicate workspaceId[32m 1[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error[32m 0[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error[32m 0[2mms[22m[39m
+       [32m✓[39m updates an API key successfully[32m 0[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error[32m 0[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error[32m 0[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/hub/feedback-records-proxy.test.ts [2m([22m[2m36 tests[22m[2m)[22m[32m 212[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/lib/api/with-api-logging.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 2064[2mms[22m[39m
+     [33m[2m✓[22m[39m logs and audits on error response with API key authentication [33m 1517[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/surveys/templates/lib/template-create.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 113[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/surveys/lib/operations.test.ts [2m([22m[2m91 tests[22m[2m)[22m[32m 90[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/mcp/route.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 334[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/creatives.test.ts [2m([22m[2m41 tests[22m[2m)[22m[32m 115[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/auth.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 274[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/feedback-records.test.ts [2m([22m[2m49 tests[22m[2m)[22m[32m 132[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/guard-scopes.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 261[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/creatives/lib/operations.test.ts [2m([22m[2m90 tests[22m[2m)[22m[33m 317[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/server.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 107[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/lib/api-wrapper.test.ts [2m([22m[2m63 tests[22m[2m)[22m[32m 86[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/surveys/visibility/operations.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+[32mINFO[39m [2026-11-18 11:58:38.878 +0000] (formbricks): [36mEmbedded Data ingest dropped or flagged incoming keys[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mdropped[39m: {
+      "entries": [
+        {
+          "key": "rogue",
+          "reason": "unknown_key"
+        }
+      ],
+      "omitted": 0
+    }
+    [35mflags[39m: {
+      "entries": [],
+      "omitted": 0
+    }
+[32mINFO[39m [2026-11-18 11:58:38.884 +0000] (formbricks): [36mEmbedded Data ingest dropped or flagged incoming keys[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mdropped[39m: {
+      "entries": [
+        {
+          "key": "plan",
+          "reason": "locked_field"
+        }
+      ],
+      "omitted": 0
+    }
+    [35mflags[39m: {
+      "entries": [],
+      "omitted": 0
+    }
+[32mINFO[39m [2026-11-18 11:58:38.886 +0000] (formbricks): [36mEmbedded Data ingest dropped or flagged incoming keys[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mdropped[39m: {
+      "entries": [],
+      "omitted": 0
+    }
+    [35mflags[39m: {
+      "entries": [
+        {
+          "key": "note",
+          "reason": "truncated"
+        }
+      ],
+      "omitted": 0
+    }
+[32mINFO[39m [2026-11-18 11:58:38.891 +0000] (formbricks): [36mFolded duplicate response submission[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mresponseId[39m: "cm8f4x9mm0001gx9h5b7d7h3q"
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/responses/route.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/hub/feedback-records-gateway.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/surveys.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 61[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/surveys/import/stream/route.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/route.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/surveys/import/lib/operations.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-policies/route.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/surveys/generate/lib/operations.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/(internal)/organizations/[organizationId]/usage/route.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/responses.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 57[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/creatives-licence.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/organizations/[organizationId]/teams/[teamId]/route.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/lib/write-operations.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/management/surveys/custom-head-scripts.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+[90mstdout[2m | app/api/v3/responses/lib/operations.test.ts
+[22m[39m🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/storage/route.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/lib/operations.test.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/environment/route.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-runs/export/route.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/management/responses/route.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/organizations/[organizationId]/teams/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/audit-logs/lib/handler.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/members/[userId]/reactivate/route.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/batch-delete/route.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/[exemptionId]/route.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/dashboards.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/envoy-auth/service.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/management/surveys/[surveyId]/singleUseIds/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/auth/tests/authenticate-request.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/lib/validate-operations.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/auth/tests/api-wrapper.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+[31mERROR[39m [2026-11-18 11:59:11.901 +0000] (formbricks): [36mError parsing JSON input[39m
+    [35murl[39m: "http://localhost/"
+    error: {}
+[31mERROR[39m [2026-11-18 11:59:11.904 +0000] (formbricks): [36mError parsing JSON input[39m
+    [35murl[39m: "http://localhost/"
+    error: {}
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/workflows.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/me/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/traefik-auth/service.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/survey-retention/[surveyId]/route.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-runs/route.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/workspaces/lib/custom-css.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/management/authorized-collection-routes.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/auth.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/[exemptionId]/revoke/route.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/workspaces.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/route.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/contacts/api/v1/management/error-handling.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/survey-options/route.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/gateway-auth/lib/request.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/lib/api-key-auth.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/[responseId]/route.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/organization/settings/api-keys/actions.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+[90mstdout[2m | modules/api/v2/management/responses/route.test.ts
+[22m[39m🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v2/client/[workspaceId]/storage/route.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-health/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/storage/[workspaceId]/[accessType]/[...filePath]/lib/auth.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/charts/generate/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/management/responses/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/auth/tests/authenticated-api-client.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m66 passed[39m[22m[90m (67)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1145 passed[39m[22m[90m (1146)[39m
+[2m   Start at [22m 11:58:14
+[2m   Duration [22m 75.59s[2m (transform 2.18s, setup 79.71s, import 442.43s, tests 5.46s, environment 4ms)[22m
+
+JSON report written to /repo/.verify-vitest.json
+related test files: 67, failing: 1, outside the baseline: 1
+  modules/organization/settings/api-keys/lib/api-keys.test.ts
+Warning: A vi.mock("./surveySummary") call in "/repo/apps/web/app/(app)/workspaces/[workspaceId]/surveys/[surveyId]/(analysis)/summary/lib/surveySummary.test.ts" is not at the top level of the module. Although it appears nested, it will be hoisted and executed before any tests run. Move it to the top level to reflect its actual execution order. This will become an error in a future version.
+See: https://vitest.dev/guide/mocking/modules#how-it-works
+(node:65) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 exit listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[42m unit [49m[39m modules/organization/settings/api-keys/lib/api-keys.test.ts[2m > [22mAPI Key Management[2m > [22mgetApiKeysWithEnvironmentPermissions[2m > [22mretrieves API keys successfully
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ { …(2) } ][90m
+
+Received:
+
+[1m  1st vi.fn() call:
+
+[22m[33m@@ -8,10 +8,11 @@[90m
+[2m          },[22m
+[2m        },[22m
+[2m        "createdAt": true,[22m
+[2m        "id": true,[22m
+[2m        "label": true,[22m
+[31m+       "lastUsedAt": true,[90m
+[2m        "organizationAccess": true,[22m
+[2m      },[22m
+[2m      "where": {[22m
+[2m        "organizationId": "clj28r6va000409j3ep7h8xzk",[22m
+[2m      },[22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m modules/organization/settings/api-keys/lib/api-keys.test.ts:[2m128:38[22m[39m
+    [90m126|[39m
+    [90m127|[39m       [34mexpect[39m(result)[33m.[39m[34mtoEqual[39m([mockApiKeyWithEnvironments])[33m;[39m
+    [90m128|[39m       [34mexpect[39m(prisma[33m.[39mapiKey[33m.[39mfindMany)[33m.[39m[34mtoHaveBeenCalledWith[39m({
+    [90m   |[39m                                      [31m^[39m
+    [90m129|[39m         where[33m:[39m {
+    [90m130|[39m           organizationId[33m:[39m [32m"clj28r6va000409j3ep7h8xzk"[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+===== attempt 3 =====
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.12 [39m[90m/repo/apps/web[39m
+
+ [31m❯[39m [30m[42m unit [49m[39m modules/organization/settings/api-keys/lib/api-keys.test.ts [2m([22m[2m29 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 22[2mms[22m[39m
+[31m       [31m×[31m retrieves API keys successfully[39m[32m 8[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error[32m 1[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error[32m 0[2mms[22m[39m
+       [32m✓[39m returns api key with permissions for v2 format (fbk_secret) but does NOT update lastUsedAt when within 30s[32m 1[2mms[22m[39m
+       [32m✓[39m returns api key with permissions for v2 format and DOES update lastUsedAt when null (first use)[32m 1[2mms[22m[39m
+       [32m✓[39m returns api key with permissions for v2 format and DOES update lastUsedAt when older than 30s[32m 1[2mms[22m[39m
+       [32m✓[39m returns api key with permissions for v1 legacy format but does NOT update lastUsedAt when within 30s[32m 0[2mms[22m[39m
+       [32m✓[39m returns api key and DOES update lastUsedAt for legacy format when older than 30s[32m 0[2mms[22m[39m
+       [32m✓[39m returns null if v2 api key not found[32m 0[2mms[22m[39m
+       [32m✓[39m returns null if v2 api key bcrypt verification fails[32m 1[2mms[22m[39m
+       [32m✓[39m returns null if v1 api key not found[32m 0[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error for v2 key[32m 0[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error for v2 key[32m 0[2mms[22m[39m
+       [32m✓[39m uses workspace include without feedback directory relations in v2 lookup[32m 0[2mms[22m[39m
+       [32m✓[39m uses workspace include without feedback directory relations in legacy lookup[32m 0[2mms[22m[39m
+       [32m✓[39m deletes an API key successfully[32m 0[2mms[22m[39m
+       [32m✓[39m preserves a successful deletion when projection fails[32m 0[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error[32m 0[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error[32m 0[2mms[22m[39m
+       [32m✓[39m creates an API key successfully with v2 format[32m 1[2mms[22m[39m
+       [32m✓[39m creates an API key with environment permissions successfully[32m 0[2mms[22m[39m
+       [32m✓[39m rejects a workspace permission for a workspace outside the organization (ENG-1749)[32m 0[2mms[22m[39m
+       [32m✓[39m preserves the one-time API key when projection fails[32m 0[2mms[22m[39m
+       [32m✓[39m rejects create input with duplicate workspaceId[32m 1[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error[32m 0[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error[32m 0[2mms[22m[39m
+       [32m✓[39m updates an API key successfully[32m 0[2mms[22m[39m
+       [32m✓[39m throws DatabaseError on prisma error[32m 0[2mms[22m[39m
+       [32m✓[39m throws error if prisma throws an error[32m 0[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/hub/feedback-records-proxy.test.ts [2m([22m[2m36 tests[22m[2m)[22m[32m 200[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/lib/api/with-api-logging.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 2023[2mms[22m[39m
+     [33m[2m✓[22m[39m logs and audits on error response with API key authentication [33m 1491[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/surveys/templates/lib/template-create.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 106[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/surveys/lib/operations.test.ts [2m([22m[2m91 tests[22m[2m)[22m[32m 78[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/lib/api-wrapper.test.ts [2m([22m[2m63 tests[22m[2m)[22m[32m 105[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/mcp/route.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 294[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/auth.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 120[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/feedback-records.test.ts [2m([22m[2m49 tests[22m[2m)[22m[32m 136[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/guard-scopes.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 318[2mms[22m[39m
+     [33m[2m✓[22m[39m registerScopedTool is the only export [33m 302[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/creatives.test.ts [2m([22m[2m41 tests[22m[2m)[22m[33m 350[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/creatives/lib/operations.test.ts [2m([22m[2m90 tests[22m[2m)[22m[33m 306[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/surveys/visibility/operations.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/server.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 120[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/responses/route.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+[32mINFO[39m [2026-11-18 12:00:31.740 +0000] (formbricks): [36mEmbedded Data ingest dropped or flagged incoming keys[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mdropped[39m: {
+      "entries": [
+        {
+          "key": "rogue",
+          "reason": "unknown_key"
+        }
+      ],
+      "omitted": 0
+    }
+    [35mflags[39m: {
+      "entries": [],
+      "omitted": 0
+    }
+[32mINFO[39m [2026-11-18 12:00:31.744 +0000] (formbricks): [36mEmbedded Data ingest dropped or flagged incoming keys[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mdropped[39m: {
+      "entries": [
+        {
+          "key": "plan",
+          "reason": "locked_field"
+        }
+      ],
+      "omitted": 0
+    }
+    [35mflags[39m: {
+      "entries": [],
+      "omitted": 0
+    }
+[32mINFO[39m [2026-11-18 12:00:31.747 +0000] (formbricks): [36mEmbedded Data ingest dropped or flagged incoming keys[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mdropped[39m: {
+      "entries": [],
+      "omitted": 0
+    }
+    [35mflags[39m: {
+      "entries": [
+        {
+          "key": "note",
+          "reason": "truncated"
+        }
+      ],
+      "omitted": 0
+    }
+[32mINFO[39m [2026-11-18 12:00:31.750 +0000] (formbricks): [36mFolded duplicate response submission[39m
+    [35msurveyId[39m: "cgt5e6dw1vsf1bv2ki5gj845"
+    [35mresponseId[39m: "cm8f4x9mm0001gx9h5b7d7h3q"
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/management/surveys/custom-head-scripts.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/surveys/import/stream/route.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 53[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/surveys.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 83[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/surveys/import/lib/operations.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/route.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-runs/export/route.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/responses.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/surveys/generate/lib/operations.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/audit-logs/lib/handler.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/lib/validate-operations.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/dashboards.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+[90mstdout[2m | app/api/v3/responses/lib/operations.test.ts
+[22m[39m🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/organizations/[organizationId]/teams/[teamId]/route.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/lib/operations.test.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/organizations/[organizationId]/teams/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/environment/route.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/hub/feedback-records-gateway.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/management/responses/route.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/(internal)/organizations/[organizationId]/usage/route.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/survey-retention/[surveyId]/route.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/client/[workspaceId]/storage/route.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+[33mWARN[39m [2026-11-18 12:00:55.862 +0000] (formbricks): [36mRejected single-use survey link[39m
+    [35msurveyId[39m: "cm0aaaaaaaaaaaaaaaaaaaaa1"
+    [35msurface[39m: "client_response_v1"
+    [35mmode[39m: "plaintext"
+    [35mreason[39m: "signature_mismatch"
+    [35msuTokenFingerprint[39m: "fake-hash"
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/creatives-licence.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-policies/route.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/workflows.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/management/surveys/[surveyId]/singleUseIds/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/auth/tests/api-wrapper.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+[31mERROR[39m [2026-11-18 12:00:57.933 +0000] (formbricks): [36mError parsing JSON input[39m
+    [35murl[39m: "http://localhost/"
+    error: {}
+[31mERROR[39m [2026-11-18 12:00:57.935 +0000] (formbricks): [36mError parsing JSON input[39m
+    [35murl[39m: "http://localhost/"
+    error: {}
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/auth/tests/authenticate-request.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/envoy-auth/service.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/members/[userId]/reactivate/route.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-runs/route.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/batch-delete/route.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v1/auth.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/lib/write-operations.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/[responseId]/route.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/traefik-auth/service.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/gateway-auth/lib/request.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/[exemptionId]/revoke/route.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/me/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/workspaces/lib/custom-css.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/[exemptionId]/route.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/ee/contacts/api/v1/management/error-handling.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-exemptions/survey-options/route.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/lib/api-key-auth.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/management/authorized-collection-routes.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v3/responses/route.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/retention-health/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+[90mstdout[2m | modules/api/v2/management/responses/route.test.ts
+[22m[39m🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ [32m✓[39m [30m[42m unit [49m[39m modules/organization/settings/api-keys/actions.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/mcp/tools/workspaces.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/v2/client/[workspaceId]/storage/route.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/storage/[workspaceId]/[accessType]/[...filePath]/lib/auth.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m app/api/internal/charts/generate/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/management/responses/route.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m modules/api/v2/auth/tests/authenticated-api-client.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m66 passed[39m[22m[90m (67)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1145 passed[39m[22m[90m (1146)[39m
+[2m   Start at [22m 12:00:07
+[2m   Duration [22m 74.03s[2m (transform 2.15s, setup 76.71s, import 435.48s, tests 5.47s, environment 4ms)[22m
+
+JSON report written to /repo/.verify-vitest.json
+related test files: 67, failing: 1, outside the baseline: 1
+  modules/organization/settings/api-keys/lib/api-keys.test.ts
+Warning: A vi.mock("./surveySummary") call in "/repo/apps/web/app/(app)/workspaces/[workspaceId]/surveys/[surveyId]/(analysis)/summary/lib/surveySummary.test.ts" is not at the top level of the module. Although it appears nested, it will be hoisted and executed before any tests run. Move it to the top level to reflect its actual execution order. This will become an error in a future version.
+See: https://vitest.dev/guide/mocking/modules#how-it-works
+(node:65) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 exit listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[42m unit [49m[39m modules/organization/settings/api-keys/lib/api-keys.test.ts[2m > [22mAPI Key Management[2m > [22mgetApiKeysWithEnvironmentPermissions[2m > [22mretrieves API keys successfully
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ { …(2) } ][90m
+
+Received:
+
+[1m  1st vi.fn() call:
+
+[22m[33m@@ -8,10 +8,11 @@[90m
+[2m          },[22m
+[2m        },[22m
+[2m        "createdAt": true,[22m
+[2m        "id": true,[22m
+[2m        "label": true,[22m
+[31m+       "lastUsedAt": true,[90m
+[2m        "organizationAccess": true,[22m
+[2m      },[22m
+[2m      "where": {[22m
+[2m        "organizationId": "clj28r6va000409j3ep7h8xzk",[22m
+[2m      },[22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m modules/organization/settings/api-keys/lib/api-keys.test.ts:[2m128:38[22m[39m
+    [90m126|[39m
+    [90m127|[39m       [34mexpect[39m(result)[33m.[39m[34mtoEqual[39m([mockApiKeyWithEnvironments])[33m;[39m
+    [90m128|[39m       [34mexpect[39m(prisma[33m.[39mapiKey[33m.[39mfindMany)[33m.[39m[34mtoHaveBeenCalledWith[39m({
+    [90m   |[39m                                      [31m^[39m
+    [90m129|[39m         where[33m:[39m {
+    [90m130|[39m           organizationId[33m:[39m [32m"clj28r6va000409j3ep7h8xzk"[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+

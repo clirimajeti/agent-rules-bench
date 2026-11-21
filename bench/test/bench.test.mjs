@@ -7,9 +7,10 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadStudy, validateStudy } from '../config.mjs';
 import { prepareStudy } from '../prepare.mjs';
-import { fixPrompt, runStudy } from '../run.mjs';
+import { costOf, fixPrompt, ignoredCatches, runStudy, shuffle } from '../run.mjs';
 import { aggregate, loadResults, summarizeStudy } from '../summarize.mjs';
 import { checkoutPath, verifyStudy } from '../verify.mjs';
+import { loopArgs } from '../agents/loop.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FAKE_CLAUDE = path.join(here, 'fixtures', 'fake-claude.mjs');
@@ -131,6 +132,23 @@ test('run refuses an arm that was not prepared, and --dry-run plans without runn
   await runStudy(study, { dryRun: true, log: (m) => logs.push(m) });
   assert.match(logs[0], /4 runs planned, 0 already done, 4 to run/);
   await assert.rejects(runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: () => {} }), /not prepared; run "prepare" first/);
+});
+
+test('run refuses to start when a checker fails, so no session runs unmeasured', async (t) => {
+  const { file } = setup(t, { eval: [{ name: 'broken', format: 'eslint', command: ['node', '/no/such/eslint.js', '{files}'], extensions: ['.ts'] }] });
+  const study = loadStudy(file);
+  prepareStudy(study, () => {});
+  await assert.rejects(runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: () => {} }), /checker failed in .*prose.*broken failed/);
+  assert.equal(fs.existsSync(path.join(path.dirname(file), 'results')), false);
+});
+
+test('run refuses to start when the lint loop of a rules copy fails', async (t) => {
+  const broken = { linters: [{ name: 'loop-eslint', format: 'eslint', command: ['node', '/no/such/eslint.js', '{files}'], extensions: ['.ts'] }] };
+  const { file } = setup(t);
+  fs.writeFileSync(path.join(path.dirname(file), 'arms', 'rules.sh'), `mkdir -p .claude/codemyrules && printf '%s' '${JSON.stringify(broken)}' > .claude/codemyrules/loop.json\n`);
+  const study = loadStudy(file);
+  prepareStudy(study, () => {});
+  await assert.rejects(runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: () => {} }), /checker failed in .*rules.*loop-eslint failed/);
 });
 
 test('prepare and run refuse a workdir below a folder with its own CLAUDE.md', async (t) => {
@@ -390,4 +408,87 @@ test('a run whose review fix failed is not ok, so it is run again', async (t) =>
   t.after(() => delete process.env.FAKE_FIX_ERROR);
   const results = await runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: () => {} });
   assert.deepEqual(results.map((r) => [r.arm, r.ok]).sort(), [['prose', false], ['prose', false], ['rules', true], ['rules', true]]);
+});
+
+test('a session killed at its time limit is a capped result, not a failure, so it is not run again', async (t) => {
+  const { file } = setup(t, { build: undefined, models: [{ id: 'slow', agent: 'claude', model: 'sonnet', timeoutSec: 1 }], repeats: 1 });
+  const study = loadStudy(file);
+  prepareStudy(study, () => {});
+  process.env.FAKE_HANG = '1';
+  t.after(() => delete process.env.FAKE_HANG);
+  const results = await runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: () => {} });
+  assert.deepEqual(results.map((r) => [r.arm, r.ok, r.capped, r.timedOut, r.fixed]).sort(), [['prose', true, true, true, true], ['rules', true, true, true, false]]);
+  const logs = [];
+  await runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: (m) => logs.push(m) });
+  assert.match(logs[0], /2 already done, 0 to run/);
+});
+
+test('a usage limit stops the study after the run that hit it, which is not ok and runs again later', async (t) => {
+  const { file } = setup(t, { build: undefined });
+  const study = loadStudy(file);
+  prepareStudy(study, () => {});
+  process.env.FAKE_LIMIT = '1';
+  t.after(() => delete process.env.FAKE_LIMIT);
+  await assert.rejects(runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: () => {} }), /usage limit: You've hit your 5-hour limit/);
+  const results = fs.readdirSync(path.join(path.dirname(file), 'results'));
+  assert.ok(results.length < 4, `only the runs already started have results, got ${results.length}`);
+});
+
+test('a seed shuffles the runs reproducibly, and every run records when it started and with which versions', async (t) => {
+  assert.deepEqual(shuffle([1, 2, 3, 4, 5, 6], 7), shuffle([1, 2, 3, 4, 5, 6], 7));
+  assert.notDeepEqual(shuffle([1, 2, 3, 4, 5, 6], 7), [1, 2, 3, 4, 5, 6]);
+  assert.deepEqual([...shuffle([1, 2, 3, 4, 5, 6], 7)].sort(), [1, 2, 3, 4, 5, 6]);
+  assert.match(validateStudy({ seed: -1 }, os.tmpdir()).join('\n'), /seed must be a non-negative integer/);
+
+  const { file } = setup(t, { seed: 42, repeats: 3 });
+  const study = loadStudy(file);
+  prepareStudy(study, () => {});
+  const order = [];
+  const results = await runStudy(study, { claudeCmd: ['node', FAKE_CLAUDE], log: (m) => order.push(m.split(':')[0]) });
+  assert.equal(results.length, 6);
+  // two copies run in parallel, so the log interleaves the arms either way; the seed fixes the order inside each copy
+  const ids = (arm) => order.filter((id) => id.startsWith(`${arm}-`));
+  assert.notDeepEqual(ids('prose'), ['prose-sonnet-T1-1', 'prose-sonnet-T1-2', 'prose-sonnet-T1-3']);
+  for (const r of results) {
+    assert.ok(!Number.isNaN(Date.parse(r.startedAt)));
+    assert.deepEqual(r.modelIds, ['sonnet']);
+    assert.equal(r.versions.agent.claude, '9.9.9 (Fake Code)');
+    assert.equal(r.versions.node, process.version);
+  }
+});
+
+test('ignoredCatches counts the breaks left after the task that the loop had reported (same rule and file)', () => {
+  const log = [
+    { ruleId: 'local/a', file: 'x.ts', line: 5 },
+    { ruleId: 'local/a', file: 'x.ts', line: 5 },
+    { ruleId: 'local/b', file: 'y.ts', line: 1 },
+  ].map((e) => JSON.stringify({ event: 'edit', ...e })).join('\n');
+  const left = [{ ruleId: 'local/a', file: 'x.ts', line: 9 }, { ruleId: 'local/b', file: 'z.ts', line: 1 }, { ruleId: 'local/c', file: 'x.ts', line: 2 }];
+  assert.equal(ignoredCatches(log, left), 1);
+  assert.equal(ignoredCatches('', left), 0);
+});
+
+test('costOf prices the tokens of an agent that reports no cost', () => {
+  const json = { total_cost_usd: 0, usage: { input_tokens: 1e6, cache_creation_input_tokens: 0, cache_read_input_tokens: 2e6, output_tokens: 1e5 } };
+  const price = { input: 1.25, cacheWrite: 0, cacheRead: 0.125, output: 10 };
+  assert.equal(costOf(json, { price }), 1.25 + 0.25 + 1);
+  assert.equal(costOf({ ...json, total_cost_usd: 0.3 }, { price }), 0.3); // the agent's own cost wins
+  assert.equal(costOf(json, {}), 0);
+  assert.match(validateStudy({ models: [{ id: 'gpt', agent: 'codex', model: 'openai/x', price: { input: 1 } }] }, os.tmpdir()).join('\n'), /price must give/);
+});
+
+test('loopArgs finds the loop of old installs (one script per hook) and of codemyrules 0.9+ (one CLI)', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'arb-loop-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  assert.equal(loopArgs(dir, 'lint-edited.mjs'), null);
+  const loop = path.join(dir, '.claude', 'codemyrules');
+  fs.mkdirSync(loop, { recursive: true });
+  fs.writeFileSync(path.join(loop, 'lint-edited.mjs'), '');
+  assert.deepEqual(loopArgs(dir, 'lint-edited.mjs'), [path.join(loop, 'lint-edited.mjs')]);
+  const cli = path.join(loop, 'pkg', 'skills', 'codemyrules', 'scripts', 'cli.mjs');
+  fs.mkdirSync(path.dirname(cli), { recursive: true });
+  fs.writeFileSync(cli, '');
+  assert.deepEqual(loopArgs(dir, 'lint-edited.mjs'), [cli, 'hook', 'edited']);
+  assert.deepEqual(loopArgs(dir, 'lint-turn.mjs'), [cli, 'hook', 'turn']);
+  assert.deepEqual(loopArgs(dir, 'guard.mjs'), [cli, 'hook', 'guard']);
 });

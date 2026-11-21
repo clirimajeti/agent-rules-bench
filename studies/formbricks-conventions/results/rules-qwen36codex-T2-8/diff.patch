@@ -1,0 +1,193 @@
+diff --git a/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts b/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts
+new file mode 100644
+index 000000000..2187da363
+--- /dev/null
++++ b/apps/web/app/api/v3/webhooks/[webhookId]/duplicate/route.ts
+@@ -0,0 +1,55 @@
++/**
++ * POST /api/v3/webhooks/{webhookId}/duplicate — duplicate a webhook.
++ *
++ * Thin adapter delegating to @formbricks/integrations/webhooks service.
++ */
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { ZId } from "@formbricks/types/common";
++import { ResourceNotFoundError } from "@formbricks/types/errors";
++import {
++  getOrganizationIdFromWebhookId,
++  getWorkspaceIdFromWebhookId,
++} from "@/lib/utils/helper";
++import { getWebhookWithSecret } from "@/modules/api/v2/management/webhooks/[webhookId]/lib/webhook";
++import { applyRateLimit } from "@/modules/core/rate-limit/helpers";
++import { rateLimitConfigs } from "@/modules/core/rate-limit/rate-limit-configs";
++import { createWebhook } from "@/modules/integrations/webhooks/lib/webhook";
++
++export const POST = withV3ApiWrapper({
++  auth: "session",
++  action: "created",
++  targetType: "webhook",
++  schemas: { params: ZId },
++  handler: async ({ parsedInput, authentication, auditLog, requestId }) => {
++    const webhookId = parsedInput.params.id;
++    const workspaceId = await getWorkspaceIdFromWebhookId(webhookId);
++    await authentication.assertCan({ type: "user", id: authentication.getUserId() }, "workspace.write", {
++      type: "workspace",
++      id: workspaceId,
++    });
++
++    const webhookResult = await getWebhookWithSecret(webhookId);
++    if (!webhookResult.ok) {
++      throw new ResourceNotFoundError("Webhook", webhookId);
++    }
++
++    const original = webhookResult.data;
++    const organizationId = await getOrganizationIdFromWebhookId(webhookId);
++    await applyRateLimit(rateLimitConfigs.actions.stateMutation, workspaceId);
++
++    const newWebhook = await createWebhook(workspaceId, {
++      name: original.name ? `Copy of ${original.name}` : null,
++      url: original.url,
++      source: original.source,
++      triggers: original.triggers,
++      surveyIds: original.surveyIds,
++    });
++
++    if (auditLog) {
++      auditLog.organizationId = organizationId;
++      auditLog.newObject = newWebhook;
++    }
++
++    return { data: newWebhook };
++  },
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..bed39d6b7 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -2916,7 +2916,11 @@
+         "webhook_name_placeholder": "Optional: Label your webhook for easy identification",
+         "webhook_test_failed_due_to": "Webhook Test Failed due to",
+         "webhook_updated_successfully": "Webhook updated successfully",
+-        "webhook_url_placeholder": "Paste the URL you want the event to trigger on"
++        "webhook_url_placeholder": "Paste the URL you want the event to trigger on",
++        "duplicate_webhook": "Duplicate Webhook",
++        "webhook_duplicated_successfully": "Webhook duplicated successfully",
++        "copy_of_webhook_name": "Copy of {name}",
++        "duplicate_webhook_failed": "Failed to duplicate webhook"
+       },
+       "website_or_app_integration_description": "Integrate Formbricks into your Website or App",
+       "zapier_integration_description": "Integrate Formbricks with 5000+ apps via Zapier"
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+index d11f09b77..9a253e76f 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+@@ -1,6 +1,8 @@
+ "use client";
+ 
+-import { TFunction } from "i18next";
++import { DuplicatesIcon } from "lucide-react";
++import { useRouter } from "next/navigation";
++import { toast } from "react-hot-toast";
+ import { useTranslation } from "react-i18next";
+ import { Webhook } from "@formbricks/database/prisma-browser";
+ import { TSurvey } from "@formbricks/types/surveys/types";
+@@ -34,7 +36,7 @@ const renderSelectedSurveysText = (webhook: Webhook, allSurveys: TSurvey[]) => {
+   );
+ };
+ 
+-const renderSelectedTriggersText = (webhook: Webhook, t: TFunction) => {
++const renderSelectedTriggersText = (webhook: Webhook, t: ReturnType<typeof useTranslation>["t"]) => {
+   if (webhook.triggers.length === 0) {
+     return <p className="text-slate-400">{t("workspace.integrations.webhooks.no_triggers")}</p>;
+   } else {
+@@ -72,9 +74,32 @@ export const WebhookRowData = ({
+   webhook,
+   surveys,
+   surveyVisibilityEnabled,
+-}: Readonly<{ webhook: Webhook; surveys: TSurvey[]; surveyVisibilityEnabled: boolean }>) => {
++  isReadOnly,
++}: Readonly<{
++  webhook: Webhook;
++  surveys: TSurvey[];
++  surveyVisibilityEnabled: boolean;
++  isReadOnly: boolean;
++}>) => {
+   const { t, i18n } = useTranslation();
+   const locale = i18n.resolvedLanguage ?? i18n.language ?? "en-US";
++  const router = useRouter();
++
++  const handleDuplicate = async () => {
++    try {
++      const response = await fetch(`/api/v3/webhooks/${webhook.id}/duplicate`, {
++        method: "POST",
++      });
++      if (!response.ok) {
++        toast.error(t("workspace.integrations.webhooks.duplicate_webhook_failed"));
++        return;
++      }
++      toast.success(t("workspace.integrations.webhooks.webhook_duplicated_successfully"));
++      router.refresh();
++    } catch {
++      toast.error(t("workspace.integrations.webhooks.duplicate_webhook_failed"));
++    }
++  };
+ 
+   return (
+     <div className="mt-2 grid h-auto grid-cols-12 content-center rounded-lg py-2 hover:bg-slate-100">
+@@ -95,19 +120,35 @@ export const WebhookRowData = ({
+       <div className="col-span-1 my-auto text-center text-sm text-slate-800">
+         <Badge type="gray" size="tiny" text={webhook.source || t("common.user")} className="capitalize" />
+       </div>
+-      <div className="col-span-4 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
++      <div className="col-span-3 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
+         {renderSelectedSurveysText(webhook, surveys)}
+         {hasRestrictedAttachedSurvey(surveyVisibilityEnabled, webhook.surveyIds, surveys) && (
+           <RestrictedSurveyHint kind="paused" />
+         )}
+       </div>
+-      <div className="col-span-2 my-auto text-center text-sm text-slate-800">
++      <div className="col-span-1 my-auto text-center text-sm text-slate-800">
+         {renderSelectedTriggersText(webhook, t)}
+       </div>
+-      <div className="col-span-2 my-auto text-center text-sm whitespace-nowrap text-slate-500">
++      <div className="col-span-1 my-auto text-center text-sm text-slate-500">
++        {timeSince(webhook.createdAt.toString(), locale)}
++      </div>
++      <div className="col-span-1 my-auto text-center text-sm whitespace-nowrap text-slate-500">
+         {timeSince(webhook.updatedAt.toString(), locale)}
+       </div>
+-      <div className="text-center"></div>
++      <div className="col-span-1 my-auto text-center">
++        {!isReadOnly && (
++          <button
++            type="button"
++            className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700"
++            onClick={(e) => {
++              e.stopPropagation();
++              handleDuplicate();
++            }}>
++            <DuplicatesIcon className="size-4" />
++            {t("workspace.integrations.webhooks.duplicate_webhook")}
++          </button>
++        )}
++      </div>
+     </div>
+   );
+ };
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+index 0c5945508..30151f065 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+@@ -8,9 +8,10 @@ export const WebhookTableHeading = async () => {
+         <span className="sr-only">{t("common.edit")}</span>
+         <div className="col-span-3 pl-6">{t("common.webhook")}</div>
+         <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.source")}</div>
+-        <div className="col-span-4 text-center">{t("common.surveys")}</div>
+-        <div className="col-span-2 text-center">{t("workspace.integrations.webhooks.triggers")}</div>
+-        <div className="col-span-2 text-center">{t("common.updated")}</div>
++        <div className="col-span-3 text-center">{t("common.surveys")}</div>
++        <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.triggers")}</div>
++        <div className="col-span-1 text-center">{t("common.created")}</div>
++        <div className="col-span-1 text-center">{t("common.updated")}</div>
+       </div>
+     </>
+   );

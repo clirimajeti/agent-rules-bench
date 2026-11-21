@@ -1,0 +1,138 @@
+diff --git a/apps/web/modules/integrations/webhooks/actions.ts b/apps/web/modules/integrations/webhooks/actions.ts
+index f6795f301..6abd1141e 100644
+--- a/apps/web/modules/integrations/webhooks/actions.ts
++++ b/apps/web/modules/integrations/webhooks/actions.ts
+@@ -1,4 +1,5 @@
+ "use server";
++import { revalidatePath } from "next/cache";
+ 
+ import { z } from "zod";
+ import { ZId } from "@formbricks/types/common";
+@@ -160,3 +161,56 @@ export const testEndpointAction = authenticatedActionClient
+     await testEndpoint(parsedInput.url, secret);
+     return { success: true, secret };
+   });
++
++const ZDuplicateWebhookAction = z.object({
++  webhookId: ZId,
++  workspaceId: ZId,
++});
++
++export const duplicateWebhookAction = authenticatedActionClient
++  .inputSchema(ZDuplicateWebhookAction)
++  .action(async ({ ctx, parsedInput }) => {
++    const organizationId = await getOrganizationIdFromWebhookId(parsedInput.webhookId);
++    const workspaceId = await getWorkspaceIdFromWebhookId(parsedInput.webhookId);
++    await assertCan({ type: "user", id: ctx.user.id }, "workspace.write", {
++      type: "workspace",
++      id: workspaceId,
++    });
++    await applyRateLimit(rateLimitConfigs.actions.stateMutation, workspaceId);
++
++    const existingWebhookResult = await getWebhook(parsedInput.webhookId);
++    if (!existingWebhookResult.ok) {
++      throw new ResourceNotFoundError("Webhook", parsedInput.webhookId);
++    }
++
++    const existingWebhook = existingWebhookResult.data;
++
++    const newWebhook = await createWebhook(parsedInput.workspaceId, {
++      name: `Copy of ${existingWebhook.name ?? ""}`,
++      url: existingWebhook.url,
++      triggers: [...existingWebhook.triggers],
++      surveyIds: [...(existingWebhook.surveyIds ?? [])],
++    });
++
++    ctx.auditLoggingCtx.organizationId = organizationId;
++    ctx.auditLoggingCtx.newObject = {
++      name: newWebhook.name,
++      url: newWebhook.url,
++      triggers: newWebhook.triggers,
++      surveyIds: newWebhook.surveyIds,
++    };
++
++    capturePostHogEvent(
++      ctx.user.id,
++      "integration_connected",
++      {
++        integration_type: "webhook",
++        organization_id: organizationId,
++        workspace_id: workspaceId,
++      },
++      { organizationId, workspaceId }
++    );
++
++    revalidatePath("/workspaces/" + parsedInput.workspaceId + "/settings/workspace/integrations/webhooks");
++    return newWebhook;
++  });
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+index d11f09b77..2ee41f6f7 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+@@ -4,6 +4,7 @@ import { TFunction } from "i18next";
+ import { useTranslation } from "react-i18next";
+ import { Webhook } from "@formbricks/database/prisma-browser";
+ import { TSurvey } from "@formbricks/types/surveys/types";
++import { duplicateWebhookAction } from "@/modules/integrations/webhooks/actions";
+ import { timeSince } from "@/lib/time";
+ import { RestrictedSurveyHint } from "@/modules/survey/visibility/components/restricted-survey-hint";
+ import { hasRestrictedAttachedSurvey } from "@/modules/survey/visibility/lib/outbound";
+@@ -76,6 +77,14 @@ export const WebhookRowData = ({
+   const { t, i18n } = useTranslation();
+   const locale = i18n.resolvedLanguage ?? i18n.language ?? "en-US";
+ 
++  const handleDuplicate = async (e: React.MouseEvent) => {
++    e.stopPropagation();
++    await duplicateWebhookAction({
++      webhookId: webhook.id,
++      workspaceId: webhook.workspaceId,
++    });
++  };
++
+   return (
+     <div className="mt-2 grid h-auto grid-cols-12 content-center rounded-lg py-2 hover:bg-slate-100">
+       <div className="col-span-3 flex items-center truncate pl-6 text-sm">
+@@ -101,13 +110,21 @@ export const WebhookRowData = ({
+           <RestrictedSurveyHint kind="paused" />
+         )}
+       </div>
+-      <div className="col-span-2 my-auto text-center text-sm text-slate-800">
+-        {renderSelectedTriggersText(webhook, t)}
++      <div className="my-auto text-center text-sm text-slate-500">
++        {timeSince(webhook.createdAt.toString(), locale)}
+       </div>
+-      <div className="col-span-2 my-auto text-center text-sm whitespace-nowrap text-slate-500">
++      <div className="my-auto text-center text-sm text-slate-500">
+         {timeSince(webhook.updatedAt.toString(), locale)}
+       </div>
+-      <div className="text-center"></div>
++      <div className="flex items-center justify-center gap-x-1">
++        <button
++          type="button"
++          onClick={handleDuplicate}
++          className="text-sm text-slate-500 hover:text-slate-700"
++          title={t("common.duplicate")}>
++          {t("common.duplicate")}
++        </button>
++      </div>
+     </div>
+   );
+ };
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+index 0c5945508..57e62939e 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+@@ -9,8 +9,11 @@ export const WebhookTableHeading = async () => {
+         <div className="col-span-3 pl-6">{t("common.webhook")}</div>
+         <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.source")}</div>
+         <div className="col-span-4 text-center">{t("common.surveys")}</div>
+-        <div className="col-span-2 text-center">{t("workspace.integrations.webhooks.triggers")}</div>
+-        <div className="col-span-2 text-center">{t("common.updated")}</div>
++        <div className="col-span-1 text-center">{t("common.created_at")}</div>
++        <div className="col-span-1 text-center">{t("common.updated")}</div>
++        <div className="text-center">
++          <span className="sr-only">{t("common.edit")}</span>
++        </div>
+       </div>
+     </>
+   );

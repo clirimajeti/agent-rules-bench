@@ -1,0 +1,20 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(9,1): error TS6133: 'getOrganizationIdFromApiKeyId' is declared but its value is never read.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(18,50): error TS6133: 'requestId' is declared but its value is never read.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(18,61): error TS6133: 'instance' is declared but its value is never read.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(21,41): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(21,56): error TS2339: Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(26,49): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(26,64): error TS2339: Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(136,13): error TS2304: Cannot find name 'onRotate'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(140,21): error TS2304: Cannot find name 'isLoading'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(216,46): error TS2559: Type 'V3ApiError' has no properties in common with type '{ serverError?: string | undefined; validationErrors?: unknown; }'.
+modules/organization/settings/api-keys/lib/api-key.ts(265,3): error TS6133: 'userId' is declared but its value is never read.
+modules/organization/settings/api-keys/loading.tsx(38,37): error TS2345: Argument of type '{ t: TFunction<"translation", undefined>; locale: "en-US"; onDelete: () => undefined; }' is not assignable to parameter of type 'Readonly<{ t: TFunction<"translation", undefined>; locale: "en-US" | "de-DE" | "es-ES" | "fr-FR" | "hu-HU" | "ja-JP" | "nl-NL" | "pt-BR" | "pt-PT" | "ro-RO" | "ru-RU" | "sv-SE" | "tr-TR" | "zh-Hans-CN" | "zh-Hant-TW"; onDelete: (event: MouseEvent<...>, apiKey: TApiKeyRow) => void; onRotate: (event: MouseEvent<...>, ...'.
+  Property 'onRotate' is missing in type '{ t: TFunction<"translation", undefined>; locale: "en-US"; onDelete: () => undefined; }' but required in type 'Readonly<{ t: TFunction<"translation", undefined>; locale: "en-US" | "de-DE" | "es-ES" | "fr-FR" | "hu-HU" | "ja-JP" | "nl-NL" | "pt-BR" | "pt-PT" | "ro-RO" | "ru-RU" | "sv-SE" | "tr-TR" | "zh-Hans-CN" | "zh-Hant-TW"; onDelete: (event: MouseEvent<...>, apiKey: TApiKeyRow) => void; onRotate: (event: MouseEvent<...>, ...'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

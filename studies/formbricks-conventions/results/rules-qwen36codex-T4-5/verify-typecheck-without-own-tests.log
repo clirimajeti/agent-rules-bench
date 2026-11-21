@@ -1,0 +1,12 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/tags/bulk-delete-unused/route.ts(10,10): error TS6133: 'problemInternalError' is declared but its value is never read.
+app/api/v3/tags/bulk-delete-unused/route.ts(10,32): error TS6133: 'problemUnprocessableContent' is declared but its value is never read.
+modules/workspaces/settings/tags/components/edit-tags-wrapper.tsx(180,17): error TS2339: Property 'BulkDeleteUnusedTags' does not exist on type '({ workspaceId, isReadOnly }: Readonly<EditTagsWrapperProps>) => Element'.
+modules/workspaces/settings/tags/lib/api-client.ts(43,28): error TS18004: No value exists in scope for the shorthand property 'newTagId'. Either declare one or provide an initializer.
+modules/workspaces/settings/tags/page.tsx(23,9): error TS2322: Type '{ children: Element; title: string; description: string; bodyVariant: "flush"; footer: Element | undefined; }' is not assignable to type 'IntrinsicAttributes & { title: string; description: string; children: any; soon?: boolean | undefined; bodyVariant?: TSettingsCardBodyVariant | undefined; beta?: boolean | undefined; className?: string | undefined; buttonInfo?: ButtonInfo | undefined; cta?: ReactNode; }'.
+  Property 'footer' does not exist on type 'IntrinsicAttributes & { title: string; description: string; children: any; soon?: boolean | undefined; bodyVariant?: TSettingsCardBodyVariant | undefined; beta?: boolean | undefined; className?: string | undefined; buttonInfo?: ButtonInfo | undefined; cta?: ReactNode; }'.
+modules/workspaces/settings/tags/page.tsx(25,30): error TS2339: Property 'BulkDeleteUnusedTags' does not exist on type '({ workspaceId, isReadOnly }: Readonly<EditTagsWrapperProps>) => Element'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

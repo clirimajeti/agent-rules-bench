@@ -1,0 +1,100 @@
+diff --git a/apps/react-vite/src/app/routes/app/discussions/__tests__/discussions.test.tsx b/apps/react-vite/src/app/routes/app/discussions/__tests__/discussions.test.tsx
+index dbc08e6..9dd18c2 100644
+--- a/apps/react-vite/src/app/routes/app/discussions/__tests__/discussions.test.tsx
++++ b/apps/react-vite/src/app/routes/app/discussions/__tests__/discussions.test.tsx
+@@ -55,7 +55,7 @@ test(
+     const row = await screen.findByRole(
+       'row',
+       {
+-        name: `${newDiscussion.title} ${formatDate(newDiscussion.createdAt)} View Delete Discussion`,
++        name: `${newDiscussion.title} ${formatDate(newDiscussion.createdAt)} 0 No comments yet View Delete Discussion`,
+       },
+       { timeout: 5000 },
+     );
+diff --git a/apps/react-vite/src/features/discussions/components/discussions-list.tsx b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+index 9aa5fba..cdbc3e7 100644
+--- a/apps/react-vite/src/features/discussions/components/discussions-list.tsx
++++ b/apps/react-vite/src/features/discussions/components/discussions-list.tsx
+@@ -54,6 +54,26 @@ export const DiscussionsList = ({
+             return <span>{formatDate(createdAt)}</span>;
+           },
+         },
++        {
++          title: 'Comments',
++          field: 'commentsCount',
++          Cell({ entry: { commentsCount } }) {
++            return <span>{commentsCount}</span>;
++          },
++        },
++        {
++          title: 'Last Comment',
++          field: 'lastCommentAt',
++          Cell({ entry: { lastCommentAt } }) {
++            return (
++              <span>
++                {lastCommentAt
++                  ? formatDate(lastCommentAt)
++                  : 'No comments yet'}
++              </span>
++            );
++          },
++        },
+         {
+           title: '',
+           field: 'id',
+diff --git a/apps/react-vite/src/testing/data-generators.ts b/apps/react-vite/src/testing/data-generators.ts
+index 1b999d9..d7b62ea 100644
+--- a/apps/react-vite/src/testing/data-generators.ts
++++ b/apps/react-vite/src/testing/data-generators.ts
+@@ -45,6 +45,8 @@ const generateDiscussion = () => ({
+   title: randCatchPhrase(),
+   body: randParagraph(),
+   createdAt: Date.now(),
++  commentsCount: 0,
++  lastCommentAt: null as number | null,
+ });
+ 
+ export const createDiscussion = <
+diff --git a/apps/react-vite/src/testing/mocks/handlers/discussions.ts b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+index 37c0797..980b1af 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/discussions.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/discussions.ts
+@@ -57,9 +57,25 @@ export const discussionsHandlers = [
+               },
+             },
+           });
++          const comments = db.comment.findMany({
++            where: {
++              discussionId: {
++                equals: discussion.id,
++              },
++            },
++          });
++          const lastCommentAt = comments.reduce<number | null>(
++            (latest, comment) =>
++              latest === null || comment.createdAt > latest
++                ? comment.createdAt
++                : latest,
++            null,
++          );
+           return {
+             ...discussion,
+             author: author ? sanitizeUser(author) : {},
++            commentsCount: comments.length,
++            lastCommentAt,
+           };
+         });
+       return HttpResponse.json({
+diff --git a/apps/react-vite/src/types/api.ts b/apps/react-vite/src/types/api.ts
+index dbdf434..9b1095a 100644
+--- a/apps/react-vite/src/types/api.ts
++++ b/apps/react-vite/src/types/api.ts
+@@ -41,6 +41,8 @@ export type Discussion = Entity<{
+   body: string;
+   teamId: string;
+   author: User;
++  commentsCount: number;
++  lastCommentAt: number | null;
+ }>;
+ 
+ export type Comment = Entity<{

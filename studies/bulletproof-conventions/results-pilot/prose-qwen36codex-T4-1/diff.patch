@@ -1,0 +1,99 @@
+diff --git a/apps/react-vite/src/features/users/api/get-users.ts b/apps/react-vite/src/features/users/api/get-users.ts
+index e13d106..6407215 100644
+--- a/apps/react-vite/src/features/users/api/get-users.ts
++++ b/apps/react-vite/src/features/users/api/get-users.ts
+@@ -3,25 +3,34 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
+ import { api } from '@/lib/api-client';
+ import { QueryConfig } from '@/lib/react-query';
+ import { User } from '@/types/api';
++import { ROLES } from '@/lib/authorization';
+ 
+-export const getUsers = (): Promise<{ data: User[] }> => {
+-  return api.get(`/users`);
++export type GetUsersParams = {
++  role?: ROLES.ADMIN | ROLES.USER;
++  search?: string;
+ };
+ 
+-export const getUsersQueryOptions = () => {
++export const getUsers = (
++  params?: GetUsersParams,
++): Promise<{ data: User[] }> => {
++  return api.get(`/users`, { params });
++};
++
++export const getUsersQueryOptions = (params?: GetUsersParams) => {
+   return queryOptions({
+-    queryKey: ['users'],
+-    queryFn: getUsers,
++    queryKey: ['users', params],
++    queryFn: () => getUsers(params),
+   });
+ };
+ 
+ type UseUsersOptions = {
+   queryConfig?: QueryConfig<typeof getUsersQueryOptions>;
++  params?: GetUsersParams;
+ };
+ 
+-export const useUsers = ({ queryConfig }: UseUsersOptions = {}) => {
++export const useUsers = ({ queryConfig, params }: UseUsersOptions = {}) => {
+   return useQuery({
+-    ...getUsersQueryOptions(),
++    ...getUsersQueryOptions(params),
+     ...queryConfig,
+   });
+ };
+diff --git a/apps/react-vite/src/testing/mocks/handlers/users.ts b/apps/react-vite/src/testing/mocks/handlers/users.ts
+index 444b918..f3069f6 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/users.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/users.ts
+@@ -3,6 +3,7 @@ import { HttpResponse, http } from 'msw';
+ import { env } from '@/config/env';
+ 
+ import { db, persistDb } from '../db';
++import { ROLES } from '@/lib/authorization';
+ import {
+   requireAuth,
+   requireAdmin,
+@@ -18,7 +19,7 @@ type ProfileBody = {
+ };
+ 
+ export const usersHandlers = [
+-  http.get(`${env.API_URL}/users`, async ({ cookies }) => {
++  http.get(`${env.API_URL}/users`, async ({ cookies, request }) => {
+     await networkDelay();
+ 
+     try {
+@@ -26,7 +27,10 @@ export const usersHandlers = [
+       if (error) {
+         return HttpResponse.json({ message: error }, { status: 401 });
+       }
+-      const result = db.user
++      const url = new URL(request.url);
++      const role = url.searchParams.get('role') as ROLES.ADMIN | ROLES.USER | null;
++      const search = url.searchParams.get('search') || '';
++      let result = db.user
+         .findMany({
+           where: {
+             teamId: {
+@@ -36,6 +40,19 @@ export const usersHandlers = [
+         })
+         .map(sanitizeUser);
+ 
++      if (role) {
++        result = result.filter((u) => u.role === role);
++      }
++      if (search) {
++        const lower = search.toLowerCase();
++        result = result.filter(
++          (u) =>
++            u.firstName.toLowerCase().includes(lower) ||
++            u.lastName.toLowerCase().includes(lower) ||
++            u.email.toLowerCase().includes(lower),
++        );
++      }
++
+       return HttpResponse.json({ data: result });
+     } catch (error: any) {
+       return HttpResponse.json(

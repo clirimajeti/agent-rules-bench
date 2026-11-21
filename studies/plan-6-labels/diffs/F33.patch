@@ -1,0 +1,246 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/actions.ts b/apps/web/app/(app)/account/settings/profile/actions.ts
+new file mode 100644
+index 000000000..c02d70981
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/actions.ts
+@@ -0,0 +1,85 @@
++"use server";
++
++import { authenticatedActionClient } from "@/lib/utils/action-client";
++import { getSession } from "@/modules/auth/lib/session";
++import { getUser } from "@/lib/user/service";
++import { lookupAuthorizedOrganizationIds } from "@/lib/authzed/organization-membership";
++import { prisma } from "@formbricks/database";
++
++interface OrganizationMembership {
++  organizationName: string;
++  role: string;
++}
++
++interface DownloadMyDataResult {
++  name: string;
++  email: string;
++  locale: string;
++  notificationSettings: Record<string, unknown>;
++  organizationMemberships: OrganizationMembership[];
++}
++
++const ZDownloadMyDataInput = {} as const;
++
++export const downloadMyDataAction = authenticatedActionClient
++  .inputSchema(ZDownloadMyDataInput)
++  .action(async () => {
++    const session = await getSession();
++    if (!session?.user) {
++      return { error: "Not authenticated" };
++    }
++
++    const user = await getUser(session.user.id);
++    if (!user) {
++      return { error: "User not found" };
++    }
++
++    const organizationIds = await lookupAuthorizedOrganizationIds({
++      type: "user",
++      id: session.user.id,
++    });
++
++    const memberships: OrganizationMembership[] = [];
++
++    if (organizationIds.length > 0) {
++      const organizations = await prisma.organization.findMany({
++        where: {
++          id: { in: organizationIds },
++        },
++        select: {
++          id: true,
++          name: true,
++        },
++      });
++
++      const orgMap = new Map(organizations.map((org) => [org.id, org.name]));
++
++      const membershipsRaw = await prisma.membership.findMany({
++        where: {
++          userId: session.user.id,
++          organizationId: { in: organizationIds },
++        },
++        select: {
++          organizationId: true,
++          role: true,
++        },
++      });
++
++      for (const m of membershipsRaw) {
++        memberships.push({
++          organizationName: orgMap.get(m.organizationId) ?? "",
++          role: m.role,
++        });
++      }
++    }
++
++    const data: DownloadMyDataResult = {
++      name: user.name,
++      email: user.email,
++      locale: user.locale,
++      notificationSettings: user.notificationSettings,
++      organizationMemberships: memberships,
++    };
++
++    return { data };
++  });
+diff --git a/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
+new file mode 100644
+index 000000000..c2a3013f8
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/components/AccountActivity.tsx
+@@ -0,0 +1,27 @@
++import { useTranslation } from "react-i18next";
++import { formatDateForDisplay } from "@/lib/utils/datetime";
++
++interface AccountActivityProps {
++  createdAt: Date;
++  lastLoginAt: Date | null;
++  locale: string;
++}
++
++export const AccountActivity = ({ createdAt, lastLoginAt, locale }: Readonly<AccountActivityProps>) => {
++  const { t } = useTranslation();
++
++  return (
++    <div>
++      <div className="mb-4 flex items-center gap-2">
++        <span className="font-regular text-xs text-slate-700">{t("workspace.settings.profile.account_created")}:</span>
++        <span className="text-sm text-slate-900">{formatDateForDisplay(createdAt, locale)}</span>
++      </div>
++      <div className="flex items-center gap-2">
++        <span className="font-regular text-xs text-slate-700">{t("workspace.settings.profile.last_login")}:</span>
++        <span className="text-sm text-slate-900">
++          {lastLoginAt ? formatDateForDisplay(lastLoginAt, locale) : t("common.not_set")}
++        </span>
++      </div>
++    </div>
++  );
++};
+diff --git a/apps/web/app/(app)/account/settings/profile/components/DownloadMyData.tsx b/apps/web/app/(app)/account/settings/profile/components/DownloadMyData.tsx
+new file mode 100644
+index 000000000..068e43193
+--- /dev/null
++++ b/apps/web/app/(app)/account/settings/profile/components/DownloadMyData.tsx
+@@ -0,0 +1,48 @@
++"use client";
++
++import { useState, useTransition } from "react";
++import { useTranslation } from "react-i18next";
++import { downloadMyDataAction } from "../actions";
++import { Button } from "@/modules/ui/components/button";
++
++export const DownloadMyData = () => {
++  const { t } = useTranslation();
++  const [isPending, startTransition] = useTransition();
++
++  const handleDownload = () => {
++    startTransition(async () => {
++      const result = await downloadMyDataAction();
++
++      if (result.error || !result.data) {
++        return;
++      }
++
++      const { name, email, locale, notificationSettings, organizationMemberships } = result.data;
++
++      const data = {
++        name,
++        email,
++        locale,
++        notificationSettings,
++        organizationMemberships,
++      };
++
++      const jsonString = JSON.stringify(data, null, 2);
++      const blob = new Blob([jsonString], { type: "application/json" });
++      const url = URL.createObjectURL(blob);
++      const link = document.createElement("a");
++      link.href = url;
++      link.download = "formbricks-data.json";
++      document.body.appendChild(link);
++      link.click();
++      document.body.removeChild(link);
++      URL.revokeObjectURL(url);
++    });
++  };
++
++  return (
++    <Button variant="secondary" size="sm" onClick={handleDownload} disabled={isPending}>
++      {isPending ? t("workspace.settings.profile.downloading") : t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..9e306f22d 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,6 +1,8 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
++import { AccountActivity } from "@/app/(app)/account/settings/profile/components/AccountActivity";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
++import { DownloadMyData } from "@/app/(app)/account/settings/profile/components/DownloadMyData";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+ import {
+@@ -99,6 +101,15 @@ const Page = async () => {
+             isPasswordResetEnabled={isPasswordResetEnabled}
+           />
+         </SettingsCard>
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <AccountActivity
++            createdAt={user.createdAt}
++            lastLoginAt={user.lastLoginAt}
++            locale={user.locale}
++          />
++        </SettingsCard>
+         {user.identityProvider === "email" && (
+           <SettingsCard
+             title={t("common.security")}
+@@ -120,6 +131,11 @@ const Page = async () => {
+             requiresPasswordConfirmation={requiresPasswordConfirmation}
+           />
+         </SettingsCard>
++        <SettingsCard
++          title={t("workspace.settings.profile.download_my_data")}
++          description={t("workspace.settings.profile.download_my_data_description")}>
++          <DownloadMyData />
++        </SettingsCard>
+         <IdBadge id={user.id} label={t("common.profile_id")} variant="column" />
+       </div>
+     </PageContentWrapper>
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..878d4e79e 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3748,6 +3748,15 @@
+         "confirm_delete_my_account": "Delete My Account",
+         "confirm_your_current_password_to_get_started": "Confirm your current password to get started.",
+         "delete_account": "Delete Account",
++        "account_activity": "Account activity",
++        "account_activity_description": "View when your account was created and your last login",
++        "account_created": "Account created",
++        "download_failed": "Failed to download your data. Please try again.",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Download a JSON file with your personal information and organization memberships",
++        "download_success": "Data downloaded successfully",
++        "downloading": "Downloading...",
++        "last_login": "Last login",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+@@ -5610,4 +5619,4 @@
+       "smileys_description": "Emoji-based satisfaction rating"
+     }
+   }
+-}
++}
+\ No newline at end of file

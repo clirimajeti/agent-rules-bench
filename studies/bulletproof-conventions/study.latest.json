@@ -1,0 +1,130 @@
+{
+  "name": "bulletproof-conventions",
+  "description": "EXPLORATORY ADDITION (deviation D1 in ../plan-6-deviations.md, not part of the registered hypotheses): the newest larger models on the same tasks and arms. Plan 6 (draft), bulletproof-react half: the 40 conventions of Plan 4 (plugin/conventions.mjs, linked from bulletproof-40-rules) as prose in the always-loaded CLAUDE.md (prose) or as 40 lint rules with the feedback loop and 8 pointers (rules), on 4 new tasks. Arms, rules and checkers are the files of Plan 4, unchanged; tasks, models, repeats, seed and verify are new.",
+  "repo": {
+    "source": "https://github.com/alan2207/bulletproof-react.git",
+    "commit": "9506629ed003a561c6627735480cce4994244bb4"
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "prompt": "In apps/react-vite, let admins pin discussions: on a discussion's page an admin can pin or unpin it, and the discussions list shows pinned discussions first, with a Pinned badge. Store the pinned state in the mock API. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T2",
+      "prompt": "In apps/react-vite, show on each row of the discussions list how many comments the discussion has and when the last comment was written (or that there are no comments yet). The mock API should return these values with the discussions. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T3",
+      "prompt": "In apps/react-vite, let users change their password on the profile page: they enter their current password and the new password twice. The mock API must check the current password and reject a wrong one with an error the user sees. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T4",
+      "prompt": "In apps/react-vite, on the users page, let admins filter the users list by role and search it by name or email, and add an Export CSV button that downloads the users currently shown, with name, email, role and the date they joined. Do not run tests, lint or the app."
+    }
+  ],
+  "arms": [
+    {
+      "id": "prose",
+      "setup": "arms/prose.sh",
+      "fix": true
+    },
+    {
+      "id": "rules",
+      "setup": "arms/rules.sh",
+      "fix": true
+    }
+  ],
+  "baselineArm": "prose",
+  "models": [
+    {
+      "id": "opus55",
+      "agent": "claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "id": "fable52",
+      "agent": "claude",
+      "model": "claude-fable-5-2"
+    }
+  ],
+  "repeats": 2,
+  "maxTurns": 30,
+  "seed": 20261114,
+  "designRules": [
+    "local/no-cross-feature-imports",
+    "local/notifications-in-mutation-hook",
+    "local/data-hooks-in-api",
+    "local/api-client-in-api-folder",
+    "local/schemas-in-api",
+    "local/role-checks-through-authorization",
+    "local/ownership-through-policies",
+    "local/ui-form-controls"
+  ],
+  "eval": [
+    {
+      "name": "eslint",
+      "format": "eslint",
+      "command": [
+        "node",
+        "{study}/node_modules/eslint/bin/eslint.js",
+        "-c",
+        "{study}/eslint.config.mjs",
+        "--no-inline-config",
+        "--format",
+        "json",
+        "{files}"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx"
+      ]
+    }
+  ],
+  "fix": {
+    "prompt": "Code review feedback on your uncommitted change in apps/react-vite: it breaks these project rules.\n{broken}\nFix the new code accordingly; tests are not affected. Do not run tests, lint or the app.",
+    "ruleText": "plugin/conventions.mjs"
+  },
+  "verify": {
+    "testFiles": [
+      "*.test.ts",
+      "*.test.tsx",
+      "*/__tests__/*",
+      "apps/react-vite/src/testing/*"
+    ],
+    "keep": [
+      "apps/react-vite/node_modules",
+      "apps/react-vite/.env"
+    ],
+    "steps": [
+      {
+        "name": "setup",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "setup"
+        ],
+        "setup": true,
+        "timeoutSec": 1200
+      },
+      {
+        "name": "typecheck",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "typecheck"
+        ]
+      },
+      {
+        "name": "tests",
+        "retries": 2,
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "tests"
+        ],
+        "timeoutSec": 1200
+      }
+    ]
+  }
+}

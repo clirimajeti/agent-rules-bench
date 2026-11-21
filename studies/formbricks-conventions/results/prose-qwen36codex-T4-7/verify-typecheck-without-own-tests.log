@@ -1,0 +1,11 @@
+Generating route types...
+✓ Types generated successfully
+app/(app)/workspaces/[workspaceId]/settings/workspace/tags/page.tsx(2,10): error TS2305: Module '"@/modules/workspaces/settings/tags/page"' has no exported member 'TagsPage'.
+app/api/v3/tags/lib/operations.ts(226,5): error TS2322: Type '{ id: string; workspaceId: string; createdAt: Date; updatedAt: Date; name: string; }[]' is not assignable to type 'Record<string, unknown>'.
+  Index signature for type 'string' is missing in type '{ id: string; workspaceId: string; createdAt: Date; updatedAt: Date; name: string; }[]'.
+modules/workspaces/settings/tags/page.tsx(6,15): error TS2305: Module '"react-i18next"' has no exported member 'TFunction'.
+modules/workspaces/settings/tags/page.tsx(60,58): error TS2304: Cannot find name 'locale'.
+modules/workspaces/settings/tags/page.tsx(142,9): error TS6133: 'locale' is declared but its value is never read.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

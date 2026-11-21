@@ -1,0 +1,145 @@
+diff --git a/apps/react-vite/src/features/users/components/users-list.tsx b/apps/react-vite/src/features/users/components/users-list.tsx
+index 380a3c1..4564ed4 100644
+--- a/apps/react-vite/src/features/users/components/users-list.tsx
++++ b/apps/react-vite/src/features/users/components/users-list.tsx
+@@ -1,13 +1,22 @@
++import { useState } from 'react';
++
++import { Button } from '@/components/ui/button';
++import { Input, Select } from '@/components/ui/form';
+ import { Spinner } from '@/components/ui/spinner';
+ import { Table } from '@/components/ui/table';
++import { ROLES } from '@/lib/authorization';
+ import { formatDate } from '@/utils/format';
+ 
+ import { useUsers } from '../api/get-users';
++import { filterUsers, RoleFilter } from '../utils/filter-users';
++import { buildUsersCsv, downloadCsv } from '../utils/users-csv';
+ 
+ import { DeleteUser } from './delete-user';
+ 
+ export const UsersList = () => {
+   const usersQuery = useUsers();
++  const [search, setSearch] = useState('');
++  const [role, setRole] = useState<RoleFilter>('');
+ 
+   if (usersQuery.isLoading) {
+     return (
+@@ -21,9 +30,45 @@ export const UsersList = () => {
+ 
+   if (!users) return null;
+ 
++  const filteredUsers = filterUsers(users, { role, search });
++
+   return (
+-    <Table
+-      data={users}
++    <div className="flex flex-col gap-4">
++      <div className="flex flex-wrap items-end gap-4">
++        <Input
++          label="Search"
++          type="search"
++          placeholder="Name or email"
++          registration={{
++            onChange: async (e) => {
++              setSearch(e.target.value);
++            },
++          }}
++        />
++        <Select
++          label="Role"
++          defaultValue=""
++          options={[
++            { label: 'All roles', value: '' },
++            { label: 'Admin', value: ROLES.ADMIN },
++            { label: 'User', value: ROLES.USER },
++          ]}
++          registration={{
++            onChange: async (e) => {
++              setRole(e.target.value as RoleFilter);
++            },
++          }}
++        />
++        <Button
++          variant="outline"
++          disabled={filteredUsers.length === 0}
++          onClick={() => downloadCsv('users.csv', buildUsersCsv(filteredUsers))}
++        >
++          Export CSV
++        </Button>
++      </div>
++      <Table
++      data={filteredUsers}
+       columns={[
+         {
+           title: 'First Name',
+@@ -56,6 +101,7 @@ export const UsersList = () => {
+           },
+         },
+       ]}
+-    />
++      />
++    </div>
+   );
+ };
+diff --git a/apps/react-vite/src/features/users/utils/filter-users.ts b/apps/react-vite/src/features/users/utils/filter-users.ts
+new file mode 100644
+index 0000000..c2429e8
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/filter-users.ts
+@@ -0,0 +1,17 @@
++import { User } from '@/types/api';
++
++export type RoleFilter = User['role'] | '';
++
++export const filterUsers = (
++  users: User[],
++  { role, search }: { role: RoleFilter; search: string },
++) => {
++  const query = search.trim().toLowerCase();
++
++  return users.filter((user) => {
++    if (role && user.role !== role) return false;
++    if (!query) return true;
++    const name = `${user.firstName} ${user.lastName}`.toLowerCase();
++    return name.includes(query) || user.email.toLowerCase().includes(query);
++  });
++};
+diff --git a/apps/react-vite/src/features/users/utils/users-csv.ts b/apps/react-vite/src/features/users/utils/users-csv.ts
+new file mode 100644
+index 0000000..f705e57
+--- /dev/null
++++ b/apps/react-vite/src/features/users/utils/users-csv.ts
+@@ -0,0 +1,32 @@
++import { User } from '@/types/api';
++
++const HEADERS = ['Name', 'Email', 'Role', 'Joined'];
++
++// Prefix values that spreadsheets could interpret as formulas.
++const escapeCell = (value: string) => {
++  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
++  return `"${safe.replace(/"/g, '""')}"`;
++};
++
++export const buildUsersCsv = (users: User[]) => {
++  const rows = users.map((user) => [
++    `${user.firstName} ${user.lastName}`.trim(),
++    user.email,
++    user.role,
++    new Date(user.createdAt).toISOString(),
++  ]);
++
++  return [HEADERS, ...rows]
++    .map((row) => row.map(escapeCell).join(','))
++    .join('\r\n');
++};
++
++export const downloadCsv = (filename: string, content: string) => {
++  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
++  const url = URL.createObjectURL(blob);
++  const link = document.createElement('a');
++  link.href = url;
++  link.download = filename;
++  link.click();
++  URL.revokeObjectURL(url);
++};

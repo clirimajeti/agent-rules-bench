@@ -1,0 +1,9 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/tags/delete-unused/route.ts(21,7): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/tags/delete-unused/route.ts(21,22): error TS2339: Property 'workspaceId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'workspaceId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+modules/workspaces/settings/tags/components/edit-tags-wrapper.tsx(17,10): error TS2305: Module '"react-i18next"' has no exported member 'i18n'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

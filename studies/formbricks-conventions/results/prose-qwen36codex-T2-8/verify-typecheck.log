@@ -1,0 +1,9 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(6,1): error TS6133: 'Webhook' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/lib/operations.ts(12,3): error TS6133: 'authentication' is declared but its value is never read.
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(18,7): error TS2322: Type 'TAuditEventInput | undefined' is not assignable to type 'TAuditEventInput'.
+  Type 'undefined' is not assignable to type 'TAuditEventInput'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

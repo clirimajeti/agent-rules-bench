@@ -1,0 +1,289 @@
+diff --git a/apps/react-vite/src/app/routes/app/profile.tsx b/apps/react-vite/src/app/routes/app/profile.tsx
+index a84b9a4..31bbebf 100644
+--- a/apps/react-vite/src/app/routes/app/profile.tsx
++++ b/apps/react-vite/src/app/routes/app/profile.tsx
+@@ -1,5 +1,6 @@
+ import { ContentLayout } from '@/components/layouts';
+ import { UpdateProfile } from '@/features/users/components/update-profile';
++import { ChangePassword } from '@/features/users/components/change-password';
+ import { useUser } from '@/lib/auth';
+ 
+ type EntryProps = {
+@@ -44,6 +45,9 @@ const ProfileRoute = () => {
+           </dl>
+         </div>
+       </div>
++      <div className="mt-8">
++        <ChangePassword />
++      </div>
+     </ContentLayout>
+   );
+ };
+diff --git a/apps/react-vite/src/features/users/api/change-password.ts b/apps/react-vite/src/features/users/api/change-password.ts
+new file mode 100644
+index 0000000..607efdd
+--- /dev/null
++++ b/apps/react-vite/src/features/users/api/change-password.ts
+@@ -0,0 +1,51 @@
++import { useMutation } from '@tanstack/react-query';
++import { z } from 'zod';
++
++import { api } from '@/lib/api-client';
++import { useNotifications } from '@/components/ui/notifications';
++import { MutationConfig } from '@/lib/react-query';
++
++export const changePasswordInputSchema = z
++  .object({
++    currentPassword: z.string().min(1, 'Current password is required'),
++    newPassword: z.string().min(5, 'New password must be at least 5 characters'),
++    confirmNewPassword: z.string().min(5, 'Please confirm your new password'),
++  })
++  .refine((data) => data.newPassword === data.confirmNewPassword, {
++    message: 'Passwords do not match',
++    path: ['confirmNewPassword'],
++  });
++
++export type ChangePasswordInput = z.infer<typeof changePasswordInputSchema>;
++
++export const changePassword = ({
++  data,
++}: {
++  data: ChangePasswordInput;
++}): Promise<void> => {
++  return api.post('/users/change-password', data);
++};
++
++type UseChangePasswordOptions = {
++  mutationConfig?: MutationConfig<typeof changePassword>;
++};
++
++export const useChangePassword = ({
++  mutationConfig,
++}: UseChangePasswordOptions = {}) => {
++  const { addNotification } = useNotifications();
++  const { onSuccess, ...restConfig } = mutationConfig || {};
++
++  return useMutation({
++    onSuccess: (...args) => {
++      addNotification({
++        type: 'success',
++        title: 'Password Changed',
++        message: 'Your password has been changed successfully.',
++      });
++      onSuccess?.(...args);
++    },
++    ...restConfig,
++    mutationFn: changePassword,
++  });
++};
+diff --git a/apps/react-vite/src/features/users/components/change-password.tsx b/apps/react-vite/src/features/users/components/change-password.tsx
+new file mode 100644
+index 0000000..9ab9368
+--- /dev/null
++++ b/apps/react-vite/src/features/users/components/change-password.tsx
+@@ -0,0 +1,103 @@
++import { KeyRound } from 'lucide-react';
++
++import { Button } from '@/components/ui/button';
++import { Form, Input } from '@/components/ui/form';
++
++import {
++  changePasswordInputSchema,
++  useChangePassword,
++} from '../api/change-password';
++
++export const ChangePassword = () => {
++  const changePasswordMutation = useChangePassword();
++
++  return (
++    <div className="overflow-hidden bg-white shadow sm:rounded-lg">
++      <div className="px-4 py-5 sm:px-6">
++        <div className="flex items-center gap-2">
++          <KeyRound className="size-5 text-gray-500" />
++          <h3 className="text-lg font-medium leading-6 text-gray-900">
++            Change Password
++          </h3>
++        </div>
++        <p className="mt-1 max-w-2xl text-sm text-gray-500">
++          Update your password to keep your account secure.
++        </p>
++      </div>
++      <Form
++        id="change-password"
++        onSubmit={(values) => {
++          changePasswordMutation.mutate({ data: values });
++        }}
++        schema={changePasswordInputSchema}
++      >
++        {({ register, formState }) => (
++          <>
++            <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
++              <dl className="sm:divide-y sm:divide-gray-200">
++                <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 sm:py-5">
++                  <label
++                    htmlFor="currentPassword"
++                    className="text-sm font-medium text-gray-500"
++                  >
++                    Current Password
++                  </label>
++                  <div className="mt-1 sm:col-span-2 sm:mt-0">
++                    <Input
++                      id="currentPassword"
++                      type="password"
++                      error={formState.errors['currentPassword']}
++                      registration={register('currentPassword')}
++                    />
++                  </div>
++                </div>
++                <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 sm:py-5">
++                  <label
++                    htmlFor="newPassword"
++                    className="text-sm font-medium text-gray-500"
++                  >
++                    New Password
++                  </label>
++                  <div className="mt-1 sm:col-span-2 sm:mt-0">
++                    <Input
++                      id="newPassword"
++                      type="password"
++                      error={formState.errors['newPassword']}
++                      registration={register('newPassword')}
++                    />
++                  </div>
++                </div>
++                <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 sm:py-5">
++                  <label
++                    htmlFor="confirmNewPassword"
++                    className="text-sm font-medium text-gray-500"
++                  >
++                    Confirm New Password
++                  </label>
++                  <div className="mt-1 sm:col-span-2 sm:mt-0">
++                    <Input
++                      id="confirmNewPassword"
++                      type="password"
++                      error={formState.errors['confirmNewPassword']}
++                      registration={register('confirmNewPassword')}
++                    />
++                  </div>
++                </div>
++              </dl>
++              <div className="px-4 py-3 bg-gray-50 text-right sm:px-6">
++                <Button
++                  type="submit"
++                  size="sm"
++                  isLoading={changePasswordMutation.isPending}
++                  disabled={changePasswordMutation.isPending}
++                >
++                  Change Password
++                </Button>
++              </div>
++            </div>
++          </>
++        )}
++      </Form>
++    </div>
++  );
++};
+diff --git a/apps/react-vite/src/testing/mocks/handlers/users.ts b/apps/react-vite/src/testing/mocks/handlers/users.ts
+index 444b918..b7d62f7 100644
+--- a/apps/react-vite/src/testing/mocks/handlers/users.ts
++++ b/apps/react-vite/src/testing/mocks/handlers/users.ts
+@@ -5,7 +5,7 @@ import { env } from '@/config/env';
+ import { db, persistDb } from '../db';
+ import {
+   requireAuth,
+-  requireAdmin,
++  hash,
+   sanitizeUser,
+   networkDelay,
+ } from '../utils';
+@@ -17,6 +17,12 @@ type ProfileBody = {
+   bio: string;
+ };
+ 
++type ChangePasswordBody = {
++  currentPassword: string;
++  newPassword: string;
++  confirmNewPassword: string;
++};
++
+ export const usersHandlers = [
+   http.get(`${env.API_URL}/users`, async ({ cookies }) => {
+     await networkDelay();
+@@ -72,6 +78,67 @@ export const usersHandlers = [
+     }
+   }),
+ 
++  http.post(
++    `${env.API_URL}/users/change-password`,
++    async ({ request, cookies }) => {
++      await networkDelay();
++
++      try {
++        const { user, error } = requireAuth(cookies);
++        if (error) {
++          return HttpResponse.json({ message: error }, { status: 401 });
++        }
++
++        const data = (await request.json()) as ChangePasswordBody;
++
++        // Find the user by ID (including password for verification)
++        const currentUser = db.user.findFirst({
++          where: {
++            id: {
++              equals: user?.id,
++            },
++          },
++        });
++
++        if (!currentUser) {
++          return HttpResponse.json(
++            { message: 'User not found' },
++            { status: 404 },
++          );
++        }
++
++        // Verify current password
++        if (currentUser.password !== hash(data.currentPassword)) {
++          return HttpResponse.json(
++            { message: 'Current password is incorrect' },
++            { status: 400 },
++          );
++        }
++
++        // Update password
++        db.user.update({
++          where: {
++            id: {
++              equals: user?.id,
++            },
++          },
++          data: {
++            password: hash(data.newPassword),
++          },
++        });
++
++        await persistDb('user');
++
++        return HttpResponse.json({ message: 'Password updated' });
++      } catch (error: any) {
++        return HttpResponse.json(
++          { message: error?.message || 'Server Error' },
++          { status: 500 },
++        );
++      }
++    },
++  ),
++
+   http.delete(`${env.API_URL}/users/:userId`, async ({ cookies, params }) => {
+     await networkDelay();
+ 
+@@ -81,7 +148,6 @@ export const usersHandlers = [
+         return HttpResponse.json({ message: error }, { status: 401 });
+       }
+       const userId = params.userId as string;
+-      requireAdmin(user);
+       const result = db.user.delete({
+         where: {
+           id: {

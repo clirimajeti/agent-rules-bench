@@ -1,0 +1,21 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/webhooks/[webhookId]/duplicate/route.ts(8,34): error TS2307: Cannot find module '../lib/operations' or its corresponding type declarations.
+app/api/v3/webhooks/lib/operations.ts(6,1): error TS6133: 'Webhook' is declared but its value is never read.
+app/api/v3/webhooks/lib/operations.ts(54,7): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/lib/operations.ts(54,22): error TS2339: Property 'session' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'session' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/webhooks/lib/operations.ts(56,27): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/lib/operations.ts(56,42): error TS2339: Property 'session' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'session' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/webhooks/lib/operations.ts(82,7): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/lib/operations.ts(82,22): error TS2339: Property 'session' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'session' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/webhooks/lib/operations.ts(84,7): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/webhooks/lib/operations.ts(84,22): error TS2339: Property 'session' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'session' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+modules/integrations/webhooks/components/webhook-row-data.tsx(16,10): error TS2724: '"../actions"' has no exported member named 'duplicateWebhookAction'. Did you mean 'updateWebhookAction'?
+modules/integrations/webhooks/hooks/use-duplicate-webhook-mutation.ts(23,45): error TS2322: Type 'unknown' is not assignable to type 'readonly unknown[] | undefined'.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

@@ -1,0 +1,10 @@
+Generating route types...
+✓ Types generated successfully
+app/(app)/account/settings/profile/page.tsx(124,32): error TS2304: Cannot find name 'isMultiOrgEnabled'.
+app/api/user/download/route.ts(29,25): error TS2322: Type 'readonly string[]' is not assignable to type 'string[] | FieldRef<"Membership", "String[]"> | undefined'.
+  The type 'readonly string[]' is 'readonly' and cannot be assigned to the mutable type 'string[]'.
+app/api/user/download/route.ts(48,25): error TS2551: Property 'organization' does not exist on type '{ organizationId: string; userId: string; accepted: boolean; role: OrganizationRole; }'. Did you mean 'organizationId'?
+app/api/user/download/route.ts(49,27): error TS2551: Property 'organization' does not exist on type '{ organizationId: string; userId: string; accepted: boolean; role: OrganizationRole; }'. Did you mean 'organizationId'?
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

@@ -1,0 +1,9 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/tags/bulk-delete-unused/route.ts(10,10): error TS6133: 'problemForbidden' is declared but its value is never read.
+app/api/v3/tags/bulk-delete-unused/route.ts(10,28): error TS6133: 'problemInternalError' is declared but its value is never read.
+app/api/v3/tags/bulk-delete-unused/route.ts(12,10): error TS6133: 'getTag' is declared but its value is never read.
+app/api/v3/tags/bulk-delete-unused/route.ts(23,6): error TS6196: 'TBody' is declared but never used.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

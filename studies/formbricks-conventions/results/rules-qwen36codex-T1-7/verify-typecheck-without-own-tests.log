@@ -1,0 +1,19 @@
+Generating route types...
+✓ Types generated successfully
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(23,71): error TS6133: 'instance' is declared but its value is never read.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(28,27): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(28,42): error TS2339: Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'user' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; }'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(38,58): error TS18047: 'authentication' is possibly 'null'.
+app/api/v3/api-keys/[apiKeyId]/rotate/route.ts(38,73): error TS2339: Property 'apiKeyId' does not exist on type '{ type: "apiKey"; workspacePermissions: { workspaceId: string; workspaceName: string; permission: "read" | "manage" | "write"; }[]; apiKeyId: string; organizationId: string; organizationAccess: { ...; }; } | Session'.
+  Property 'apiKeyId' does not exist on type 'Session'.
+modules/organization/settings/api-keys/components/api-key-list.tsx(6,10): error TS6133: 'TApiKeyWithEnvironmentPermission' is declared but its value is never read.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(184,10): error TS6133: 'rotateKeyModalOpen' is declared but its value is never read.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(190,9): error TS6133: 'deleteMutation' is declared but its value is never read.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(203,44): error TS2559: Type 'Error' has no properties in common with type '{ serverError?: string | undefined; validationErrors?: unknown; }'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(230,44): error TS2559: Type 'Error' has no properties in common with type '{ serverError?: string | undefined; validationErrors?: unknown; }'.
+modules/organization/settings/api-keys/components/edit-api-keys.tsx(256,44): error TS2559: Type 'Error' has no properties in common with type '{ serverError?: string | undefined; validationErrors?: unknown; }'.
+modules/organization/settings/api-keys/lib/api-key.ts(266,3): error TS6133: 'userId' is declared but its value is never read.
+[ELIFECYCLE] Command failed with exit code 2.
+$ pnpm typegen && cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit --project tsconfig.typecheck.json
+$ dotenv -e ../../.env -- tsx scripts/typegen.ts

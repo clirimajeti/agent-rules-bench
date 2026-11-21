@@ -1,0 +1,638 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..75adbad0b 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -12,6 +12,7 @@ import {
+ import { getOrganizationsWhereUserIsSingleOwner } from "@/lib/organization/service";
+ import { getUser } from "@/lib/user/service";
+ import { getTranslate } from "@/lingodotdev/server";
++import { AccountActivity } from "@/modules/account/components/AccountActivity";
+ import { requiresPasswordConfirmationForAccountDeletion } from "@/modules/account/lib/account-deletion-auth";
+ import { getSession } from "@/modules/auth/lib/session";
+ import { LiteLicenseTip } from "@/modules/ee/license-check/components/lite-license-tip";
+@@ -108,6 +109,12 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <AccountActivity createdAt={user.createdAt} lastLoginAt={user.lastLoginAt} locale={user.locale} />
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/api/v3/account/export/lib/operations.test.ts b/apps/web/app/api/v3/account/export/lib/operations.test.ts
+new file mode 100644
+index 000000000..716c07314
+--- /dev/null
++++ b/apps/web/app/api/v3/account/export/lib/operations.test.ts
+@@ -0,0 +1,71 @@
++import { beforeEach, describe, expect, test, vi } from "vitest";
++import { getAccountExportRecord } from "@/modules/account/lib/account-export";
++import { exportV3Account } from "./operations";
++
++vi.mock("server-only", () => ({}));
++vi.mock("@/modules/account/lib/account-export", () => ({ getAccountExportRecord: vi.fn() }));
++
++const userId = "clxx1234567890123456789012";
++const session = { user: { id: userId }, expires: "2099-01-01T00:00:00.000Z" };
++const base = { requestId: "req_1", instance: "/api/v3/account/export" };
++
++const record = {
++  name: "Ada Lovelace",
++  email: "ada@example.com",
++  locale: "en-US",
++  notificationSettings: { alert: { survey_1: true }, unsubscribedOrganizationIds: ["org_1"] },
++  memberships: [
++    { role: "owner" as const, organization: { name: "Analytical Engines" } },
++    { role: "member" as const, organization: { name: "Royal Society" } },
++  ],
++};
++
++beforeEach(() => {
++  vi.resetAllMocks();
++});
++
++describe("exportV3Account", () => {
++  test("exports the session user's own data and nothing else", async () => {
++    vi.mocked(getAccountExportRecord).mockResolvedValue(record);
++
++    const response = await exportV3Account({ ...base, authentication: session as never });
++    const body = await response.json();
++
++    expect(response.status).toBe(200);
++    expect(getAccountExportRecord).toHaveBeenCalledWith(userId);
++    expect(body.data).toEqual({
++      name: "Ada Lovelace",
++      email: "ada@example.com",
++      locale: "en-US",
++      notificationSettings: { alert: { survey_1: true }, unsubscribedOrganizationIds: ["org_1"] },
++      organizationMemberships: [
++        { organizationName: "Analytical Engines", role: "owner" },
++        { organizationName: "Royal Society", role: "member" },
++      ],
++    });
++  });
++
++  test("fills the documented notification settings shape for a user who never set any", async () => {
++    vi.mocked(getAccountExportRecord).mockResolvedValue({ ...record, notificationSettings: {} });
++
++    const response = await exportV3Account({ ...base, authentication: session as never });
++    const body = await response.json();
++
++    expect(body.data.notificationSettings).toEqual({ alert: {}, unsubscribedOrganizationIds: [] });
++  });
++
++  test("answers 401 without a session user, before any read", async () => {
++    const response = await exportV3Account({ ...base, authentication: null });
++
++    expect(response.status).toBe(401);
++    expect(getAccountExportRecord).not.toHaveBeenCalled();
++  });
++
++  test("answers 401 when the session's user no longer exists", async () => {
++    vi.mocked(getAccountExportRecord).mockResolvedValue(null);
++
++    const response = await exportV3Account({ ...base, authentication: session as never });
++
++    expect(response.status).toBe(401);
++  });
++});
+diff --git a/apps/web/app/api/v3/account/export/lib/operations.ts b/apps/web/app/api/v3/account/export/lib/operations.ts
+new file mode 100644
+index 000000000..dbce9bc9b
+--- /dev/null
++++ b/apps/web/app/api/v3/account/export/lib/operations.ts
+@@ -0,0 +1,30 @@
++import "server-only";
++import { getV3SessionUserId } from "@/app/api/v3/lib/auth";
++import { problemUnauthorized, successResponse } from "@/app/api/v3/lib/response";
++import type { TV3Authentication } from "@/app/api/v3/lib/types";
++import { getAccountExportRecord } from "@/modules/account/lib/account-export";
++import { serializeV3AccountExport } from "../serializers";
++
++type TParams = {
++  authentication: TV3Authentication;
++  requestId: string;
++  instance?: string;
++};
++
++/**
++ * The export is always the caller's own account: the user id comes from the session and nothing in the
++ * request can name another one. A session whose user row is gone answers 401, the same as no session.
++ */
++export async function exportV3Account({ authentication, requestId, instance }: TParams): Promise<Response> {
++  const userId = getV3SessionUserId(authentication);
++  if (!userId) {
++    return problemUnauthorized(requestId, undefined, instance);
++  }
++
++  const record = await getAccountExportRecord(userId);
++  if (!record) {
++    return problemUnauthorized(requestId, undefined, instance);
++  }
++
++  return successResponse(serializeV3AccountExport(record), { requestId });
++}
+diff --git a/apps/web/app/api/v3/account/export/lib/schemas.ts b/apps/web/app/api/v3/account/export/lib/schemas.ts
+new file mode 100644
+index 000000000..c707d2c42
+--- /dev/null
++++ b/apps/web/app/api/v3/account/export/lib/schemas.ts
+@@ -0,0 +1,4 @@
++import { z } from "zod";
++
++/** The export takes no parameters; an unknown one is refused instead of ignored, as on every v3 route. */
++export const ZV3AccountExportQuery = z.object({}).strict();
+diff --git a/apps/web/app/api/v3/account/export/route.ts b/apps/web/app/api/v3/account/export/route.ts
+new file mode 100644
+index 000000000..3786911b3
+--- /dev/null
++++ b/apps/web/app/api/v3/account/export/route.ts
+@@ -0,0 +1,17 @@
++/**
++ * GET /api/v3/account/export - the signed-in user's own account data: name, email, locale,
++ * notification settings and organization memberships.
++ *
++ * Session-only, deliberately. It backs the "Download my data" button on the account profile page, and
++ * an API key belongs to an organization, not to a user, so there is no account for it to export.
++ */
++import { withV3ApiWrapper } from "@/app/api/v3/lib/api-wrapper";
++import { exportV3Account } from "./lib/operations";
++import { ZV3AccountExportQuery } from "./lib/schemas";
++
++export const GET = withV3ApiWrapper({
++  auth: "session",
++  schemas: { query: ZV3AccountExportQuery },
++  handler: async ({ authentication, requestId, instance }) =>
++    exportV3Account({ authentication, requestId, instance }),
++});
+diff --git a/apps/web/app/api/v3/account/export/serializers.ts b/apps/web/app/api/v3/account/export/serializers.ts
+new file mode 100644
+index 000000000..dc28d40bd
+--- /dev/null
++++ b/apps/web/app/api/v3/account/export/serializers.ts
+@@ -0,0 +1,43 @@
++import { ZUserNotificationSettings } from "@formbricks/types/user";
++import type { TAccountExportRecord } from "@/modules/account/lib/account-export";
++
++export type TV3AccountExport = {
++  name: string;
++  email: string;
++  locale: string;
++  notificationSettings: {
++    /** Per-survey response alerts, keyed by survey id. */
++    alert: Record<string, boolean>;
++    /** Organizations whose weekly emails the user has opted out of. */
++    unsubscribedOrganizationIds: string[];
++  };
++  organizationMemberships: {
++    organizationName: string;
++    role: string;
++  }[];
++};
++
++/**
++ * `notificationSettings` is a free-form JSON column that defaults to `{}`, so it is normalized to the
++ * documented shape here: a user who never touched the settings still gets both keys.
++ */
++const serializeNotificationSettings = (value: unknown): TV3AccountExport["notificationSettings"] => {
++  const parsed = ZUserNotificationSettings.partial().safeParse(value);
++  const settings = parsed.success ? parsed.data : {};
++
++  return {
++    alert: settings.alert ?? {},
++    unsubscribedOrganizationIds: settings.unsubscribedOrganizationIds ?? [],
++  };
++};
++
++export const serializeV3AccountExport = (record: TAccountExportRecord): TV3AccountExport => ({
++  name: record.name,
++  email: record.email,
++  locale: record.locale,
++  notificationSettings: serializeNotificationSettings(record.notificationSettings),
++  organizationMemberships: record.memberships.map((membership) => ({
++    organizationName: membership.organization.name,
++    role: membership.role,
++  })),
++});
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..ff21ad9f8 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,9 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "See when your account was created and when you last logged in, and download a copy of your data.",
++        "account_created": "Account created",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,11 +3753,15 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Download a JSON file with your name, email, language, notification settings and organization memberships.",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
+         "lost_access": "Lost access",
++        "no_login_recorded": "No login recorded yet",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",
+         "permanent_removal_of_all_of_your_personal_information_and_data": "Permanent removal of all of your personal information and data",
+diff --git a/apps/web/modules/account/components/AccountActivity/index.tsx b/apps/web/modules/account/components/AccountActivity/index.tsx
+new file mode 100644
+index 000000000..aeb92d7a5
+--- /dev/null
++++ b/apps/web/modules/account/components/AccountActivity/index.tsx
+@@ -0,0 +1,63 @@
++import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
++import { getTranslate } from "@/lingodotdev/server";
++import { DownloadAccountDataButton } from "../DownloadAccountDataButton";
++
++/**
++ * Shown in UTC with the zone written out. An account has no time zone of its own (an organization's
++ * `displayTimeZone` is for its response data, and an account can span several organizations), and the
++ * server's or browser's zone would make the same moment read differently from one place to the next.
++ */
++const ACTIVITY_DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
++  year: "numeric",
++  month: "long",
++  day: "numeric",
++  hour: "numeric",
++  minute: "2-digit",
++  timeZone: "UTC",
++  timeZoneName: "short",
++};
++
++type TAccountActivityProps = {
++  createdAt: Date;
++  lastLoginAt: Date | null;
++  locale: string;
++};
++
++export const AccountActivity = async ({ createdAt, lastLoginAt, locale }: Readonly<TAccountActivityProps>) => {
++  const t = await getTranslate();
++  const formatDateTime = (date: Date) => formatDateTimeForDisplay(date, locale, ACTIVITY_DATE_TIME_OPTIONS);
++
++  const rows = [
++    {
++      label: t("workspace.settings.profile.account_created"),
++      value: formatDateTime(createdAt),
++      dateTime: createdAt.toISOString(),
++    },
++    {
++      label: t("workspace.settings.profile.last_login"),
++      value: lastLoginAt ? formatDateTime(lastLoginAt) : t("workspace.settings.profile.no_login_recorded"),
++      dateTime: lastLoginAt?.toISOString(),
++    },
++  ];
++
++  return (
++    <div className="flex flex-col gap-4">
++      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
++        {rows.map((row) => (
++          <div key={row.label} className="flex flex-col gap-1">
++            <dt className="text-xs text-slate-600">{row.label}</dt>
++            <dd className="text-sm font-semibold text-slate-800">
++              {row.dateTime ? <time dateTime={row.dateTime}>{row.value}</time> : row.value}
++            </dd>
++          </div>
++        ))}
++      </dl>
++      <div className="flex flex-col gap-2 border-t border-slate-200 pt-4">
++        <p className="text-xs text-slate-600">{t("workspace.settings.profile.download_my_data_description")}</p>
++        <div>
++          <DownloadAccountDataButton />
++        </div>
++      </div>
++    </div>
++  );
++};
+diff --git a/apps/web/modules/account/components/DownloadAccountDataButton/index.tsx b/apps/web/modules/account/components/DownloadAccountDataButton/index.tsx
+new file mode 100644
+index 000000000..870803915
+--- /dev/null
++++ b/apps/web/modules/account/components/DownloadAccountDataButton/index.tsx
+@@ -0,0 +1,46 @@
++"use client";
++
++import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
++import { DownloadIcon } from "lucide-react";
++import { useState } from "react";
++import { toast } from "react-hot-toast";
++import { useTranslation } from "react-i18next";
++import { getV3ApiErrorMessage } from "@/modules/api/lib/v3-client";
++import { Button } from "@/modules/ui/components/button";
++import { useDownloadAccountData } from "../../hooks/use-download-account-data";
++
++const DownloadButton = () => {
++  const { t } = useTranslation();
++  const download = useDownloadAccountData();
++
++  return (
++    <Button
++      type="button"
++      variant="secondary"
++      size="sm"
++      loading={download.isPending}
++      onClick={() =>
++        download.mutate(undefined, {
++          onError: (error) =>
++            toast.error(getV3ApiErrorMessage(error, t("common.something_went_wrong_please_try_again"))),
++        })
++      }>
++      <DownloadIcon />
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
++
++/**
++ * There is no app-wide `QueryClientProvider`, and the account settings routes mount none: this button
++ * is their only TanStack Query consumer, so it brings its own.
++ */
++export const DownloadAccountDataButton = () => {
++  const [queryClient] = useState(() => new QueryClient());
++
++  return (
++    <QueryClientProvider client={queryClient}>
++      <DownloadButton />
++    </QueryClientProvider>
++  );
++};
+diff --git a/apps/web/modules/account/hooks/use-download-account-data.ts b/apps/web/modules/account/hooks/use-download-account-data.ts
+new file mode 100644
+index 000000000..d9afadafa
+--- /dev/null
++++ b/apps/web/modules/account/hooks/use-download-account-data.ts
+@@ -0,0 +1,30 @@
++"use client";
++
++import { useMutation } from "@tanstack/react-query";
++import { useEffect, useRef } from "react";
++import { saveBlobAsFile } from "@/modules/ee/data-retention/lib/file-download";
++import { getAccountExport } from "../lib/api-client";
++
++export const ACCOUNT_DATA_FILE_NAME = "formbricks-account-data.json";
++
++/**
++ * Fetch the account export and hand it to the browser as a JSON file. A mutation, not a query: every
++ * click must read the account as it is now, and the result goes to a file, not to the screen. A second
++ * click replaces the request in flight, and leaving the page cancels it.
++ */
++export const useDownloadAccountData = () => {
++  const inFlight = useRef<AbortController | null>(null);
++  useEffect(() => () => inFlight.current?.abort(), []);
++
++  return useMutation({
++    mutationFn: async () => {
++      inFlight.current?.abort();
++      const controller = new AbortController();
++      inFlight.current = controller;
++      const data = await getAccountExport({ signal: controller.signal });
++      if (controller.signal.aborted) return;
++      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
++      saveBlobAsFile(blob, ACCOUNT_DATA_FILE_NAME);
++    },
++  });
++};
+diff --git a/apps/web/modules/account/lib/account-export.ts b/apps/web/modules/account/lib/account-export.ts
+new file mode 100644
+index 000000000..2c05ba2ae
+--- /dev/null
++++ b/apps/web/modules/account/lib/account-export.ts
+@@ -0,0 +1,43 @@
++import "server-only";
++import { prisma } from "@formbricks/database";
++import { Prisma } from "@formbricks/database/prisma";
++import { ZId } from "@formbricks/types/common";
++import { DatabaseError } from "@formbricks/types/errors";
++import { validateInputs } from "@/lib/utils/validate";
++
++const accountExportSelect = {
++  name: true,
++  email: true,
++  locale: true,
++  notificationSettings: true,
++  memberships: {
++    select: {
++      role: true,
++      organization: { select: { name: true } },
++    },
++    // A stable order, so two exports of an unchanged account are identical files.
++    orderBy: { organizationId: "asc" },
++  },
++} as const satisfies Prisma.UserSelect;
++
++export type TAccountExportRecord = Prisma.UserGetPayload<{ select: typeof accountExportSelect }>;
++
++/**
++ * Everything the "Download my data" export contains, in one query. Scoped by the user id alone: the
++ * memberships come through the user's own relation, so no other account's rows can be reached.
++ */
++export const getAccountExportRecord = async (userId: string): Promise<TAccountExportRecord | null> => {
++  validateInputs([userId, ZId]);
++
++  try {
++    return await prisma.user.findUnique({
++      where: { id: userId },
++      select: accountExportSelect,
++    });
++  } catch (error) {
++    if (error instanceof Prisma.PrismaClientKnownRequestError) {
++      throw new DatabaseError(error.message);
++    }
++    throw error;
++  }
++};
+diff --git a/apps/web/modules/account/lib/api-client.ts b/apps/web/modules/account/lib/api-client.ts
+new file mode 100644
+index 000000000..b32e05140
+--- /dev/null
++++ b/apps/web/modules/account/lib/api-client.ts
+@@ -0,0 +1,18 @@
++import type { TV3AccountExport } from "@/app/api/v3/account/export/serializers";
++import { parseV3ApiError } from "@/modules/api/lib/v3-client";
++
++/**
++ * Client fetcher for the account export v3 route. Throws a parsed `V3ApiError` on a non-2xx response,
++ * so the caller can show the server's own message.
++ */
++export async function getAccountExport(params?: { signal?: AbortSignal }): Promise<TV3AccountExport> {
++  const response = await fetch("/api/v3/account/export", {
++    method: "GET",
++    cache: "no-store",
++    signal: params?.signal,
++  });
++  if (!response.ok) {
++    throw await parseV3ApiError(response);
++  }
++  return ((await response.json()) as { data: TV3AccountExport }).data;
++}
+diff --git a/docs/api-v3-reference/contract-tests/README.md b/docs/api-v3-reference/contract-tests/README.md
+index af16f7434..39d47736f 100644
+--- a/docs/api-v3-reference/contract-tests/README.md
++++ b/docs/api-v3-reference/contract-tests/README.md
+@@ -13,7 +13,7 @@ document is well-formed and current; this proves the running API still matches i
+ 
+ | File                | Purpose                                                                                                                                                                                                                                                                  |
+ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+-| `schemathesis.toml` | Phase/timeout config. `[phases.examples] fill-missing` is what makes all 55 in-scope operations run instead of only the few that carry explicit examples. The `[[operations]]` table below it excludes the eight gateway-served Feedback Records operations (see below). |
++| `schemathesis.toml` | Phase/timeout config. `[phases.examples] fill-missing` is what makes all 56 in-scope operations run instead of only the few that carry explicit examples. The `[[operations]]` table below it excludes the eight gateway-served Feedback Records operations (see below). |
+ | `hooks.py`          | Registers the `cuid2` and `web-url` formats and substitutes seeded identifiers, keyed by parameter name and operationId.                                                                                                                                                 |
+ | `fixtures.json`     | Generated by `db:seed:contract`, gitignored. The id map `hooks.py` reads.                                                                                                                                                                                                |
+ 
+@@ -74,13 +74,17 @@ Three things to know before reading the result:
+   `sessionAuth`), so an API key gets a documented 401 before any handler runs. They are checked
+   against that 401, which is a real assertion that they stay session-only — but no tag fixtures
+   exist, because nothing an API key sends can reach them.
++- **`GET /api/v3/account/export` is session-only too**, for the same reason and with the same result: a
++  documented 401 for the API key this harness sends. Its 200 shape is covered by the unit suite
++  (`apps/web/app/api/v3/account/export/lib/operations.test.ts`). It carries `x-excluded` like the
++  `/tags` operations.
+ - **The eight `/feedbackRecords` operations are not exercised.** They are served by the API gateway
+   (Envoy in Cloud, Traefik in the Docker install) straight to the Hub; the Next.js route under
+   `/api/v3/feedbackRecords` is a local-dev proxy that needs a running Hub and answers 404 in
+   production builds. CI has no Hub, so `schemathesis.toml` disables the `V3 Feedback Records` tag
+   rather than test a proxy without an upstream. Their contract is checked by the Hub's own suite and
+-  the live smoke recorded in ENG-1259. The bundle therefore documents 63 operations and this job
+-  exercises 55 — the four `/tags` operations carry `x-excluded` (no docs page, ENG-2533) but are
++  the live smoke recorded in ENG-1259. The bundle therefore documents 64 operations and this job
++  exercises 56 — the four `/tags` operations carry `x-excluded` (no docs page, ENG-2533) but are
+   still tested.
+ - **The two survey visibility operations answer 403 to every API key** (ENG-3282, K-4), and this
+   harness authenticates with one, so `GET`/`POST /api/v3/surveys/{surveyId}/visibility` are checked
+diff --git a/docs/api-v3-reference/src/components/schemas/AccountExportResource.yml b/docs/api-v3-reference/src/components/schemas/AccountExportResource.yml
+new file mode 100644
+index 000000000..780fa98f0
+--- /dev/null
++++ b/docs/api-v3-reference/src/components/schemas/AccountExportResource.yml
+@@ -0,0 +1,52 @@
++type: object
++required:
++  - name
++  - email
++  - locale
++  - notificationSettings
++  - organizationMemberships
++properties:
++  name:
++    type: string
++    description: The user's display name.
++  email:
++    type: string
++    format: email
++  locale:
++    type: string
++    description: The app language the user selected, as a BCP 47 tag.
++    example: en-US
++  notificationSettings:
++    type: object
++    required:
++      - alert
++      - unsubscribedOrganizationIds
++    properties:
++      alert:
++        type: object
++        description: Response alert emails, keyed by survey ID. `true` means the alert is on.
++        additionalProperties:
++          type: boolean
++      unsubscribedOrganizationIds:
++        type: array
++        description: Organizations whose summary emails the user opted out of.
++        items:
++          type: string
++  organizationMemberships:
++    type: array
++    description: Every organization the user is a member of, with the user's role in it.
++    items:
++      type: object
++      required:
++        - organizationName
++        - role
++      properties:
++        organizationName:
++          type: string
++        role:
++          type: string
++          enum:
++            - owner
++            - manager
++            - member
++            - billing
+diff --git a/docs/api-v3-reference/src/openapi.yml b/docs/api-v3-reference/src/openapi.yml
+index 22d57e490..d3352b51e 100644
+--- a/docs/api-v3-reference/src/openapi.yml
++++ b/docs/api-v3-reference/src/openapi.yml
+@@ -486,6 +486,8 @@ paths:
+     $ref: paths/api_v3_tags_{tagId}.yml
+   /api/v3/tags/{tagId}/merge:
+     $ref: paths/api_v3_tags_{tagId}_merge.yml
++  /api/v3/account/export:
++    $ref: paths/api_v3_account_export.yml
+   /api/v3/workspaces/{workspaceId}/custom-css:
+     $ref: paths/api_v3_workspaces_{workspaceId}_custom-css.yml
+   /api/v3/feedbackRecords:
+diff --git a/docs/api-v3-reference/src/paths/api_v3_account_export.yml b/docs/api-v3-reference/src/paths/api_v3_account_export.yml
+new file mode 100644
+index 000000000..34b4e54a3
+--- /dev/null
++++ b/docs/api-v3-reference/src/paths/api_v3_account_export.yml
+@@ -0,0 +1,48 @@
++get:
++  operationId: exportAccountV3
++  # Session-only by design, so an API-key caller reading the published reference would only ever get a
++  # 401. Excluded from the generated docs pages, like the tags operations; the operation stays in the
++  # bundle for the contract tests.
++  x-excluded: true
++  summary: Export account data
++  description: |
++    Returns the signed-in user's own account data: name, email, locale, notification settings and
++    organization memberships. The account is always the one behind the session; no parameter can
++    name another user.
++
++    Session cookie only. This endpoint backs the "Download my data" button in the Formbricks app
++    (Account settings → Profile). An API key belongs to an organization, not to a user, so it does
++    not accept `x-api-key`.
++  tags:
++    - V3 Account
++  responses:
++    "200":
++      description: Account data retrieved successfully
++      headers:
++        X-Request-Id:
++          schema:
++            type: string
++          description: Request correlation ID
++        Cache-Control:
++          schema:
++            type: string
++          example: private, no-store
++      content:
++        application/json:
++          schema:
++            type: object
++            required:
++              - data
++            properties:
++              data:
++                $ref: ../components/schemas/AccountExportResource.yml
++    "400":
++      $ref: ../components/responses/V3BadRequest.yml
++    "401":
++      $ref: ../components/responses/V3UnauthorizedSession.yml
++    "429":
++      $ref: ../components/responses/V3TooManyRequests.yml
++    "500":
++      $ref: ../components/responses/V3InternalServerError.yml
++  security:
++    - sessionAuth: []

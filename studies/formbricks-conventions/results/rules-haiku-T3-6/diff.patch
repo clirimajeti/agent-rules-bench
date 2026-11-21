@@ -1,0 +1,228 @@
+diff --git a/apps/web/app/(app)/account/settings/profile/page.tsx b/apps/web/app/(app)/account/settings/profile/page.tsx
+index afb9bb948..ef7f94713 100644
+--- a/apps/web/app/(app)/account/settings/profile/page.tsx
++++ b/apps/web/app/(app)/account/settings/profile/page.tsx
+@@ -1,6 +1,11 @@
+ import { AuthenticationError } from "@formbricks/types/errors";
++import { AccountActivity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity";
+ import { AccountSecurity } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountSecurity";
+ import { DeleteAccount } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DeleteAccount";
++import {
++  DownloadAccountDataButton,
++  type TAccountData,
++} from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadAccountDataButton";
+ import { EditProfileDetailsForm } from "@/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/EditProfileDetailsForm";
+ import { SettingsCard } from "@/app/(app)/workspaces/[workspaceId]/settings/components/SettingsCard";
+ import {
+@@ -9,6 +14,7 @@ import {
+   IS_FORMBRICKS_CLOUD,
+   PASSWORD_RESET_DISABLED,
+ } from "@/lib/constants";
++import { getAcceptedMembershipsWithOrganizationByUserId } from "@/lib/membership/service";
+ import { getOrganizationsWhereUserIsSingleOwner } from "@/lib/organization/service";
+ import { getUser } from "@/lib/user/service";
+ import { getTranslate } from "@/lingodotdev/server";
+@@ -38,6 +44,17 @@ const Page = async () => {
+   if (!user) {
+     throw new AuthenticationError(t("common.not_authenticated"));
+   }
++  const memberships = await getAcceptedMembershipsWithOrganizationByUserId(user.id);
++  const accountData: TAccountData = {
++    name: user.name,
++    email: user.email,
++    locale: user.locale,
++    notificationSettings: user.notificationSettings,
++    organizationMemberships: memberships.map((membership) => ({
++      organizationName: membership.organization.name,
++      role: membership.role,
++    })),
++  };
+ 
+   // Two-factor upgrade points at the user's organization billing page (org-scoped after the refactor).
+   const layoutData = await getSettingsLayoutData(session.user.id);
+@@ -108,6 +125,18 @@ const Page = async () => {
+           </SettingsCard>
+         )}
+ 
++        <SettingsCard
++          title={t("workspace.settings.profile.account_activity")}
++          description={t("workspace.settings.profile.account_activity_description")}>
++          <AccountActivity createdAt={user.createdAt} lastLoginAt={user.lastLoginAt} locale={user.locale} />
++        </SettingsCard>
++
++        <SettingsCard
++          title={t("workspace.settings.profile.download_my_data")}
++          description={t("workspace.settings.profile.download_my_data_description")}>
++          <DownloadAccountDataButton accountData={accountData} />
++        </SettingsCard>
++
+         <SettingsCard
+           title={t("workspace.settings.profile.delete_account")}
+           description={t("workspace.settings.profile.confirm_delete_account")}>
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
+new file mode 100644
+index 000000000..b86e6cc6e
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/AccountActivity.tsx
+@@ -0,0 +1,37 @@
++import { getTranslate } from "@/lingodotdev/server";
++import { formatDateForDisplay } from "@/lib/utils/datetime";
++
++// Rendered in UTC so the server and the browser produce the same text, and the label says so.
++const ACTIVITY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
++  year: "numeric",
++  month: "short",
++  day: "numeric",
++  hour: "2-digit",
++  minute: "2-digit",
++  timeZone: "UTC",
++  timeZoneName: "short",
++};
++
++interface AccountActivityProps {
++  createdAt: Date;
++  lastLoginAt: Date | null;
++  locale: string;
++}
++
++export const AccountActivity = async ({ createdAt, lastLoginAt, locale }: Readonly<AccountActivityProps>) => {
++  const t = await getTranslate();
++
++  return (
++    <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
++      <dt className="text-slate-500">{t("common.created_at")}</dt>
++      <dd className="text-slate-800">{formatDateForDisplay(createdAt, locale, ACTIVITY_DATE_OPTIONS)}</dd>
++
++      <dt className="text-slate-500">{t("workspace.settings.profile.last_login")}</dt>
++      <dd className="text-slate-800">
++        {lastLoginAt
++          ? formatDateForDisplay(lastLoginAt, locale, ACTIVITY_DATE_OPTIONS)
++          : t("common.no_sign_in_recorded")}
++      </dd>
++    </dl>
++  );
++};
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadAccountDataButton.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadAccountDataButton.tsx
+new file mode 100644
+index 000000000..8fa2b3fe9
+--- /dev/null
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/account/profile/components/DownloadAccountDataButton.tsx
+@@ -0,0 +1,47 @@
++"use client";
++
++import { DownloadIcon } from "lucide-react";
++import { useTranslation } from "react-i18next";
++import { TMembership } from "@formbricks/types/memberships";
++import { TUserNotificationSettings } from "@formbricks/types/user";
++import { Button } from "@/modules/ui/components/button";
++
++// Machine-facing export: keys and enum values stay stable and are not localized.
++export interface TAccountData {
++  name: string;
++  email: string;
++  locale: string;
++  notificationSettings: TUserNotificationSettings;
++  organizationMemberships: {
++    organizationName: string;
++    role: TMembership["role"];
++  }[];
++}
++
++interface DownloadAccountDataButtonProps {
++  accountData: TAccountData;
++}
++
++export const DownloadAccountDataButton = ({ accountData }: Readonly<DownloadAccountDataButtonProps>) => {
++  const { t } = useTranslation();
++
++  const handleDownload = () => {
++    const json = JSON.stringify(accountData, null, 2);
++    const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
++    const link = document.createElement("a");
++    link.href = url;
++    link.download = `formbricks-account-data-${new Date().toISOString().slice(0, 10)}.json`;
++    document.body.appendChild(link);
++    link.click();
++    link.remove();
++    // Revoke after the browser has had a chance to start the download.
++    setTimeout(() => URL.revokeObjectURL(url), 0);
++  };
++
++  return (
++    <Button type="button" variant="secondary" size="sm" onClick={handleDownload}>
++      <DownloadIcon />
++      {t("workspace.settings.profile.download_my_data")}
++    </Button>
++  );
++};
+diff --git a/apps/web/lib/membership/service.ts b/apps/web/lib/membership/service.ts
+index ef1310838..8b398c4e6 100644
+--- a/apps/web/lib/membership/service.ts
++++ b/apps/web/lib/membership/service.ts
+@@ -64,6 +64,39 @@ export const getMembershipByUserIdOrganizationId = async (
+   return getMembershipByUserIdOrganizationIdCached(userId, organizationId);
+ };
+ 
++/**
++ * The organizations a user has accepted a membership in, with the role held in each. Pending
++ * memberships are left out: the user has not joined those organizations yet.
++ */
++export const getAcceptedMembershipsWithOrganizationByUserId = async (userId: string) => {
++  validateInputs([userId, ZString]);
++
++  try {
++    return await prisma.membership.findMany({
++      where: {
++        userId,
++        accepted: true,
++      },
++      select: {
++        role: true,
++        organization: {
++          select: { name: true },
++        },
++      },
++      orderBy: {
++        organization: { name: "asc" },
++      },
++    });
++  } catch (error) {
++    if (error instanceof Prisma.PrismaClientKnownRequestError) {
++      logger.error(error, "Error getting accepted memberships by user id");
++      throw new DatabaseError(error.message);
++    }
++
++    throw error;
++  }
++};
++
+ export const createMembership = async (
+   organizationId: string,
+   userId: string,
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..087cf0a35 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -3741,6 +3741,8 @@
+         "you_will_not_receive_any_more_emails_for_responses_on_this_survey": "You will not receive any more emails for responses on this survey!"
+       },
+       "profile": {
++        "account_activity": "Account activity",
++        "account_activity_description": "When your account was created and when you last signed in.",
+         "account_deletion_consequences_warning": "Account deletion consequences",
+         "account_deletion_email_sent": "Check your email to confirm account deletion. We sent a link to {email} — your account will be deleted once you click it.",
+         "backup_code": "Backup Code",
+@@ -3750,10 +3752,13 @@
+         "delete_account": "Delete Account",
+         "disable_two_factor_authentication": "Disable two factor authentication",
+         "disable_two_factor_authentication_description": "If you need to disable 2FA, we recommend re-enabling it as soon as possible.",
++        "download_my_data": "Download my data",
++        "download_my_data_description": "Download a JSON file with your name, email, language, notification settings and organization memberships.",
+         "each_backup_code_can_be_used_exactly_once_to_grant_access_without_your_authenticator": "Each backup code can be used exactly once to grant access without your authenticator.",
+         "email_change_initiated": "Your email change request has been initiated.",
+         "enable_two_factor_authentication": "Enable two factor authentication",
+         "enter_the_code_from_your_authenticator_app_below": "Enter the code from your authenticator app below.",
++        "last_login": "Last login",
+         "lost_access": "Lost access",
+         "or_enter_the_following_code_manually": "Or enter the following code manually:",
+         "organizations_delete_message": "You are the only owner of these organizations, so they <b>will be deleted as well.</b>",

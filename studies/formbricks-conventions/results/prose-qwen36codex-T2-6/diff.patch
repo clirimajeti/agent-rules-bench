@@ -1,0 +1,103 @@
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..2ef843806 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -2916,7 +2916,8 @@
+         "webhook_name_placeholder": "Optional: Label your webhook for easy identification",
+         "webhook_test_failed_due_to": "Webhook Test Failed due to",
+         "webhook_updated_successfully": "Webhook updated successfully",
+-        "webhook_url_placeholder": "Paste the URL you want the event to trigger on"
++        "webhook_url_placeholder": "Paste the URL you want the event to trigger on",
++        "created_at": "Created at"
+       },
+       "website_or_app_integration_description": "Integrate Formbricks into your Website or App",
+       "zapier_integration_description": "Integrate Formbricks with 5000+ apps via Zapier"
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+index d11f09b77..d334da489 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+@@ -1,6 +1,7 @@
+ "use client";
+ 
+ import { TFunction } from "i18next";
++import { TrashIcon } from "lucide-react";
+ import { useTranslation } from "react-i18next";
+ import { Webhook } from "@formbricks/database/prisma-browser";
+ import { TSurvey } from "@formbricks/types/surveys/types";
+@@ -8,6 +9,11 @@ import { timeSince } from "@/lib/time";
+ import { RestrictedSurveyHint } from "@/modules/survey/visibility/components/restricted-survey-hint";
+ import { hasRestrictedAttachedSurvey } from "@/modules/survey/visibility/lib/outbound";
+ import { Badge } from "@/modules/ui/components/badge";
++import { Button } from "@/modules/ui/components/button";
++import { Tooltip } from "@/modules/ui/components/tooltip";
++import { deleteWebhookAction } from "@/modules/integrations/webhooks/actions";
++import { getFormattedErrorMessage } from "@/lib/utils/error-message";
++import toast from "react-hot-toast";
+ 
+ const renderSelectedSurveysText = (webhook: Webhook, allSurveys: TSurvey[]) => {
+   let surveyNames: string[];
+@@ -76,6 +82,16 @@ export const WebhookRowData = ({
+   const { t, i18n } = useTranslation();
+   const locale = i18n.resolvedLanguage ?? i18n.language ?? "en-US";
+ 
++  const handleDelete = async () => {
++    const result = await deleteWebhookAction({ id: webhook.id });
++    if (result?.data) {
++      window.location.reload();
++    } else {
++      const errorMessage = getFormattedErrorMessage(result);
++      toast.error(errorMessage ?? "Failed to delete webhook");
++    }
++  };
++
+   return (
+     <div className="mt-2 grid h-auto grid-cols-12 content-center rounded-lg py-2 hover:bg-slate-100">
+       <div className="col-span-3 flex items-center truncate pl-6 text-sm">
+@@ -101,13 +117,27 @@ export const WebhookRowData = ({
+           <RestrictedSurveyHint kind="paused" />
+         )}
+       </div>
+-      <div className="col-span-2 my-auto text-center text-sm text-slate-800">
++      <div className="col-span-1 my-auto text-center text-sm text-slate-800">
+         {renderSelectedTriggersText(webhook, t)}
+       </div>
+-      <div className="col-span-2 my-auto text-center text-sm whitespace-nowrap text-slate-500">
++      <div className="col-span-1 my-auto text-center text-sm whitespace-nowrap text-slate-500">
++        {timeSince(webhook.createdAt.toString(), locale)}
++      </div>
++      <div className="col-span-1 my-auto text-center text-sm whitespace-nowrap text-slate-500">
+         {timeSince(webhook.updatedAt.toString(), locale)}
+       </div>
+-      <div className="text-center"></div>
++      <div className="col-span-1 flex items-center justify-center gap-1">
++        <Tooltip content={t("common.delete")}>
++          <Button
++            variant="ghost"
++            size="sm"
++            className="h-8 w-8 p-0"
++            onClick={handleDelete}
++            title={t("common.delete")}>
++            <TrashIcon className="size-4 text-slate-400 hover:text-red-600" />
++          </Button>
++        </Tooltip>
++      </div>
+     </div>
+   );
+ };
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+index 0c5945508..e643002d0 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+@@ -9,8 +9,10 @@ export const WebhookTableHeading = async () => {
+         <div className="col-span-3 pl-6">{t("common.webhook")}</div>
+         <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.source")}</div>
+         <div className="col-span-4 text-center">{t("common.surveys")}</div>
+-        <div className="col-span-2 text-center">{t("workspace.integrations.webhooks.triggers")}</div>
+-        <div className="col-span-2 text-center">{t("common.updated")}</div>
++        <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.triggers")}</div>
++        <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.created_at")}</div>
++        <div className="col-span-1 text-center">{t("common.updated")}</div>
++        <span className="sr-only">{t("common.actions")}</span>
+       </div>
+     </>
+   );

@@ -1,0 +1,296 @@
+diff --git a/apps/web/app/(app)/workspaces/[workspaceId]/settings/workspace/integrations/webhooks/page.tsx b/apps/web/app/(app)/workspaces/[workspaceId]/settings/workspace/integrations/webhooks/page.tsx
+index 0a3c6137b..972dc9761 100644
+--- a/apps/web/app/(app)/workspaces/[workspaceId]/settings/workspace/integrations/webhooks/page.tsx
++++ b/apps/web/app/(app)/workspaces/[workspaceId]/settings/workspace/integrations/webhooks/page.tsx
+@@ -1,6 +1,115 @@
+-import { WebhooksPage } from "@/modules/integrations/webhooks/page";
+-import { getSettingsPageMetadata } from "@/modules/settings/lib/metadata";
++import { useRouter } from "next/navigation";
++import { useState } from "react";
++import { toast } from "react-hot-toast";
++import { getTranslate } from "@/lingodotdev/server";
++import { duplicateWebhookAction } from "@/modules/integrations/webhooks/actions";
++import { AddWebhookButton } from "@/modules/integrations/webhooks/components/add-webhook-button";
++import { WebhookRowData } from "@/modules/integrations/webhooks/components/webhook-row-data";
++import { WebhookTable } from "@/modules/integrations/webhooks/components/webhook-table";
++import { WebhookTableHeading } from "@/modules/integrations/webhooks/components/webhook-table-heading";
++import { getWebhookSurveys } from "@/modules/integrations/webhooks/lib/surveys";
++import { getWebhooks } from "@/modules/integrations/webhooks/lib/webhook";
++import { isSurveyVisibilityEnforced } from "@/modules/survey/visibility/lib/gate";
++import { GoBackButton } from "@/modules/ui/components/go-back-button";
++import { PageContentWrapper } from "@/modules/ui/components/page-content-wrapper";
++import { PageHeader } from "@/modules/ui/components/page-header";
++import { getWorkspaceAuth } from "@/modules/workspaces/lib/utils";
++import { Webhook } from "@formbricks/database/prisma-browser";
++import { TSurvey } from "@formbricks/types/surveys/types";
++import { DANGEROUSLY_ALLOW_WEBHOOK_INTERNAL_URLS } from "@/lib/constants";
+ 
+ export const generateMetadata = () => getSettingsPageMetadata("common.webhooks");
+ 
+ export default WebhooksPage;
++
++import { getSettingsPageMetadata } from "@/modules/settings/lib/metadata";
++
++interface WebhooksPageClientProps {
++  workspaceId: string;
++  initialWebhooks: Webhook[];
++  surveys: TSurvey[];
++  isReadOnly: boolean;
++  allowInternalUrls: boolean;
++  surveyVisibilityEnabled: boolean;
++}
++
++const WebhooksPageClient = ({
++  workspaceId,
++  initialWebhooks,
++  surveys,
++  isReadOnly,
++  allowInternalUrls,
++  surveyVisibilityEnabled,
++}: Readonly<WebhooksPageClientProps>) => {
++  const router = useRouter();
++  const [webhooks, setWebhooks] = useState<Webhook[]>(initialWebhooks);
++
++  const handleDuplicate = async (webhookId: string) => {
++    const result = await duplicateWebhookAction({ webhookId, workspaceId });
++    if (result?.data) {
++      setWebhooks((prev) => [result.data as Webhook, ...prev]);
++      router.refresh();
++    } else {
++      toast.error("Failed to duplicate webhook");
++    }
++  };
++
++  const renderAddWebhookButton = () => (
++    <AddWebhookButton
++      workspaceId={workspaceId}
++      surveys={surveys}
++      allowInternalUrls={allowInternalUrls}
++      surveyVisibilityEnabled={surveyVisibilityEnabled}
++    />
++  );
++
++  return (
++    <PageContentWrapper>
++      <GoBackButton />
++      <PageHeader pageTitle="Webhooks" cta={!isReadOnly ? renderAddWebhookButton() : <></>} />
++      <WebhookTable
++        workspaceId={workspaceId}
++        webhooks={webhooks}
++        surveys={surveys}
++        isReadOnly={isReadOnly}
++        allowInternalUrls={allowInternalUrls}
++        surveyVisibilityEnabled={surveyVisibilityEnabled}>
++        <WebhookTableHeading />
++        {webhooks.map((webhook) => (
++          <WebhookRowData
++            key={webhook.id}
++            webhook={webhook}
++            surveys={surveys}
++            surveyVisibilityEnabled={surveyVisibilityEnabled}
++            isReadOnly={isReadOnly}
++            onDuplicate={() => handleDuplicate(webhook.id)}
++          />
++        ))}
++      </WebhookTable>
++    </PageContentWrapper>
++  );
++};
++
++const WebhooksPage = async (props: Readonly<{ params: Promise<{ workspaceId: string }> }>) => {
++  const params = await props.params;
++  const t = await getTranslate();
++
++  const { isReadOnly, organization, session, workspace } = await getWorkspaceAuth(params.workspaceId);
++
++  const [webhooks, surveys, surveyVisibilityEnabled] = await Promise.all([
++    getWebhooks(workspace.id),
++    getWebhookSurveys(workspace.id, session.user.id, organization.id),
++    isSurveyVisibilityEnforced(),
++  ]);
++
++  return (
++    <WebhooksPageClient
++      workspaceId={workspace.id}
++      initialWebhooks={webhooks}
++      surveys={surveys}
++      isReadOnly={isReadOnly}
++      allowInternalUrls={DANGEROUSLY_ALLOW_WEBHOOK_INTERNAL_URLS}
++      surveyVisibilityEnabled={surveyVisibilityEnabled}
++    />
++  );
++};
+diff --git a/apps/web/locales/en-US.json b/apps/web/locales/en-US.json
+index ae428a24e..82de263b5 100644
+--- a/apps/web/locales/en-US.json
++++ b/apps/web/locales/en-US.json
+@@ -2916,7 +2916,10 @@
+         "webhook_name_placeholder": "Optional: Label your webhook for easy identification",
+         "webhook_test_failed_due_to": "Webhook Test Failed due to",
+         "webhook_updated_successfully": "Webhook updated successfully",
+-        "webhook_url_placeholder": "Paste the URL you want the event to trigger on"
++        "webhook_url_placeholder": "Paste the URL you want the event to trigger on",
++        "duplicate_webhook": "Duplicate Webhook",
++        "webhook_duplicated_successfully": "Webhook duplicated successfully",
++        "copy_of_webhook_name": "Copy of {name}"
+       },
+       "website_or_app_integration_description": "Integrate Formbricks into your Website or App",
+       "zapier_integration_description": "Integrate Formbricks with 5000+ apps via Zapier"
+@@ -5610,4 +5613,4 @@
+       "smileys_description": "Emoji-based satisfaction rating"
+     }
+   }
+-}
++}
+\ No newline at end of file
+diff --git a/apps/web/modules/integrations/webhooks/actions.ts b/apps/web/modules/integrations/webhooks/actions.ts
+index f6795f301..42003c7e7 100644
+--- a/apps/web/modules/integrations/webhooks/actions.ts
++++ b/apps/web/modules/integrations/webhooks/actions.ts
+@@ -160,3 +160,40 @@ export const testEndpointAction = authenticatedActionClient
+     await testEndpoint(parsedInput.url, secret);
+     return { success: true, secret };
+   });
++
++const ZDuplicateWebhookAction = z.object({
++  webhookId: ZId,
++  workspaceId: ZId,
++});
++
++export const duplicateWebhookAction = authenticatedActionClient
++  .inputSchema(ZDuplicateWebhookAction)
++  .action(async ({ ctx, parsedInput }) => {
++    const workspaceId = await getWorkspaceIdFromWebhookId(parsedInput.webhookId);
++    await assertCan({ type: "user", id: ctx.user.id }, "workspace.write", {
++      type: "workspace",
++      id: workspaceId,
++    });
++
++    const webhookResult = await getWebhookWithSecret(parsedInput.webhookId);
++    if (!webhookResult.ok) {
++      throw new ResourceNotFoundError("Webhook", parsedInput.webhookId);
++    }
++
++    const original = webhookResult.data;
++    const organizationId = await getOrganizationIdFromWebhookId(parsedInput.webhookId);
++    await applyRateLimit(rateLimitConfigs.actions.stateMutation, workspaceId);
++
++    const newWebhook = await createWebhook(workspaceId, {
++      name: original.name ? `Copy of ${original.name}` : null,
++      url: original.url,
++      source: original.source,
++      triggers: original.triggers,
++      surveyIds: original.surveyIds,
++    });
++
++    ctx.auditLoggingCtx.organizationId = organizationId;
++    ctx.auditLoggingCtx.newObject = newWebhook;
++
++    return newWebhook;
++  });
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+index d11f09b77..b912c03db 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-row-data.tsx
+@@ -1,5 +1,6 @@
+ "use client";
+ 
++import { DuplicatesIcon } from "lucide-react";
+ import { TFunction } from "i18next";
+ import { useTranslation } from "react-i18next";
+ import { Webhook } from "@formbricks/database/prisma-browser";
+@@ -72,7 +73,15 @@ export const WebhookRowData = ({
+   webhook,
+   surveys,
+   surveyVisibilityEnabled,
+-}: Readonly<{ webhook: Webhook; surveys: TSurvey[]; surveyVisibilityEnabled: boolean }>) => {
++  isReadOnly,
++  onDuplicate,
++}: Readonly<{
++  webhook: Webhook;
++  surveys: TSurvey[];
++  surveyVisibilityEnabled: boolean;
++  isReadOnly: boolean;
++  onDuplicate?: () => void;
++}>) => {
+   const { t, i18n } = useTranslation();
+   const locale = i18n.resolvedLanguage ?? i18n.language ?? "en-US";
+ 
+@@ -95,19 +104,35 @@ export const WebhookRowData = ({
+       <div className="col-span-1 my-auto text-center text-sm text-slate-800">
+         <Badge type="gray" size="tiny" text={webhook.source || t("common.user")} className="capitalize" />
+       </div>
+-      <div className="col-span-4 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
++      <div className="col-span-3 my-auto flex min-w-0 items-center justify-center gap-x-2 text-sm text-slate-800">
+         {renderSelectedSurveysText(webhook, surveys)}
+         {hasRestrictedAttachedSurvey(surveyVisibilityEnabled, webhook.surveyIds, surveys) && (
+           <RestrictedSurveyHint kind="paused" />
+         )}
+       </div>
+-      <div className="col-span-2 my-auto text-center text-sm text-slate-800">
++      <div className="col-span-1 my-auto text-center text-sm text-slate-800">
+         {renderSelectedTriggersText(webhook, t)}
+       </div>
+-      <div className="col-span-2 my-auto text-center text-sm whitespace-nowrap text-slate-500">
++      <div className="col-span-1 my-auto text-center text-sm text-slate-500">
++        {timeSince(webhook.createdAt.toString(), locale)}
++      </div>
++      <div className="col-span-1 my-auto text-center text-sm whitespace-nowrap text-slate-500">
+         {timeSince(webhook.updatedAt.toString(), locale)}
+       </div>
+-      <div className="text-center"></div>
++      <div className="col-span-1 my-auto text-center">
++        {!isReadOnly && onDuplicate && (
++          <button
++            type="button"
++            className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700"
++            onClick={(e) => {
++              e.stopPropagation();
++              onDuplicate();
++            }}>
++            <DuplicatesIcon className="size-4" />
++            {t("workspace.integrations.webhooks.duplicate_webhook")}
++          </button>
++        )}
++      </div>
+     </div>
+   );
+ };
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+index 0c5945508..30151f065 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-table-heading.tsx
+@@ -8,9 +8,10 @@ export const WebhookTableHeading = async () => {
+         <span className="sr-only">{t("common.edit")}</span>
+         <div className="col-span-3 pl-6">{t("common.webhook")}</div>
+         <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.source")}</div>
+-        <div className="col-span-4 text-center">{t("common.surveys")}</div>
+-        <div className="col-span-2 text-center">{t("workspace.integrations.webhooks.triggers")}</div>
+-        <div className="col-span-2 text-center">{t("common.updated")}</div>
++        <div className="col-span-3 text-center">{t("common.surveys")}</div>
++        <div className="col-span-1 text-center">{t("workspace.integrations.webhooks.triggers")}</div>
++        <div className="col-span-1 text-center">{t("common.created")}</div>
++        <div className="col-span-1 text-center">{t("common.updated")}</div>
+       </div>
+     </>
+   );
+diff --git a/apps/web/modules/integrations/webhooks/components/webhook-table.tsx b/apps/web/modules/integrations/webhooks/components/webhook-table.tsx
+index 04cd9866d..65a8bfeb1 100644
+--- a/apps/web/modules/integrations/webhooks/components/webhook-table.tsx
++++ b/apps/web/modules/integrations/webhooks/components/webhook-table.tsx
+@@ -15,6 +15,7 @@ interface WebhookTableProps {
+   isReadOnly: boolean;
+   allowInternalUrls: boolean;
+   surveyVisibilityEnabled: boolean;
++  onDuplicate?: () => void;
+ }
+ 
+ export const WebhookTable = ({
+@@ -25,6 +26,7 @@ export const WebhookTable = ({
+   isReadOnly,
+   allowInternalUrls,
+   surveyVisibilityEnabled,
++  onDuplicate,
+ }: Readonly<WebhookTableProps>) => {
+   const [isWebhookDetailModalOpen, setWebhookDetailModalOpen] = useState(false);
+   const { t } = useTranslation();
