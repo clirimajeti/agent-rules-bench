@@ -8,6 +8,7 @@ import { compare, productionBreaks } from '../bench/compare.mjs';
 import { comparisons, poolComparisons } from '../bench/pool.mjs';
 import { clopperPearson, exactUpper } from '../bench/compare.mjs';
 import * as P6 from '../bench/plan6.mjs';
+import * as P7 from '../bench/plan7.mjs';
 
 const S = (n) => loadStudy(`studies/${n}/study.json`);
 const out = path.resolve('paper/generated');
@@ -37,6 +38,8 @@ macro('NClaudeRuns', claudeRuns.length);
 macro('NClaudeSessions', claudeRuns.length + claudeRuns.filter((r) => r.fixCost > 0 || r.fixUsage).length);
 const localRuns = perStudy.flatMap((s) => s.local);
 macro('NLocalRuns', localRuns.length);
+// totals over every study; the EMSE version adds Plan 7 to them
+const totals = {};
 const sessions = (rs) => rs.length + rs.filter((r) => r.fixCost > 0 || r.fixUsage).length;
 macro('NAllRuns', claudeRuns.length + localRuns.length);
 macro('NAllSessions', sessions(claudeRuns) + sessions(localRuns));
@@ -167,7 +170,11 @@ fs.writeFileSync(path.join(out, 'local.tex'), local.join('\n') + '\n');
   const nPrimary = runsOf(P6.PRIMARY).length, nLocal = runsOf(P6.SECONDARY).length, nLatest = runsOf(P6.EXPLORATORY).length;
   macro('PSixPrimaryRuns', nPrimary); macro('PSixLocalRuns', nLocal); macro('PSixLatestRuns', nLatest);
   macro('PSixRuns', nPrimary + nLocal + nLatest);
-  macro('NTotalRuns', claudeRuns.length + localRuns.length + nPrimary + nLocal + nLatest);
+  totals.runs = claudeRuns.length + localRuns.length + nPrimary + nLocal + nLatest;
+  macro('NTotalRuns', totals.runs);
+  // A run is one task session, plus one review-fix session if it violated a rule.
+  totals.sessions = sessions(claudeRuns) + sessions(localRuns) + sessions(runsOf([...P6.PRIMARY, ...P6.SECONDARY, ...P6.EXPLORATORY]));
+  macro('NTotalSessions', totals.sessions);
   const total = (r) => r.taskCost + r.fixCost;
   const p6Cost = runsOf([...P6.PRIMARY, ...P6.EXPLORATORY]).reduce((a, r) => a + total(r), 0);
   macro('PSixCost', `\\$${p6Cost.toFixed(0)}`);
@@ -279,6 +286,45 @@ fs.writeFileSync(path.join(out, 'local.tex'), local.join('\n') + '\n');
     d1.push(`${PROJ[study.name]} & ${MODEL[m]} & ${p} & ${q} & ${pt} & ${qt} \\\\`);
   }
   fs.writeFileSync(path.join(out, 'plan6-latest.tex'), d1.join('\n') + '\n');
+}
+
+// ---- Plan 7 (registered on OSF): the same calls as bench/plan7.mjs, which writes studies/plan-7-results.md.
+// Its runs are not in the totals above, which the LLM4Code version (main.tex) also uses.
+{
+  const runs = P7.load();
+  const ss = P7.strata(runs, P7.PRIMARY);
+  const sum = (k, s = ss) => s.reduce((a, x) => a + x[k], 0);
+  const frac = (a, b) => `${a}/${b}`;
+  const h16 = exactUpper(ss);
+  const h17 = P6.costRatio(ss), h17task = P6.costRatio(ss, (r) => r.taskCost);
+  const adj = P6.holm({ H16: h16, H17: h17.p });
+  if (adj.H16 > 0.05 || adj.H17 <= 0.05) throw new Error('Plan 7: a hypothesis decision changed; update the text');
+  const ok = runs.filter((r) => r.ok && P7.PRIMARY.includes(r.model));
+  macro('PSevenRuns', ok.length);
+  macro('NTotalRunsEMSE', totals.runs + ok.length);
+  macro('NTotalSessionsEMSE', totals.sessions + sessions(ok));
+  macro('PSevenCost', `\\$${ok.reduce((a, r) => a + r.taskCost + r.fixCost, 0).toFixed(0)}`);
+  macro('HSixteenProse', frac(sum('x1'), sum('n1'))); macro('HSixteenRules', frac(sum('x2'), sum('n2')));
+  macro('HSixteenP', p3(h16)); macro('HSixteenHolm', p3(adj.H16));
+  macro('HSeventeenCost', pct(h17.point)); macro('HSeventeenCI', ci(h17.ci)); macro('HSeventeenP', p3(h17.p)); macro('HSeventeenHolm', p3(adj.H17));
+  macro('HSeventeenTaskCost', pct(h17task.point)); macro('HSeventeenTaskCI', ci(h17task.ci));
+  // deviation D1: only findings of the six study rules count, not linter errors
+  const d1 = P7.strata(runs, P7.PRIMARY, (r) => (r.breaksAfterTaskAt ?? []).some((f) => f.ruleId.startsWith('local/')));
+  macro('PSevenDOneProse', frac(sum('x1', d1), sum('n1', d1))); macro('PSevenDOneP', p3(exactUpper(d1)));
+  const has = (r, id) => (r.breaksAfterTaskAt ?? []).some((f) => f.ruleId === `local/${id}`);
+  for (const [name, id] of [['AsCast', 'no-as-cast'], ['Manager', 'no-manager-in-business-logic'], ['Helpers', 'shared-helpers']]) {
+    macro(`PSeven${name}`, ok.filter((r) => r.arm === 'prose' && has(r, id)).length);
+  }
+  const MODEL = { sonnet: 'Sonnet 5.5', haiku: 'Haiku 5.5' };
+  const total = (r) => r.taskCost + r.fixCost;
+  const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const rules = ok.filter((r) => r.arm === 'rules');
+  macro('PSevenLoopRuns', rules.filter((r) => r.hookCatches > 0).length);
+  macro('PSevenIgnoredRuns', rules.filter((r) => r.ignoredCatches > 0).length);
+  macro('PSevenProseLeft', ok.filter((r) => r.arm === 'prose' && r.breaksFinal > 0).length);
+  macro('PSevenTurnsProse', avg(ok.filter((r) => r.arm === 'prose').map((r) => r.turns)).toFixed(1));
+  macro('PSevenTurnsRules', avg(rules.map((r) => r.turns)).toFixed(1));
+  fs.writeFileSync(path.join(out, 'plan7.tex'), ss.map((s) => `${MODEL[s.model]} & ${s.task} & ${s.x1}/${s.n1} & ${s.x2}/${s.n2} & ${p3(exactUpper([s]))} & ${pct(avg(s.y.map(total)) / avg(s.x.map(total)))} \\\\`).join('\n') + '\n');
 }
 
 fs.writeFileSync(path.join(out, 'macros.tex'), macros.join('\n') + '\n');
