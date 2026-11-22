@@ -8,8 +8,7 @@ set -euo pipefail
 IMAGE="${N8N_IMAGE:-node:24-bookworm}"
 in_container() {
   # pnpm's store lives in the checkout (kept between runs), since each container is removed after its step
-  # GIT_OPTIONAL_LOCKS=0: turbo's git status in the container must not lock the checkout's index (setup's git stash)
-  docker run --rm -v "$BENCH_CHECKOUT":/repo -w /repo -e CI=1 -e GIT_OPTIONAL_LOCKS=0 -e TURBO_TELEMETRY_DISABLED=1 -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 -e npm_config_store_dir=/repo/.pnpm-store \
+  docker run --rm -v "$BENCH_CHECKOUT":/repo -w /repo -e CI=1 -e TURBO_TELEMETRY_DISABLED=1 -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 -e npm_config_store_dir=/repo/.pnpm-store \
     -e NODE_OPTIONS=--max-old-space-size=16384 "$IMAGE" bash -c "corepack enable >/dev/null && $1"
 }
 # the packages this run changed, as "<folder> <package name>" lines
@@ -20,21 +19,21 @@ changed() {
 }
 case "$1" in
   setup)
-    # The run's changes to cli and nodes-base are set aside while the workspace builds (n8n depends on
-    # n8n-nodes-base), so code of the agent's that does not compile fails the typecheck step of that run, not the
-    # setup, whose failure stops the whole verify. They are put back when setup ends.
-    stashed=
-    if [ -n "$(changed)" ]; then
-      (cd "$BENCH_CHECKOUT" && git stash push -q -u -- packages/cli packages/nodes-base) && stashed=1
-    fi
-    trap '[ -z "$stashed" ] || (cd "$BENCH_CHECKOUT" && git stash pop -q)' EXIT
+    # Builds what the changed package needs, with the agent's changes to other packages (api-types, db), but not
+    # the changed package itself: code of the agent's in it that does not compile must fail the typecheck step of
+    # that run, not the setup, whose failure stops the whole verify. n8n (cli) depends on n8n-nodes-base, so a run
+    # that changed nodes-base builds only what nodes-base needs; no run changed both packages.
+    case "$(changed | awk '{print $2}' | tr '\n' ' ')" in
+      "n8n-nodes-base ") filters='--filter="n8n-nodes-base^..."' ;;
+      *) filters='--filter="n8n^..." --filter="n8n-nodes-base^..."' ;;
+    esac
     in_container '
       # always: quick when node_modules is complete, and it repairs anything missing
       pnpm install --frozen-lockfile --ignore-scripts
       # the one native module the build and the cli tests need; only its own install script runs
       # (from the root: a filtered `pnpm --filter n8n rebuild` pruned the other packages)
       node -e "require(require.resolve(\"sqlite3\", { paths: [\"packages/cli\"] }))" 2>/dev/null || pnpm rebuild sqlite3
-      pnpm exec turbo run build --filter="n8n^..." --filter="n8n-nodes-base^..." --output-logs=errors-only' ;;
+      pnpm exec turbo run build '"$filters"' --output-logs=errors-only' ;;
   typecheck)
     changed | while read -r dir name; do echo "typecheck $name"; in_container "pnpm --filter $name typecheck"; done ;;
   # The module folder whose tests verify runs, for each changed file (paths from the package root, on stdin):
