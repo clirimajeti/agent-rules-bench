@@ -8,7 +8,8 @@ set -euo pipefail
 IMAGE="${N8N_IMAGE:-node:24-bookworm}"
 in_container() {
   # pnpm's store lives in the checkout (kept between runs), since each container is removed after its step
-  docker run --rm -v "$BENCH_CHECKOUT":/repo -w /repo -e CI=1 -e TURBO_TELEMETRY_DISABLED=1 -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 -e npm_config_store_dir=/repo/.pnpm-store \
+  # GIT_OPTIONAL_LOCKS=0: turbo's git status in the container must not lock the checkout's index (setup's git stash)
+  docker run --rm -v "$BENCH_CHECKOUT":/repo -w /repo -e CI=1 -e GIT_OPTIONAL_LOCKS=0 -e TURBO_TELEMETRY_DISABLED=1 -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 -e npm_config_store_dir=/repo/.pnpm-store \
     -e NODE_OPTIONS=--max-old-space-size=16384 "$IMAGE" bash -c "corepack enable >/dev/null && $1"
 }
 # the packages this run changed, as "<folder> <package name>" lines
@@ -19,6 +20,14 @@ changed() {
 }
 case "$1" in
   setup)
+    # The run's changes to cli and nodes-base are set aside while the workspace builds (n8n depends on
+    # n8n-nodes-base), so code of the agent's that does not compile fails the typecheck step of that run, not the
+    # setup, whose failure stops the whole verify. They are put back when setup ends.
+    stashed=
+    if [ -n "$(changed)" ]; then
+      (cd "$BENCH_CHECKOUT" && git stash push -q -u -- packages/cli packages/nodes-base) && stashed=1
+    fi
+    trap '[ -z "$stashed" ] || (cd "$BENCH_CHECKOUT" && git stash pop -q)' EXIT
     in_container '
       # always: quick when node_modules is complete, and it repairs anything missing
       pnpm install --frozen-lockfile --ignore-scripts
