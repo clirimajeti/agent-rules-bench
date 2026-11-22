@@ -1,0 +1,97 @@
+diff --git a/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts b/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
+index 4e991f8c34..f1fa7eea82 100644
+--- a/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
++++ b/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
+@@ -20,6 +20,7 @@ import type {
+ import { groupFields, groupOperations } from './descriptions/GroupDescription';
+ import type {
+ 	MemberCreationAdditionalFields,
++	MemberListResponse,
+ 	MemberUpdateFields,
+ } from './descriptions/MemberDescription';
+ import { memberFields, memberOperations } from './descriptions/MemberDescription';
+@@ -494,6 +495,56 @@ export class Bitwarden implements INodeType {
+ 						this.helpers.returnJsonArray(responseData as IDataObject[]),
+ 						{ itemData: { item: i } },
+ 					);
++					returnData.push(...executionData);
++				} else if (operation === 'resendInvitations') {
++					// ----------------------------------
++					//       member: resendInvitations
++					// ----------------------------------
++
++					// The request helper returns `any`, so the annotation types the response.
++					const membersResponse: MemberListResponse = await bitwardenApiRequest.call(
++						this,
++						'GET',
++						'/public/members',
++						{},
++						{},
++					);
++
++					// Status 0 means the member got an invitation but did not accept it.
++					const pendingMembers = (membersResponse.data ?? []).filter(
++						(member) => member.status === 0,
++					);
++
++					if (pendingMembers.length === 0) {
++						throw new NodeOperationError(
++							this.getNode(),
++							'The organization has no members with a pending invitation.',
++							{ itemIndex: i },
++						);
++					}
++
++					const results: IDataObject[] = [];
++
++					for (const member of pendingMembers) {
++						try {
++							await bitwardenApiRequest.call(
++								this,
++								'POST',
++								`/public/members/${member.id}/reinvite`,
++								{},
++								{},
++							);
++							results.push({ email: member.email, success: true });
++						} catch (error) {
++							results.push({ email: member.email, success: false });
++						}
++					}
++
++					const executionData = this.helpers.constructExecutionMetaData(
++						this.helpers.returnJsonArray(results),
++						{ itemData: { item: i } },
++					);
++
+ 					returnData.push(...executionData);
+ 				} else if (operation === 'update') {
+ 					// ----------------------------------
+diff --git a/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts b/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
+index 923140e6b5..bebe9f75a5 100644
+--- a/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
++++ b/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
+@@ -33,6 +33,12 @@ export const memberOperations: INodeProperties[] = [
+ 				value: 'getAll',
+ 				action: 'Get many members',
+ 			},
++			{
++				name: 'Resend Pending Invitations',
++				value: 'resendInvitations',
++				action: 'Resend invitations to all pending members',
++				description: 'Resend the invitation to every member who has not accepted yet',
++			},
+ 			{
+ 				name: 'Update',
+ 				value: 'update',
+@@ -289,6 +295,10 @@ type MemberSchema = {
+ 	externalId: string;
+ };
+ 
++export type MemberListResponse = {
++	data?: Array<{ id: string; email: string; status: number }>;
++};
++
+ export type MemberUpdateFields = Omit<MemberSchema, 'email'>;
+ 
+ export type MemberCreationAdditionalFields = Omit<MemberSchema, 'email'>;

@@ -1,0 +1,245 @@
+diff --git a/packages/@n8n/api-types/src/dto/index.ts b/packages/@n8n/api-types/src/dto/index.ts
+index b68916bdf3..2243099cc3 100644
+--- a/packages/@n8n/api-types/src/dto/index.ts
++++ b/packages/@n8n/api-types/src/dto/index.ts
+@@ -581,6 +581,7 @@ export {
+ 	ListOAuthClientsResponseDto,
+ 	DeleteOAuthClientQueryDto,
+ 	DeleteOAuthClientResponseDto,
++	RevokeOAuthClientTokensResponseDto,
+ 	InstanceMcpClientStatsResponseDto,
+ } from './oauth/oauth-client.dto';
+ export {
+diff --git a/packages/@n8n/api-types/src/dto/oauth/oauth-client.dto.ts b/packages/@n8n/api-types/src/dto/oauth/oauth-client.dto.ts
+index e6a3b4085c..55017e7a56 100644
+--- a/packages/@n8n/api-types/src/dto/oauth/oauth-client.dto.ts
++++ b/packages/@n8n/api-types/src/dto/oauth/oauth-client.dto.ts
+@@ -23,6 +23,8 @@ const oauthClientShape = {
+ 	grantedAt: z.number(),
+ 	/** Scopes granted on the consent screen. */
+ 	scopes: z.array(z.string()),
++	/** Unexpired access tokens the consent owner holds for this client. */
++	activeTokenCount: z.number(),
+ 	/** Consent owner; present only when listing with ownership=all. */
+ 	owner: oauthClientOwnerShape.optional(),
+ };
+@@ -80,6 +82,14 @@ export class DeleteOAuthClientResponseDto extends Z.class({
+ 	message: z.string(),
+ }) {}
+ 
++/**
++ * DTO for revoking all tokens of an OAuth client response
++ */
++export class RevokeOAuthClientTokensResponseDto extends Z.class({
++	success: z.boolean(),
++	message: z.string(),
++}) {}
++
+ /**
+  * DTO for instance-wide MCP OAuth client capacity stats (admin-only)
+  */
+diff --git a/packages/cli/src/modules/oauth-server/database/repositories/oauth-access-token.repository.ts b/packages/cli/src/modules/oauth-server/database/repositories/oauth-access-token.repository.ts
+index 6de2161544..8905fdac0f 100644
+--- a/packages/cli/src/modules/oauth-server/database/repositories/oauth-access-token.repository.ts
++++ b/packages/cli/src/modules/oauth-server/database/repositories/oauth-access-token.repository.ts
+@@ -1,6 +1,6 @@
+ import { BaseRepository, TransactionRunner, type OperationContext } from '@n8n/db';
+ import { Service } from '@n8n/di';
+-import { DataSource } from '@n8n/typeorm';
++import { DataSource, In } from '@n8n/typeorm';
+ 
+ import { AccessToken } from '../entities/oauth-access-token.entity';
+ 
+@@ -20,6 +20,22 @@ export class AccessTokenRepository extends BaseRepository<AccessToken> {
+ 		await this.managerFor(ctx).insert(AccessToken, token);
+ 	}
+ 
++	/** Tokens held by the given clients, for computing per-grant counts. */
++	async findTokensByClientIds(
++		clientIds: string[],
++	): Promise<Array<{ token: string; clientId: string; userId: string }>> {
++		if (clientIds.length === 0) return [];
++		return await this.find({
++			select: { token: true, clientId: true, userId: true },
++			where: { clientId: In(clientIds) },
++		});
++	}
++
++	/** Delete every access token of a client, across all users. */
++	async deleteByClientId(clientId: string): Promise<void> {
++		await this.delete({ clientId });
++	}
++
+ 	/** A token is active while its row exists; revocation deletes the row. */
+ 	async isActive(token: string): Promise<boolean> {
+ 		return await this.existsBy({ token });
+diff --git a/packages/cli/src/modules/oauth-server/database/repositories/oauth-refresh-token.repository.ts b/packages/cli/src/modules/oauth-server/database/repositories/oauth-refresh-token.repository.ts
+index a0540644e2..80cefb8742 100644
+--- a/packages/cli/src/modules/oauth-server/database/repositories/oauth-refresh-token.repository.ts
++++ b/packages/cli/src/modules/oauth-server/database/repositories/oauth-refresh-token.repository.ts
+@@ -42,6 +42,11 @@ export class RefreshTokenRepository extends BaseRepository<RefreshToken> {
+ 		return result.affected ?? 0;
+ 	}
+ 
++	/** Delete every refresh token of a client, across all users. */
++	async deleteByClientId(clientId: string): Promise<void> {
++		await this.delete({ clientId });
++	}
++
+ 	async insertToken(token: NewRefreshToken, ctx: OperationContext): Promise<void> {
+ 		await this.managerFor(ctx).insert(RefreshToken, token);
+ 	}
+diff --git a/packages/cli/src/modules/oauth-server/oauth-clients.controller.ts b/packages/cli/src/modules/oauth-server/oauth-clients.controller.ts
+index 4c8573d221..2d75f001b9 100644
+--- a/packages/cli/src/modules/oauth-server/oauth-clients.controller.ts
++++ b/packages/cli/src/modules/oauth-server/oauth-clients.controller.ts
+@@ -5,10 +5,11 @@ import {
+ 	ListOAuthClientsQueryDto,
+ 	ListOAuthClientsResponseDto,
+ 	OAuthClientResponseDto,
++	RevokeOAuthClientTokensResponseDto,
+ } from '@n8n/api-types';
+ import { Logger } from '@n8n/backend-common';
+ import { AuthenticatedRequest } from '@n8n/db';
+-import { Delete, Get, GlobalScope, Param, Query, RestController } from '@n8n/decorators';
++import { Delete, Get, GlobalScope, Param, Post, Query, RestController } from '@n8n/decorators';
+ import { hasGlobalScope } from '@n8n/permissions';
+ import type { Response } from 'express';
+ 
+@@ -56,6 +57,7 @@ export class OAuthClientsController {
+ 			updatedAt: client.updatedAt.toISOString(),
+ 			grantedAt: client.grantedAt,
+ 			scopes: client.scopes,
++			activeTokenCount: client.activeTokenCount,
+ 			owner: client.owner,
+ 		}));
+ 
+@@ -79,6 +81,34 @@ export class OAuthClientsController {
+ 		return await this.oauthServerService.getInstanceClientStats();
+ 	}
+ 
++	/**
++	 * Revoke all access and refresh tokens of a client for every user, keeping
++	 * the client registration and consents. Admin-only (`mcp:manage`).
++	 */
++	@GlobalScope('mcp:manage')
++	@Post('/:clientId/revoke-tokens')
++	async revokeClientTokens(
++		req: AuthenticatedRequest,
++		_res: Response,
++		@Param('clientId') clientId: string,
++	): Promise<RevokeOAuthClientTokensResponseDto> {
++		this.logger.info('Revoking all tokens of OAuth client', { clientId, userId: req.user.id });
++
++		try {
++			await this.oauthServerService.revokeClientTokens(clientId);
++		} catch (error) {
++			if (error instanceof Error && error.message.includes('not found')) {
++				throw new NotFoundError(`OAuth client with ID ${clientId} not found`);
++			}
++			throw error;
++		}
++
++		return {
++			success: true,
++			message: `All tokens of OAuth client ${clientId} have been revoked`,
++		};
++	}
++
+ 	/**
+ 	 * Revoke a user's grant for an OAuth client (tokens, authorization codes,
+ 	 * consent). Defaults to the caller's own grant; revoking another user's
+diff --git a/packages/cli/src/modules/oauth-server/oauth-server.service.ts b/packages/cli/src/modules/oauth-server/oauth-server.service.ts
+index a750f37773..8eaebbcafe 100644
+--- a/packages/cli/src/modules/oauth-server/oauth-server.service.ts
++++ b/packages/cli/src/modules/oauth-server/oauth-server.service.ts
+@@ -97,6 +97,8 @@ export type ConnectedOAuthClient = Omit<
+ > & {
+ 	grantedAt: number;
+ 	scopes: string[];
++	/** Unexpired access tokens the consent owner holds for this client. */
++	activeTokenCount: number;
+ 	/** Consent owner; present only when listing across users (ownership=all). */
+ 	owner?: ConnectedOAuthClientOwner;
+ };
+@@ -774,6 +776,10 @@ export class OAuthServerService implements OAuthServerProvider {
+ 						take: options.take,
+ 					});
+ 
++		const activeTokenCounts = await this.tokenService.countActiveAccessTokensByGrant([
++			...new Set(consents.map((consent) => consent.clientId)),
++		]);
++
+ 		const clients: ConnectedOAuthClient[] = consents.map((consent) => {
+ 			const { clientSecret, clientSecretExpiresAt, ...sanitizedClient } = consent.client;
+ 			return {
+@@ -781,6 +787,7 @@ export class OAuthServerService implements OAuthServerProvider {
+ 				// bigint columns come back as strings on Postgres
+ 				grantedAt: Number(consent.grantedAt),
+ 				scopes: consent.scope,
++				activeTokenCount: activeTokenCounts.get(`${consent.clientId}:${consent.userId}`) ?? 0,
+ 				...(listAll
+ 					? {
+ 							owner: {
+@@ -811,6 +818,20 @@ export class OAuthServerService implements OAuthServerProvider {
+ 		return { clients, count, totals, owners };
+ 	}
+ 
++	/**
++	 * Revoke every access and refresh token of a client for all users. The
++	 * client registration and the users' consents stay in place.
++	 */
++	async revokeClientTokens(clientId: string): Promise<void> {
++		const exists = await this.oauthClientRepository.existsBy({ id: clientId });
++		if (!exists) {
++			throw new Error(`OAuth client with ID ${clientId} not found`);
++		}
++
++		await this.tokenService.revokeAllTokensForClient(clientId);
++		this.logger.info('Revoked all tokens of OAuth client', { clientId });
++	}
++
+ 	/** Tool names each scope unlocks on this instance, for the clients list UI. */
+ 	async getInstanceScopeTools(): Promise<Record<string, string[]> | undefined> {
+ 		return await this.resourceRegistry.getDefaultResource()?.getScopeTools?.();
+diff --git a/packages/cli/src/modules/oauth-server/oauth-token.service.ts b/packages/cli/src/modules/oauth-server/oauth-token.service.ts
+index b50f385996..20489a1f86 100644
+--- a/packages/cli/src/modules/oauth-server/oauth-token.service.ts
++++ b/packages/cli/src/modules/oauth-server/oauth-token.service.ts
+@@ -379,6 +379,36 @@ export class OAuthTokenService implements OAuthTokenVerifier {
+ 		]);
+ 	}
+ 
++	/** Deletes every access and refresh token of a client, for all users. */
++	async revokeAllTokensForClient(clientId: string): Promise<void> {
++		await Promise.all([
++			this.accessTokenRepository.deleteByClientId(clientId),
++			this.refreshTokenRepository.deleteByClientId(clientId),
++		]);
++	}
++
++	/**
++	 * Counts unexpired access tokens per grant, keyed by `${clientId}:${userId}`.
++	 * Access token rows carry no expiry, so read `exp` from the JWT payload.
++	 * The signature is not checked: this server minted the rows.
++	 */
++	async countActiveAccessTokensByGrant(clientIds: string[]): Promise<Map<string, number>> {
++		const rows = await this.accessTokenRepository.findTokensByClientIds(clientIds);
++		const nowSeconds = Math.floor(Date.now() / 1000);
++		const counts = new Map<string, number>();
++		for (const { token, clientId, userId } of rows) {
++			const payload = this.jwtService.decodeUnverifiedWithHeader(token)?.payload;
++			const exp =
++				payload && typeof payload === 'object' && typeof payload.exp === 'number'
++					? payload.exp
++					: undefined;
++			if (exp === undefined || exp <= nowSeconds) continue;
++			const key = `${clientId}:${userId}`;
++			counts.set(key, (counts.get(key) ?? 0) + 1);
++		}
++		return counts;
++	}
++
+ 	async revokeAccessToken(token: string, clientId: string): Promise<boolean> {
+ 		const result = await this.accessTokenRepository.delete({
+ 			token,

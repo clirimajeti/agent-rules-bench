@@ -1,0 +1,125 @@
+diff --git a/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts b/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
+index 4e991f8c34..135b3fea99 100644
+--- a/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
++++ b/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
+@@ -28,6 +28,7 @@ import {
+ 	getAccessToken,
+ 	handleGetAll as tokenlessHandleGetAll,
+ 	loadResource,
++	resendPendingInvitations,
+ } from './GenericFunctions';
+ 
+ export class Bitwarden implements INodeType {
+@@ -113,6 +114,17 @@ export class Bitwarden implements INodeType {
+ 		const bitwardenApiRequest = partialRight(tokenlessBitwardenApiRequest, token);
+ 		const handleGetAll = partialRight(tokenlessHandleGetAll, token);
+ 
++		// Runs once for the whole node, not once per input item.
++		if (resource === 'member' && operation === 'resendInvitations') {
++			const results = await resendPendingInvitations.call(this, token);
++			const executionData = this.helpers.constructExecutionMetaData(
++				this.helpers.returnJsonArray(results),
++				{ itemData: { item: 0 } },
++			);
++
++			return [executionData];
++		}
++
+ 		for (let i = 0; i < items.length; i++) {
+ 			if (resource === 'collection') {
+ 				// *********************************************************************
+diff --git a/packages/nodes-base/nodes/Bitwarden/GenericFunctions.ts b/packages/nodes-base/nodes/Bitwarden/GenericFunctions.ts
+index db44352885..ae543cc49a 100644
+--- a/packages/nodes-base/nodes/Bitwarden/GenericFunctions.ts
++++ b/packages/nodes-base/nodes/Bitwarden/GenericFunctions.ts
+@@ -7,7 +7,7 @@ import type {
+ 	IRequestOptions,
+ 	JsonObject,
+ } from 'n8n-workflow';
+-import { NodeApiError } from 'n8n-workflow';
++import { NodeApiError, NodeOperationError } from 'n8n-workflow';
+ 
+ /**
+  * Return the access token URL based on the user's environment.
+@@ -144,3 +144,65 @@ export async function loadResource(this: ILoadOptionsFunctions, resource: string
+ 
+ 	return returnData;
+ }
++
++type BitwardenMember = {
++	id: string;
++	email: string;
++	status: number;
++};
++
++/** Member status for a member whose invitation has not been accepted yet. */
++const MEMBER_STATUS_INVITED = 0;
++
++/**
++ * Resend the invitation to every member whose invitation is still pending.
++ * Returns one result per pending member.
++ */
++export async function resendPendingInvitations(
++	this: IExecuteFunctions,
++	token: string,
++): Promise<IDataObject[]> {
++	const response: { data: BitwardenMember[] } = await bitwardenApiRequest.call(
++		this,
++		'GET',
++		'/public/members',
++		{},
++		{},
++		token,
++	);
++
++	const pendingMembers = response.data.filter(
++		(member) => member.status === MEMBER_STATUS_INVITED,
++	);
++
++	if (pendingMembers.length === 0) {
++		throw new NodeOperationError(
++			this.getNode(),
++			'This organization has no members with a pending invitation. Nothing to resend.',
++		);
++	}
++
++	const results: IDataObject[] = [];
++
++	for (const member of pendingMembers) {
++		try {
++			await bitwardenApiRequest.call(
++				this,
++				'POST',
++				`/public/members/${member.id}/reinvite`,
++				{},
++				{},
++				token,
++			);
++			results.push({ email: member.email, success: true });
++		} catch (error) {
++			results.push({
++				email: member.email,
++				success: false,
++				error: error instanceof Error ? error.message : String(error),
++			});
++		}
++	}
++
++	return results;
++}
+diff --git a/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts b/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
+index 923140e6b5..b413e8110e 100644
+--- a/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
++++ b/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
+@@ -33,6 +33,11 @@ export const memberOperations: INodeProperties[] = [
+ 				value: 'getAll',
+ 				action: 'Get many members',
+ 			},
++			{
++				name: 'Resend Invitations',
++				value: 'resendInvitations',
++				action: 'Resend invitations to pending members',
++			},
+ 			{
+ 				name: 'Update',
+ 				value: 'update',

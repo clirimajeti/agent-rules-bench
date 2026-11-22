@@ -1,0 +1,129 @@
+diff --git a/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts b/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
+index 4e991f8c34..308c0008c9 100644
+--- a/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
++++ b/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
+@@ -1,3 +1,4 @@
++import { isRecord } from '@n8n/utils';
+ import isEmpty from 'lodash/isEmpty';
+ import partialRight from 'lodash/partialRight';
+ import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
+@@ -19,6 +20,7 @@ import type {
+ } from './descriptions/GroupDescription';
+ import { groupFields, groupOperations } from './descriptions/GroupDescription';
+ import type {
++	BitwardenMember,
+ 	MemberCreationAdditionalFields,
+ 	MemberUpdateFields,
+ } from './descriptions/MemberDescription';
+@@ -30,6 +32,13 @@ import {
+ 	loadResource,
+ } from './GenericFunctions';
+ 
++// Status code that the Bitwarden API uses for a member with a pending invitation.
++const MEMBER_STATUS_INVITED = 0;
++
++function isMembersResponse(value: unknown): value is { data: BitwardenMember[] } {
++	return isRecord(value) && Array.isArray(value.data);
++}
++
+ export class Bitwarden implements INodeType {
+ 	description: INodeTypeDescription = {
+ 		displayName: 'Bitwarden',
+@@ -495,6 +504,68 @@ export class Bitwarden implements INodeType {
+ 						{ itemData: { item: i } },
+ 					);
+ 					returnData.push(...executionData);
++				} else if (operation === 'resendInvites') {
++					// ----------------------------------
++					//     member: resendInvites
++					// ----------------------------------
++
++					// Input items do not change the result. Run once to avoid duplicate resends.
++					if (i > 0) {
++						continue;
++					}
++
++					const response: unknown = await bitwardenApiRequest.call(
++						this,
++						'GET',
++						'/public/members',
++						{},
++						{},
++					);
++
++					if (!isMembersResponse(response)) {
++						throw new NodeOperationError(
++							this.getNode(),
++							'Unexpected response when fetching organization members.',
++							{ itemIndex: i },
++						);
++					}
++
++					const { data: members } = response;
++
++					const pendingMembers = members.filter(
++						(member) => member.status === MEMBER_STATUS_INVITED,
++					);
++
++					if (pendingMembers.length === 0) {
++						throw new NodeOperationError(
++							this.getNode(),
++							'The organization has no pending members. There are no invitations to resend.',
++							{ itemIndex: i },
++						);
++					}
++
++					for (const member of pendingMembers) {
++						let success = true;
++
++						try {
++							await bitwardenApiRequest.call(
++								this,
++								'POST',
++								`/public/members/${member.id}/reinvite`,
++								{},
++								{},
++							);
++						} catch {
++							// Keep going so that the other members still receive their invitation.
++							success = false;
++						}
++
++						const executionData = this.helpers.constructExecutionMetaData(
++							this.helpers.returnJsonArray({ email: member.email, success }),
++							{ itemData: { item: i } },
++						);
++						returnData.push(...executionData);
++					}
+ 				} else if (operation === 'update') {
+ 					// ----------------------------------
+ 					//       member: update
+diff --git a/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts b/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
+index 923140e6b5..3e36c328a4 100644
+--- a/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
++++ b/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
+@@ -33,6 +33,11 @@ export const memberOperations: INodeProperties[] = [
+ 				value: 'getAll',
+ 				action: 'Get many members',
+ 			},
++			{
++				name: 'Resend Invites',
++				value: 'resendInvites',
++				action: 'Resend invites to pending members',
++			},
+ 			{
+ 				name: 'Update',
+ 				value: 'update',
+@@ -281,6 +286,12 @@ export const memberFields: INodeProperties[] = [
+ 	},
+ ];
+ 
++export type BitwardenMember = {
++	id: string;
++	email: string;
++	status: number;
++};
++
+ type MemberSchema = {
+ 	email: string;
+ 	collections: string[];

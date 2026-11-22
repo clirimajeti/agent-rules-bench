@@ -1,0 +1,91 @@
+diff --git a/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts b/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
+index 4e991f8c34..3a6b20c3fb 100644
+--- a/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
++++ b/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
+@@ -30,6 +30,58 @@ import {
+ 	loadResource,
+ } from './GenericFunctions';
+ 
++// Member status for an invitation that the member has not accepted yet.
++const INVITED_MEMBER_STATUS = 0;
++
++/**
++ * Resend the invitation to every member whose invitation is still pending.
++ * Returns one item per pending member. A failed resend does not stop the others.
++ */
++async function resendPendingMemberInvites(
++	this: IExecuteFunctions,
++	token: string,
++): Promise<INodeExecutionData[]> {
++	const response = await tokenlessBitwardenApiRequest.call(
++		this,
++		'GET',
++		'/public/members',
++		{},
++		{},
++		token,
++	);
++
++	const members: Array<{ id: string; email: string; status: number }> = response.data;
++	const pendingMembers = members.filter((member) => member.status === INVITED_MEMBER_STATUS);
++
++	if (pendingMembers.length === 0) {
++		throw new NodeOperationError(
++			this.getNode(),
++			'The organization has no pending members. There are no invitations to resend.',
++		);
++	}
++
++	const results: IDataObject[] = [];
++
++	for (const member of pendingMembers) {
++		try {
++			await tokenlessBitwardenApiRequest.call(
++				this,
++				'POST',
++				`/public/members/${member.id}/reinvite`,
++				{},
++				{},
++				token,
++			);
++			results.push({ email: member.email, success: true });
++		} catch (error) {
++			const message = error instanceof Error ? error.message : String(error);
++			results.push({ email: member.email, success: false, error: message });
++		}
++	}
++
++	return this.helpers.returnJsonArray(results);
++}
++
+ export class Bitwarden implements INodeType {
+ 	description: INodeTypeDescription = {
+ 		displayName: 'Bitwarden',
+@@ -113,6 +165,11 @@ export class Bitwarden implements INodeType {
+ 		const bitwardenApiRequest = partialRight(tokenlessBitwardenApiRequest, token);
+ 		const handleGetAll = partialRight(tokenlessHandleGetAll, token);
+ 
++		// This operation acts on the whole organization, so it runs once, not per input item.
++		if (resource === 'member' && operation === 'resendInvites') {
++			return [await resendPendingMemberInvites.call(this, token)];
++		}
++
+ 		for (let i = 0; i < items.length; i++) {
+ 			if (resource === 'collection') {
+ 				// *********************************************************************
+diff --git a/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts b/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
+index 923140e6b5..f78a6c4721 100644
+--- a/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
++++ b/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
+@@ -33,6 +33,11 @@ export const memberOperations: INodeProperties[] = [
+ 				value: 'getAll',
+ 				action: 'Get many members',
+ 			},
++			{
++				name: 'Resend Invites',
++				value: 'resendInvites',
++				action: 'Resend invites to pending members',
++			},
+ 			{
+ 				name: 'Update',
+ 				value: 'update',

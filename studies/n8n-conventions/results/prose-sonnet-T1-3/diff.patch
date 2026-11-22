@@ -1,0 +1,188 @@
+diff --git a/packages/@n8n/api-types/src/chat-hub.ts b/packages/@n8n/api-types/src/chat-hub.ts
+index cd9e1b5cca..16143eb85e 100644
+--- a/packages/@n8n/api-types/src/chat-hub.ts
++++ b/packages/@n8n/api-types/src/chat-hub.ts
+@@ -496,6 +496,14 @@ export class ChatHubConversationsRequest extends Z.class({
+ 	type: chatHubSessionTypeSchema.optional(),
+ }) {}
+ 
++export class ChatHubDeleteStaleConversationsRequest extends Z.class({
++	olderThanDays: z.coerce.number().int().min(1),
++}) {}
++
++export interface ChatHubDeleteStaleConversationsResponse {
++	deletedCount: number;
++}
++
+ export interface ChatHubConversationsResponse {
+ 	data: ChatHubSessionDto[];
+ 	nextCursor: string | null;
+diff --git a/packages/@n8n/api-types/src/index.ts b/packages/@n8n/api-types/src/index.ts
+index 11ed99c723..3ec18f2830 100644
+--- a/packages/@n8n/api-types/src/index.ts
++++ b/packages/@n8n/api-types/src/index.ts
+@@ -66,6 +66,8 @@ export {
+ 	ChatHubManualEditMessageRequest,
+ 	ChatHubUpdateConversationRequest,
+ 	ChatHubConversationsRequest,
++	ChatHubDeleteStaleConversationsRequest,
++	type ChatHubDeleteStaleConversationsResponse,
+ 	type ChatMessageId,
+ 	type ChatSessionId,
+ 	type ChatHubMessageDto,
+diff --git a/packages/cli/src/modules/chat-hub/chat-hub.controller.ts b/packages/cli/src/modules/chat-hub/chat-hub.controller.ts
+index 04fc33a1ca..32564ed09a 100644
+--- a/packages/cli/src/modules/chat-hub/chat-hub.controller.ts
++++ b/packages/cli/src/modules/chat-hub/chat-hub.controller.ts
+@@ -16,6 +16,8 @@ import {
+ 	ChatHubCreateToolRequest,
+ 	ChatHubUpdateToolRequest,
+ 	ChatHubConversationsRequest,
++	ChatHubDeleteStaleConversationsRequest,
++	type ChatHubDeleteStaleConversationsResponse,
+ 	ViewableMimeTypes,
+ 	type ChatSendMessageResponse,
+ 	type ChatReconnectResponse,
+@@ -382,6 +384,21 @@ export class ChatHubController {
+ 		return await this.chatService.getConversation(req.user.id, sessionId);
+ 	}
+ 
++	@Delete('/conversations')
++	@GlobalScope('chatHub:message')
++	async deleteStaleConversations(
++		req: AuthenticatedRequest,
++		_res: Response,
++		@Query query: ChatHubDeleteStaleConversationsRequest,
++	): Promise<ChatHubDeleteStaleConversationsResponse> {
++		const deletedCount = await this.chatService.deleteStaleSessions(
++			req.user.id,
++			query.olderThanDays,
++		);
++
++		return { deletedCount };
++	}
++
+ 	@Delete('/conversations/:sessionId')
+ 	@GlobalScope('chatHub:message')
+ 	async deleteConversation(
+diff --git a/packages/cli/src/modules/chat-hub/chat-hub.service.ts b/packages/cli/src/modules/chat-hub/chat-hub.service.ts
+index 93bf9df951..c82f178de3 100644
+--- a/packages/cli/src/modules/chat-hub/chat-hub.service.ts
++++ b/packages/cli/src/modules/chat-hub/chat-hub.service.ts
+@@ -13,7 +13,7 @@ import {
+ import { Logger } from '@n8n/backend-common';
+ import { parseMessage } from '@n8n/chat-hub';
+ import { GlobalConfig } from '@n8n/config';
+-import { User } from '@n8n/db';
++import { TransactionRunner, User } from '@n8n/db';
+ import type { EntityManager } from '@n8n/db';
+ import { Service } from '@n8n/di';
+ import { ErrorReporter } from 'n8n-core';
+@@ -70,6 +70,7 @@ export class ChatHubService {
+ 		private readonly chatHubWorkflowService: ChatHubWorkflowService,
+ 		private readonly globalConfig: GlobalConfig,
+ 		private readonly executionManager: ChatExecutionManager,
++		private readonly txRunner: TransactionRunner,
+ 	) {
+ 		this.logger = this.logger.scoped('chat-hub');
+ 	}
+@@ -399,6 +400,31 @@ export class ChatHubService {
+ 		});
+ 	}
+ 
++	/**
++	 * Deletes the user's sessions whose last message is older than the given number of days.
++	 * Returns the number of deleted sessions.
++	 */
++	async deleteStaleSessions(userId: string, olderThanDays: number): Promise<number> {
++		const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
++
++		const { count, attachments } = await this.txRunner.run({}, async (ctx) => {
++			const sessionIds = await this.sessionRepository.getIdsByUserIdLastMessageBefore(
++				userId,
++				cutoff,
++				ctx,
++			);
++			const attachments = await this.messageRepository.getAttachmentsBySessionIds(sessionIds, ctx);
++			await this.sessionRepository.deleteByIds(sessionIds, ctx);
++
++			return { count: sessionIds.length, attachments };
++		});
++
++		// File deletion cannot be rolled back, so it runs after the commit.
++		await this.chatHubAttachmentService.deleteAttachments(attachments);
++
++		return count;
++	}
++
+ 	private async ensureValidModel(
+ 		user: User,
+ 		model: ChatHubConversationModel,
+diff --git a/packages/cli/src/modules/chat-hub/chat-message.repository.ts b/packages/cli/src/modules/chat-hub/chat-message.repository.ts
+index fb368fb2e4..7ca838f14d 100644
+--- a/packages/cli/src/modules/chat-hub/chat-message.repository.ts
++++ b/packages/cli/src/modules/chat-hub/chat-message.repository.ts
+@@ -5,8 +5,9 @@ import type {
+ 	ChatSessionId,
+ } from '@n8n/api-types';
+ import { BaseRepository, TransactionRunner, User, withTransaction } from '@n8n/db';
++import type { OperationContext } from '@n8n/db';
+ import { Service } from '@n8n/di';
+-import { DataSource, EntityManager } from '@n8n/typeorm';
++import { DataSource, EntityManager, In } from '@n8n/typeorm';
+ import { QueryDeepPartialEntity } from '@n8n/typeorm/query-builder/QueryPartialEntity';
+ import { UnexpectedError, type IBinaryData } from 'n8n-workflow';
+ 
+@@ -129,6 +130,18 @@ export class ChatHubMessageRepository extends BaseRepository<ChatHubMessage> {
+ 		});
+ 	}
+ 
++	async getAttachmentsBySessionIds(
++		sessionIds: ChatSessionId[],
++		ctx: OperationContext,
++	): Promise<IBinaryData[]> {
++		if (sessionIds.length === 0) return [];
++		const messages = await this.managerFor(ctx).find(ChatHubMessage, {
++			where: { sessionId: In(sessionIds) },
++			select: ['id', 'attachments'],
++		});
++		return messages.flatMap((message) => message.attachments ?? []);
++	}
++
+ 	async getOneById(
+ 		id: ChatMessageId,
+ 		sessionId: ChatSessionId,
+diff --git a/packages/cli/src/modules/chat-hub/chat-session.repository.ts b/packages/cli/src/modules/chat-hub/chat-session.repository.ts
+index f007f81594..5652d62084 100644
+--- a/packages/cli/src/modules/chat-hub/chat-session.repository.ts
++++ b/packages/cli/src/modules/chat-hub/chat-session.repository.ts
+@@ -1,6 +1,7 @@
+ import { BaseRepository, TransactionRunner } from '@n8n/db';
++import type { OperationContext } from '@n8n/db';
+ import { Service } from '@n8n/di';
+-import { DataSource, EntityManager } from '@n8n/typeorm';
++import { DataSource, EntityManager, In, LessThan } from '@n8n/typeorm';
+ 
+ import { NotFoundError } from '@n8n/errors';
+ 
+@@ -89,6 +90,20 @@ export class ChatHubSessionRepository extends BaseRepository<ChatHubSession> {
+ 		});
+ 	}
+ 
++	async getIdsByUserIdLastMessageBefore(userId: string, cutoff: Date, ctx: OperationContext) {
++		const sessions = await this.managerFor(ctx).find(ChatHubSession, {
++			where: { ownerId: userId, lastMessageAt: LessThan(cutoff) },
++			select: ['id'],
++		});
++		return sessions.map((session) => session.id);
++	}
++
++	/** Deletes the sessions. The database cascade deletes their messages. */
++	async deleteByIds(ids: string[], ctx: OperationContext) {
++		if (ids.length === 0) return;
++		await this.managerFor(ctx).delete(ChatHubSession, { id: In(ids) });
++	}
++
+ 	async deleteAll(trx?: EntityManager) {
+ 		const em = trx ?? this.manager;
+ 		return await em.createQueryBuilder().delete().from(ChatHubSession).execute();

@@ -1,0 +1,91 @@
+diff --git a/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts b/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
+index 4e991f8c34..42b792e875 100644
+--- a/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
++++ b/packages/nodes-base/nodes/Bitwarden/Bitwarden.node.ts
+@@ -30,6 +30,15 @@ import {
+ 	loadResource,
+ } from './GenericFunctions';
+ 
++// Member status value for an invitation the user has not accepted yet.
++const MEMBER_STATUS_INVITED = 0;
++
++interface BitwardenMember {
++	id: string;
++	email: string;
++	status: number;
++}
++
+ export class Bitwarden implements INodeType {
+ 	description: INodeTypeDescription = {
+ 		displayName: 'Bitwarden',
+@@ -113,6 +122,54 @@ export class Bitwarden implements INodeType {
+ 		const bitwardenApiRequest = partialRight(tokenlessBitwardenApiRequest, token);
+ 		const handleGetAll = partialRight(tokenlessHandleGetAll, token);
+ 
++		if (resource === 'member' && operation === 'reinvite') {
++			// ----------------------------------
++			//     member: reinvite
++			// ----------------------------------
++
++			// This operation applies to the whole organization, so run it once for all input items.
++			const membersResponse: { data: BitwardenMember[] } = await bitwardenApiRequest.call(
++				this,
++				'GET',
++				'/public/members',
++				{},
++				{},
++			);
++
++			const pendingMembers = membersResponse.data.filter(
++				(member) => member.status === MEMBER_STATUS_INVITED,
++			);
++
++			if (pendingMembers.length === 0) {
++				throw new NodeOperationError(
++					this.getNode(),
++					'The organization has no pending members. There are no invitations to resend.',
++				);
++			}
++
++			const results: IDataObject[] = [];
++
++			for (const member of pendingMembers) {
++				let success = true;
++
++				try {
++					await bitwardenApiRequest.call(
++						this,
++						'POST',
++						`/public/members/${member.id}/reinvite`,
++						{},
++						{},
++					);
++				} catch {
++					success = false;
++				}
++
++				results.push({ email: member.email, success });
++			}
++
++			return [this.helpers.returnJsonArray(results)];
++		}
++
+ 		for (let i = 0; i < items.length; i++) {
+ 			if (resource === 'collection') {
+ 				// *********************************************************************
+diff --git a/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts b/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
+index 923140e6b5..aebf835d8d 100644
+--- a/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
++++ b/packages/nodes-base/nodes/Bitwarden/descriptions/MemberDescription.ts
+@@ -33,6 +33,11 @@ export const memberOperations: INodeProperties[] = [
+ 				value: 'getAll',
+ 				action: 'Get many members',
+ 			},
++			{
++				name: 'Resend Invitations',
++				value: 'reinvite',
++				action: 'Resend invitations to pending members',
++			},
+ 			{
+ 				name: 'Update',
+ 				value: 'update',
