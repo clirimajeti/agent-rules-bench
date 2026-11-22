@@ -1,6 +1,6 @@
 # n8n-conventions
 
-Plan 7 (draft, not registered).
+Plan 7, [plan-7.md](../plan-7.md) (final; registered on OSF on 2026-11-22 before any real run: https://osf.io/6v8yx, embargoed).
 Design: [docs/superpowers/specs/2026-11-21-plan-7-n8n-design.md](../../docs/superpowers/specs/2026-11-21-plan-7-n8n-design.md).
 
 n8n's own written rules, in its own instruction files, against the same rules as lint rules with the feedback loop.
