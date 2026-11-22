@@ -27,14 +27,22 @@ case "$1" in
       "n8n-nodes-base ") filters='--filter="n8n-nodes-base^..."' ;;
       *) filters='--filter="n8n^..." --filter="n8n-nodes-base^..."' ;;
     esac
+    rm -f "$BENCH_CHECKOUT/.verify-build-failed"
     in_container '
       # always: quick when node_modules is complete, and it repairs anything missing
       pnpm install --frozen-lockfile --ignore-scripts
       # the one native module the build and the cli tests need; only its own install script runs
       # (from the root: a filtered `pnpm --filter n8n rebuild` pruned the other packages)
-      node -e "require(require.resolve(\"sqlite3\", { paths: [\"packages/cli\"] }))" 2>/dev/null || pnpm rebuild sqlite3
-      pnpm exec turbo run build '"$filters"' --output-logs=errors-only' ;;
+      node -e "require(require.resolve(\"sqlite3\", { paths: [\"packages/cli\"] }))" 2>/dev/null || pnpm rebuild sqlite3'
+    # A build failure in a run that changed other built packages (T1, T2: api-types, db) is the agent's code that
+    # does not compile: it fails the typecheck step of that run. Any other build failure stops the verify, as before.
+    in_container 'pnpm exec turbo run build '"$filters"' --output-logs=errors-only' && exit 0
+    other=$(cd "$BENCH_CHECKOUT" && { git diff --name-only HEAD; git ls-files --others --exclude-standard; } | grep -E '^packages/' | grep -vE '^packages/(cli|nodes-base)/' || true)
+    [ -n "$other" ] || exit 1
+    printf 'the build of the packages that %s needs failed; the run changed:\n%s\n' "$(changed | awk '{print $2}' | tr '\n' ' ')" "$other" > "$BENCH_CHECKOUT/.verify-build-failed"
+    echo "build failed in a package the run changed; the typecheck step fails" ;;
   typecheck)
+    if [ -f "$BENCH_CHECKOUT/.verify-build-failed" ]; then cat "$BENCH_CHECKOUT/.verify-build-failed"; exit 1; fi
     changed | while read -r dir name; do echo "typecheck $name"; in_container "pnpm --filter $name typecheck"; done ;;
   # The module folder whose tests verify runs, for each changed file (paths from the package root, on stdin):
   # cli: src/modules/<module>, nodes-base: nodes/<node>, any other file: its own folder.

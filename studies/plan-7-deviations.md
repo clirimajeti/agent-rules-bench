@@ -25,6 +25,15 @@ That file stays as registered; every change is listed here, with its date, its r
 - Two earlier attempts were dropped: leaving nodes-base out of the build filter (turbo still built it, as a dependency of another package), and setting the run's cli and nodes-base changes aside with `git stash` (twice, in `prose-haiku-T4-5` and `prose-sonnet-T3-8`, the stash could not be put back because of a git index lock in the checkout that the container mounts, and verify stopped).
   The runs verified with either version passed setup and are not verified again: setup prepares the environment, and the type check and tests saw the same code.
 
+## D3 (2026-11-22): a build failure in a package that the run changed fails the run's typecheck
+
+- Found: during verify, after 75 of 128 runs, before any hand label.
+- What: setup builds the agent's changes to other packages (D2).
+  In `rules-haiku-T2-4` the agent's migration in `@n8n/db` does not compile (`Expected 3 arguments, but got 2`), setup failed, and the harness stopped the whole verify.
+- Decision: when the build fails and the run changed a package outside cli and nodes-base, setup records it and the typecheck step of that run fails (`verify.sh`); the tests are then skipped, as for every typecheck failure.
+  A build failure in a run that changed no other package still stops the verify, so a failure of the environment is not counted against a run.
+- No run verified before this change had a setup failure, so none is verified again.
+
 ## Verify of the pilot
 
 The pilot verify (not analysed) was stopped after the first four runs, one per task, when the plan was registered; all four passed the type check and the tests.
