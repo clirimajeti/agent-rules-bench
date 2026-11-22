@@ -6,31 +6,115 @@
     "commit": "c08ba2dd33b2955577971e0e210c77c66ca7bd7e"
   },
   "tasks": [
-    { "id": "T1", "prompt": "In packages/cli, in the chat hub, add an endpoint that deletes the current user's conversations whose last message is older than a given number of days (at least 1), together with their messages, and returns how many conversations it deleted. Do not run tests, lint or the app." },
-    { "id": "T2", "prompt": "In packages/cli, in the admin API for OAuth clients, show for each client in the list how many of its access tokens are still valid, and add an endpoint that revokes all access and refresh tokens of one client without deleting the client. Do not run tests, lint or the app." },
-    { "id": "T3", "prompt": "In packages/nodes-base, in the KoBoToolbox node, add a Submission operation that sets the validation status of many submissions of a form at once. The user gives the submission IDs as a comma-separated list; reject an empty list or an ID that is not a number, and return one item per submission that says whether it was updated. Do not run tests, lint or the app." },
-    { "id": "T4", "prompt": "In packages/nodes-base, in the Bitwarden node, add a Member operation that resends the invitation to every member whose invitation is still pending, and returns one item per member with the member's email and whether the resend worked. Stop with a clear message if the organization has no pending members. Do not run tests, lint or the app." }
+    {
+      "id": "T1",
+      "prompt": "In packages/cli, in the chat hub, add an endpoint that deletes the current user's conversations whose last message is older than a given number of days (at least 1), together with their messages, and returns how many conversations it deleted. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T2",
+      "prompt": "In packages/cli, in the admin API for OAuth clients, show for each client in the list how many of its access tokens are still valid, and add an endpoint that revokes all access and refresh tokens of one client without deleting the client. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T3",
+      "prompt": "In packages/nodes-base, in the KoBoToolbox node, add a Submission operation that sets the validation status of many submissions of a form at once. The user gives the submission IDs as a comma-separated list; reject an empty list or an ID that is not a number, and return one item per submission that says whether it was updated. Do not run tests, lint or the app."
+    },
+    {
+      "id": "T4",
+      "prompt": "In packages/nodes-base, in the Bitwarden node, add a Member operation that resends the invitation to every member whose invitation is still pending, and returns one item per member with the member's email and whether the resend worked. Stop with a clear message if the organization has no pending members. Do not run tests, lint or the app."
+    }
   ],
   "arms": [
-    { "id": "prose", "setup": "arms/prose.sh", "fix": true },
-    { "id": "rules", "setup": "arms/rules.sh", "fix": true }
+    {
+      "id": "prose",
+      "setup": "arms/prose.sh",
+      "fix": true
+    },
+    {
+      "id": "rules",
+      "setup": "arms/rules.sh",
+      "fix": true
+    }
   ],
   "baselineArm": "prose",
-  "models": ["sonnet", "haiku"],
+  "models": [
+    "sonnet",
+    "haiku"
+  ],
   "repeats": 8,
   "maxTurns": 60,
   "seed": 20261122,
-  "designRules": ["local/repositories-compose", "local/no-manager-in-business-logic"],
+  "designRules": [
+    "local/repositories-compose",
+    "local/no-manager-in-business-logic"
+  ],
   "eval": [
     {
       "name": "eslint",
       "format": "eslint",
-      "command": ["node", "{study}/node_modules/eslint/bin/eslint.js", "-c", "{study}/eslint.config.mjs", "--no-inline-config", "--no-warn-ignored", "--format", "json", "{files}"],
-      "extensions": [".ts", ".vue"]
+      "command": [
+        "node",
+        "{study}/node_modules/eslint/bin/eslint.js",
+        "-c",
+        "{study}/eslint.config.mjs",
+        "--no-inline-config",
+        "--no-warn-ignored",
+        "--format",
+        "json",
+        "{files}"
+      ],
+      "extensions": [
+        ".ts",
+        ".vue"
+      ]
     }
   ],
   "fix": {
     "prompt": "Code review feedback on your uncommitted change: it breaks these project rules.\n{broken}\nFix the new code accordingly. Do not run tests, lint or the app.",
     "ruleText": "plugin/conventions.mjs"
+  },
+  "verify": {
+    "testFiles": [
+      "*.test.ts",
+      "*/__tests__/*",
+      "*/__mocks__/*",
+      "*/test/*"
+    ],
+    "keep": [
+      "node_modules",
+      ".pnpm-store",
+      ".turbo",
+      "dist"
+    ],
+    "steps": [
+      {
+        "name": "setup",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "setup"
+        ],
+        "setup": true,
+        "timeoutSec": 2400
+      },
+      {
+        "name": "typecheck",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "typecheck"
+        ],
+        "timeoutSec": 1800
+      },
+      {
+        "name": "tests",
+        "retries": 2,
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "tests"
+        ],
+        "timeoutSec": 2400
+      }
+    ]
   }
 }

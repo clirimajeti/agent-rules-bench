@@ -71,5 +71,50 @@
   "fix": {
     "prompt": "Code review feedback on your uncommitted change: it breaks these project rules.\n{broken}\nFix the new code accordingly. Do not run tests, lint or the app.",
     "ruleText": "plugin/conventions.mjs"
+  },
+  "verify": {
+    "testFiles": [
+      "*.test.ts",
+      "*/__tests__/*",
+      "*/__mocks__/*",
+      "*/test/*"
+    ],
+    "keep": [
+      "node_modules",
+      ".pnpm-store",
+      ".turbo",
+      "dist"
+    ],
+    "steps": [
+      {
+        "name": "setup",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "setup"
+        ],
+        "setup": true,
+        "timeoutSec": 2400
+      },
+      {
+        "name": "typecheck",
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "typecheck"
+        ],
+        "timeoutSec": 1800
+      },
+      {
+        "name": "tests",
+        "retries": 2,
+        "command": [
+          "bash",
+          "{study}/verify.sh",
+          "tests"
+        ],
+        "timeoutSec": 2400
+      }
+    ]
   }
 }
