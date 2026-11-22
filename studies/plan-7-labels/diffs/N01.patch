@@ -1,0 +1,213 @@
+diff --git a/packages/@n8n/api-types/src/chat-hub.ts b/packages/@n8n/api-types/src/chat-hub.ts
+index cd9e1b5cca..4f03cf4844 100644
+--- a/packages/@n8n/api-types/src/chat-hub.ts
++++ b/packages/@n8n/api-types/src/chat-hub.ts
+@@ -502,6 +502,14 @@ export interface ChatHubConversationsResponse {
+ 	hasMore: boolean;
+ }
+ 
++export class ChatHubDeleteOldConversationsRequest extends Z.class({
++	olderThanDays: z.coerce.number().int().min(1),
++}) {}
++
++export interface ChatHubDeleteOldConversationsResponse {
++	deleted: number;
++}
++
+ export interface ChatHubConversationDto {
+ 	messages: Record<ChatMessageId, ChatHubMessageDto>;
+ }
+diff --git a/packages/@n8n/api-types/src/index.ts b/packages/@n8n/api-types/src/index.ts
+index 11ed99c723..788ac040dc 100644
+--- a/packages/@n8n/api-types/src/index.ts
++++ b/packages/@n8n/api-types/src/index.ts
+@@ -66,6 +66,8 @@ export {
+ 	ChatHubManualEditMessageRequest,
+ 	ChatHubUpdateConversationRequest,
+ 	ChatHubConversationsRequest,
++	ChatHubDeleteOldConversationsRequest,
++	type ChatHubDeleteOldConversationsResponse,
+ 	type ChatMessageId,
+ 	type ChatSessionId,
+ 	type ChatHubMessageDto,
+diff --git a/packages/cli/src/modules/chat-hub/chat-hub.attachment.service.ts b/packages/cli/src/modules/chat-hub/chat-hub.attachment.service.ts
+index ea8a22db6c..fd61c423ac 100644
+--- a/packages/cli/src/modules/chat-hub/chat-hub.attachment.service.ts
++++ b/packages/cli/src/modules/chat-hub/chat-hub.attachment.service.ts
+@@ -131,6 +131,18 @@ export class ChatHubAttachmentService {
+ 		await this.deleteAttachments(messages.flatMap((message) => message.attachments ?? []));
+ 	}
+ 
++	/**
++	 * Deletes all files attached to messages in the given sessions
++	 */
++	async deleteAllBySessionIds(sessionIds: string[], trx?: EntityManager): Promise<void> {
++		const messages = await this.messageRepository.getManyWithAttachmentsBySessionIds(
++			sessionIds,
++			trx,
++		);
++		// Attachment deletion cannot be rolled back, and the transaction doesn't cover it.
++		await this.deleteAttachments(messages.flatMap((message) => message.attachments ?? []));
++	}
++
+ 	/**
+ 	 * Deletes all chat attachment files.
+ 	 */
+diff --git a/packages/cli/src/modules/chat-hub/chat-hub.controller.ts b/packages/cli/src/modules/chat-hub/chat-hub.controller.ts
+index 04fc33a1ca..6c469120dc 100644
+--- a/packages/cli/src/modules/chat-hub/chat-hub.controller.ts
++++ b/packages/cli/src/modules/chat-hub/chat-hub.controller.ts
+@@ -16,6 +16,8 @@ import {
+ 	ChatHubCreateToolRequest,
+ 	ChatHubUpdateToolRequest,
+ 	ChatHubConversationsRequest,
++	ChatHubDeleteOldConversationsRequest,
++	type ChatHubDeleteOldConversationsResponse,
+ 	ViewableMimeTypes,
+ 	type ChatSendMessageResponse,
+ 	type ChatReconnectResponse,
+@@ -394,6 +396,24 @@ export class ChatHubController {
+ 		res.status(204).send();
+ 	}
+ 
++	/**
++	 * Deletes the current user's conversations whose last message is older than `olderThanDays`.
++	 */
++	@Delete('/conversations')
++	@GlobalScope('chatHub:message')
++	async deleteOldConversations(
++		req: AuthenticatedRequest,
++		_res: Response,
++		@Query query: ChatHubDeleteOldConversationsRequest,
++	): Promise<ChatHubDeleteOldConversationsResponse> {
++		const deleted = await this.chatService.deleteConversationsOlderThan(
++			req.user.id,
++			query.olderThanDays,
++		);
++
++		return { deleted };
++	}
++
+ 	@Get('/tools')
+ 	@GlobalScope('chatHub:message')
+ 	async getTools(req: AuthenticatedRequest) {
+diff --git a/packages/cli/src/modules/chat-hub/chat-hub.service.ts b/packages/cli/src/modules/chat-hub/chat-hub.service.ts
+index 93bf9df951..e65ec6b145 100644
+--- a/packages/cli/src/modules/chat-hub/chat-hub.service.ts
++++ b/packages/cli/src/modules/chat-hub/chat-hub.service.ts
+@@ -51,6 +51,11 @@ import { ChatHubMessageRepository } from './chat-message.repository';
+ import { ChatHubSessionRepository } from './chat-session.repository';
+ import { ChatStreamService } from './chat-stream.service';
+ 
++const MS_PER_DAY = 24 * 60 * 60 * 1000;
++
++/** Sessions per delete batch. Keeps each SQL `IN` list under the driver's bind-parameter limit. */
++const DELETE_BATCH_SIZE = 500;
++
+ @Service()
+ export class ChatHubService {
+ 	constructor(
+@@ -399,6 +404,27 @@ export class ChatHubService {
+ 		});
+ 	}
+ 
++	/**
++	 * Deletes the user's conversations whose last message is older than the given number of days.
++	 * Returns the number of conversations deleted.
++	 */
++	async deleteConversationsOlderThan(userId: string, days: number): Promise<number> {
++		const before = new Date(Date.now() - days * MS_PER_DAY);
++
++		return await this.sessionRepository.runInTransaction({}, async (trx) => {
++			const sessionIds = await this.sessionRepository.getIdsByOwnerIdleSince(userId, before, trx);
++
++			let deleted = 0;
++			for (let start = 0; start < sessionIds.length; start += DELETE_BATCH_SIZE) {
++				const batch = sessionIds.slice(start, start + DELETE_BATCH_SIZE);
++				await this.chatHubAttachmentService.deleteAllBySessionIds(batch, trx);
++				deleted += await this.sessionRepository.deleteChatHubSessions(batch, trx);
++			}
++
++			return deleted;
++		});
++	}
++
+ 	private async ensureValidModel(
+ 		user: User,
+ 		model: ChatHubConversationModel,
+diff --git a/packages/cli/src/modules/chat-hub/chat-message.repository.ts b/packages/cli/src/modules/chat-hub/chat-message.repository.ts
+index fb368fb2e4..17a2b47e76 100644
+--- a/packages/cli/src/modules/chat-hub/chat-message.repository.ts
++++ b/packages/cli/src/modules/chat-hub/chat-message.repository.ts
+@@ -6,7 +6,7 @@ import type {
+ } from '@n8n/api-types';
+ import { BaseRepository, TransactionRunner, User, withTransaction } from '@n8n/db';
+ import { Service } from '@n8n/di';
+-import { DataSource, EntityManager } from '@n8n/typeorm';
++import { DataSource, EntityManager, In, IsNull, Not } from '@n8n/typeorm';
+ import { QueryDeepPartialEntity } from '@n8n/typeorm/query-builder/QueryPartialEntity';
+ import { UnexpectedError, type IBinaryData } from 'n8n-workflow';
+ 
+@@ -129,6 +129,17 @@ export class ChatHubMessageRepository extends BaseRepository<ChatHubMessage> {
+ 		});
+ 	}
+ 
++	/**
++	 * Returns the messages of the given sessions that have attachments. Only `attachments` is loaded.
++	 */
++	async getManyWithAttachmentsBySessionIds(sessionIds: string[], trx?: EntityManager) {
++		const em = trx ?? this.manager;
++		return await em.find(ChatHubMessage, {
++			select: { attachments: true },
++			where: { sessionId: In(sessionIds), attachments: Not(IsNull()) },
++		});
++	}
++
+ 	async getOneById(
+ 		id: ChatMessageId,
+ 		sessionId: ChatSessionId,
+diff --git a/packages/cli/src/modules/chat-hub/chat-session.repository.ts b/packages/cli/src/modules/chat-hub/chat-session.repository.ts
+index f007f81594..ce6740420f 100644
+--- a/packages/cli/src/modules/chat-hub/chat-session.repository.ts
++++ b/packages/cli/src/modules/chat-hub/chat-session.repository.ts
+@@ -1,6 +1,6 @@
+ import { BaseRepository, TransactionRunner } from '@n8n/db';
+ import { Service } from '@n8n/di';
+-import { DataSource, EntityManager } from '@n8n/typeorm';
++import { DataSource, EntityManager, In, LessThan } from '@n8n/typeorm';
+ 
+ import { NotFoundError } from '@n8n/errors';
+ 
+@@ -34,6 +34,32 @@ export class ChatHubSessionRepository extends BaseRepository<ChatHubSession> {
+ 		return await em.delete(ChatHubSession, { id });
+ 	}
+ 
++	/**
++	 * Deletes the given sessions. Their messages are removed by the foreign key cascade.
++	 * Returns the number of sessions deleted.
++	 */
++	async deleteChatHubSessions(ids: string[], trx?: EntityManager): Promise<number> {
++		const em = trx ?? this.manager;
++		const result = await em.delete(ChatHubSession, { id: In(ids) });
++		return result.affected ?? 0;
++	}
++
++	/**
++	 * Returns the IDs of the user's sessions whose last message is before the given date.
++	 */
++	async getIdsByOwnerIdleSince(
++		userId: string,
++		before: Date,
++		trx?: EntityManager,
++	): Promise<string[]> {
++		const em = trx ?? this.manager;
++		const sessions = await em.find(ChatHubSession, {
++			select: { id: true },
++			where: { ownerId: userId, lastMessageAt: LessThan(before) },
++		});
++		return sessions.map((session) => session.id);
++	}
++
+ 	async getManyByUserId(userId: string, limit: number, cursor?: string, type?: string) {
+ 		const queryBuilder = this.createQueryBuilder('session')
+ 			.leftJoinAndSelect('session.agent', 'agent')

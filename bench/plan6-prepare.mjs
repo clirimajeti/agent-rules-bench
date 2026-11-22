@@ -18,7 +18,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { rng } from './pool.mjs';
-import { EXPLORATORY, KEY_PATHS, LABELS, PRIMARY, SECONDARY, SEED, csvRow, loadAll } from './plan6.mjs';
+import { EXPLORATORY, KEY_PATHS, LABELS as LABELS_6, PRIMARY, SECONDARY, SEED as SEED_6, csvRow, loadAll } from './plan6.mjs';
 
 const SAMPLE = 40;
 const TRANSCRIPT_ROOTS = [path.join(os.homedir(), '.claude', 'projects'), path.join(os.homedir(), '.cache', 'agent-rules-bench', 'transcripts')];
@@ -144,18 +144,17 @@ function loopSnippet(f, calls, afterLines) {
   return { source: 'not recoverable', code: '' };
 }
 
-export async function prepare({ force = false } = {}) {
-  const keyFile = KEY_PATHS[1];
-  if (!force && (fs.existsSync(path.join(LABELS, 'findings.csv')) || KEY_PATHS.some((p) => fs.existsSync(p)))) throw new Error('label sheets or key exist already; --force overwrites them (and any labels in them)');
-  const all = loadAll();
+// Plan 7 passes its own runs, label folder, key file and seed; the defaults are Plan 6's.
+export async function prepare({ force = false, all = loadAll(), labels: LABELS = LABELS_6, keyPaths = KEY_PATHS, seed: SEED = SEED_6, main = [...PRIMARY, ...SECONDARY], d3 = true } = {}) {
+  const keyFile = keyPaths[keyPaths.length - 1];
+  if (!force && (fs.existsSync(path.join(LABELS, 'findings.csv')) || keyPaths.some((p) => fs.existsSync(p)))) throw new Error('label sheets or key exist already; --force overwrites them (and any labels in them)');
   const idx = transcriptIndex();
   fs.mkdirSync(path.join(LABELS, 'diffs'), { recursive: true });
   const key = { seed: SEED, diffs: {}, findings: {} };
   const items = [];
-  const main = [...PRIMARY, ...SECONDARY];
 
   for (const { study, runs } of all) {
-    const short = study.name.startsWith('bulletproof') ? 'B' : 'F';
+    const short = study.name[0].toUpperCase(); // B(ulletproof), F(ormbricks), N(8n)
     const conventions = await loadConventions(study.studyDir);
 
     // diffs: seeded draw of 40 main-study runs, both arms
@@ -202,7 +201,7 @@ export async function prepare({ force = false } = {}) {
     }
 
     // D3
-    if (study.name === 'formbricks-conventions') {
+    if (d3 && study.name === 'formbricks-conventions') {
       const opened = {};
       for (const r of runs.filter((x) => x.arm === 'prose' && [...main, ...EXPLORATORY].includes(x.model))) {
         const calls = toolCalls(path.join(study.resultsDir, r.id), idx);

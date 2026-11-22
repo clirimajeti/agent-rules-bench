@@ -44,3 +44,11 @@ test('a failed session is left out and named', () => {
   assert.equal(strata(runs, PRIMARY).reduce((a, s) => a + s.n1, 0), 31);
   assert.match(analyse(runs), /left out because their session failed: n8n-conventions\/prose-sonnet-T1-1/);
 });
+
+test('D1: a run whose only finding is a linter error (no study rule) is left out in the sensitivity analysis', () => {
+  const runs = fakeRuns();
+  const r = runs.find((x) => x.id === 'prose-sonnet-T4-1');
+  r.breaksAfterTaskAt = [{ ruleId: 'eslint', file: 'x.ts', line: 1 }];
+  const md = analyse(runs);
+  assert.match(md, /D1 sensitivity.*prose 7\/32/s);
+});

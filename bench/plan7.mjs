@@ -25,14 +25,14 @@ export function load(file = STUDY) {
 }
 
 // prose against rules per model x task; x = prose, y = rules (H16 asks whether prose violates more)
-export function strata(runs, models) {
+export function strata(runs, models, isViolating = (r) => violating(r)) {
   const out = [];
   for (const model of models) {
     for (const task of [...new Set(runs.map((r) => r.task))].sort()) {
       const side = (arm) => runs.filter((r) => r.ok && r.model === model && r.task === task && r.arm === arm);
       const x = side('prose'), y = side('rules');
       if (!x.length || !y.length) continue;
-      out.push({ model, task, x, y, n1: x.length, n2: y.length, x1: x.filter((r) => violating(r)).length, x2: y.filter((r) => violating(r)).length });
+      out.push({ model, task, x, y, n1: x.length, n2: y.length, x1: x.filter(isViolating).length, x2: y.filter(isViolating).length });
     }
   }
   return out;
@@ -43,6 +43,8 @@ const pct = (r) => { const v = Math.round((r - 1) * 100); return v === 0 ? '0%' 
 const ci95 = (k, n) => { if (!n) return '-'; const [lo, hi] = clopperPearson(k, n); return `${(lo * 100).toFixed(0)}-${(hi * 100).toFixed(0)}%`; };
 const frac = (k, n) => `${k}/${n}`;
 const sum = (ss, k) => ss.reduce((a, s) => a + s[k], 0);
+// D1: a finding without a study rule is a linter error (a syntax error in half-written code), not a rule break
+const ruleBreak = (r) => (r.breaksAfterTaskAt ?? []).some((f) => f.ruleId.startsWith('local/'));
 const rulesOf = (r) => new Set((r.breaksAfterTaskAt ?? []).map((f) => f.ruleId.replace(/^local\//, '')));
 
 export function analyse(runs = load()) {
@@ -67,6 +69,10 @@ export function analyse(runs = load()) {
   out.push(`- Task session only (without the review fix): ${pct(h17task.point)}; 90% interval ${pct(h17task.ci[0])} to ${pct(h17task.ci[1])}.`, '');
   out.push('| hypothesis | p | Holm-adjusted p | holds at 0.05 |', '|---|---|---|---|');
   out.push(`| H16 | ${p3(h16)} | ${p3(adj.H16)} | ${adj.H16 <= ALPHA ? 'yes' : 'no'} |`, `| H17 | ${p3(h17.p)} | ${p3(adj.H17)} | ${adj.H17 <= ALPHA ? 'yes' : 'no'} |`, '');
+
+  const d1 = strata(runs, PRIMARY, ruleBreak);
+  out.push('### D1 sensitivity: linter errors are not rule breaks', '', 'Runs whose only findings after the task are linter errors (no study rule, for example a syntax error) are not counted as violating (`studies/plan-7-deviations.md`).', '');
+  out.push(`Pooled: prose ${frac(sum(d1, 'x1'), sum(d1, 'n1'))}, rules ${frac(sum(d1, 'x2'), sum(d1, 'n2'))}; exact conditional CMH, one-sided: p = ${p3(exactUpper(d1))}.`, '');
 
   // secondary, without a test decision
   const ok = runs.filter((r) => r.ok && PRIMARY.includes(r.model));

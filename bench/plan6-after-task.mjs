@@ -109,13 +109,16 @@ function replaySession(wt, copy, runDir, which, idx) {
   return true;
 }
 
-export function replayAll() {
-  const key = JSON.parse(fs.readFileSync(KEY_PATHS.find((p) => fs.existsSync(p)), 'utf8'));
-  const wanted = new Set(Object.values(key.findings).filter((f) => f.kind === 'after-task').map((f) => `${f.study}/${f.run}`));
+// Plan 7 passes its own runs, label folder and the runs to replay; the defaults are Plan 6's.
+export function replayAll({ all = loadAll(), labels = LABELS, wanted = null } = {}) {
+  if (!wanted) {
+    const key = JSON.parse(fs.readFileSync(KEY_PATHS.find((p) => fs.existsSync(p)), 'utf8'));
+    wanted = new Set(Object.values(key.findings).filter((f) => f.kind === 'after-task').map((f) => `${f.study}/${f.run}`));
+  }
   const idx = transcriptIndex();
   const report = {};
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'plan6-replay-'));
-  for (const { study, runs } of loadAll()) {
+  for (const { study, runs } of all) {
     const trees = new Map();
     for (const r of runs.filter((x) => wanted.has(`${study.name}/${x.id}`) && (!process.env.REPLAY_ONLY || x.id.includes(process.env.REPLAY_ONLY)))) {
       const copy = path.join(study.workdir, r.agent === 'claude' ? r.arm : `${r.arm}.${r.agent}`);
@@ -144,7 +147,8 @@ export function replayAll() {
     for (const [copy, wt] of trees) git(copy, 'worktree', 'remove', '--force', wt);
   }
   fs.rmSync(scratch, { recursive: true, force: true });
-  fs.writeFileSync(path.join(LABELS, 'after-task-replay.json'), JSON.stringify(report, null, 2) + '\n');
+  fs.mkdirSync(labels, { recursive: true });
+  fs.writeFileSync(path.join(labels, 'after-task-replay.json'), JSON.stringify(report, null, 2) + '\n');
   return report;
 }
 

@@ -1,0 +1,152 @@
+diff --git a/packages/nodes-base/nodes/KoBoToolbox/GenericFunctions.ts b/packages/nodes-base/nodes/KoBoToolbox/GenericFunctions.ts
+index 4ef9323118..0ca51c5acf 100644
+--- a/packages/nodes-base/nodes/KoBoToolbox/GenericFunctions.ts
++++ b/packages/nodes-base/nodes/KoBoToolbox/GenericFunctions.ts
+@@ -23,7 +23,7 @@ import type {
+ 	INodePropertyOptions,
+ 	IWebhookFunctions,
+ } from 'n8n-workflow';
+-import { NodeOperationError, safeRegex } from 'n8n-workflow';
++import { NodeOperationError, safeRegex, UserError } from 'n8n-workflow';
+ 
+ export async function koBoToolboxApiRequest(
+ 	this: IExecuteFunctions | IWebhookFunctions | IHookFunctions | ILoadOptionsFunctions,
+@@ -105,6 +105,24 @@ export function parseStringList(value: string): string[] {
+ 	return split(toString(value), /[\s,]+/);
+ }
+ 
++// Parse a comma-separated list of numeric IDs. Reject the whole list if any ID is invalid.
++export function parseSubmissionIds(value: string): string[] {
++	const trimmed = trim(toString(value));
++	if (!trimmed) {
++		throw new UserError('Enter at least one submission ID');
++	}
++
++	const ids = split(trimmed, ',').map((id) => trim(id));
++	const invalidIds = ids.filter((id) => !/^\d+$/.test(id));
++	if (invalidIds.length > 0) {
++		throw new UserError(
++			`Submission IDs must be numbers. Invalid values: ${invalidIds.map((id) => `"${id}"`).join(', ')}`,
++		);
++	}
++
++	return ids;
++}
++
+ const matchWildcard = (value: string, pattern: string): boolean => {
+ 	return safeRegex.test(`^${escapeRegExp(pattern).replace('\\*', '.*')}$`, value);
+ };
+diff --git a/packages/nodes-base/nodes/KoBoToolbox/KoBoToolbox.node.ts b/packages/nodes-base/nodes/KoBoToolbox/KoBoToolbox.node.ts
+index 6ad8e583ab..60ac83e9d3 100644
+--- a/packages/nodes-base/nodes/KoBoToolbox/KoBoToolbox.node.ts
++++ b/packages/nodes-base/nodes/KoBoToolbox/KoBoToolbox.node.ts
+@@ -17,6 +17,7 @@ import {
+ 	koBoToolboxRawRequest,
+ 	loadForms,
+ 	parseStringList,
++	parseSubmissionIds,
+ } from './GenericFunctions';
+ import { hookFields, hookOperations } from './HookDescription';
+ import { submissionFields, submissionOperations } from './SubmissionDescription';
+@@ -293,6 +294,34 @@ export class KoBoToolbox implements INodeType {
+ 						}),
+ 					];
+ 				}
++
++				if (operation === 'setValidationMany') {
++					// ----------------------------------
++					//          Submissions: setValidationMany
++					// ----------------------------------
++					// Validate the whole list before any update is sent
++					const submissionIds = parseSubmissionIds(
++						this.getNodeParameter('submissionIds', i) as string,
++					);
++					const status = this.getNodeParameter('validationStatus', i) as string;
++
++					responseData = [];
++					for (const submissionId of submissionIds) {
++						try {
++							await koBoToolboxApiRequest.call(this, {
++								method: 'PATCH',
++								url: `/api/v2/assets/${formId}/data/${submissionId}/validation_status/`,
++								body: {
++									'validation_status.uid': status,
++								},
++							});
++							responseData.push({ submissionId, updated: true });
++						} catch (error) {
++							// Report the failure per submission and continue with the rest
++							responseData.push({ submissionId, updated: false, error: error.message });
++						}
++					}
++				}
+ 			}
+ 
+ 			if (resource === 'hook') {
+diff --git a/packages/nodes-base/nodes/KoBoToolbox/SubmissionDescription.ts b/packages/nodes-base/nodes/KoBoToolbox/SubmissionDescription.ts
+index a3c62bd03a..e65a5b9d87 100644
+--- a/packages/nodes-base/nodes/KoBoToolbox/SubmissionDescription.ts
++++ b/packages/nodes-base/nodes/KoBoToolbox/SubmissionDescription.ts
+@@ -42,6 +42,12 @@ export const submissionOperations: INodeProperties[] = [
+ 				description: 'Set the validation status of the submission',
+ 				action: 'Update the validation status for a submission',
+ 			},
++			{
++				name: 'Update Validation Status for Many',
++				value: 'setValidationMany',
++				description: 'Set the validation status of many submissions at once',
++				action: 'Update the validation status for many submissions',
++			},
+ 		],
+ 		default: 'getAll',
+ 	},
+@@ -63,7 +69,14 @@ export const submissionFields: INodeProperties[] = [
+ 		displayOptions: {
+ 			show: {
+ 				resource: ['submission'],
+-				operation: ['get', 'delete', 'getValidation', 'setValidation', 'getAll'],
++				operation: [
++					'get',
++					'delete',
++					'getValidation',
++					'setValidation',
++					'setValidationMany',
++					'getAll',
++				],
+ 			},
+ 		},
+ 		description:
+@@ -91,7 +104,7 @@ export const submissionFields: INodeProperties[] = [
+ 		displayOptions: {
+ 			show: {
+ 				resource: ['submission'],
+-				operation: ['setValidation'],
++				operation: ['setValidation', 'setValidationMany'],
+ 			},
+ 		},
+ 		default: '',
+@@ -112,6 +125,24 @@ export const submissionFields: INodeProperties[] = [
+ 		description: 'Desired Validation Status',
+ 	},
+ 	/* -------------------------------------------------------------------------- */
++	/*                           submission:setValidationMany                      */
++	/* -------------------------------------------------------------------------- */
++	{
++		displayName: 'Submission IDs',
++		name: 'submissionIds',
++		type: 'string',
++		required: true,
++		default: '',
++		displayOptions: {
++			show: {
++				resource: ['submission'],
++				operation: ['setValidationMany'],
++			},
++		},
++		placeholder: '245128, 245129, 245130',
++		description: 'Comma-separated list of submission IDs (number, e.g. 245128,245129)',
++	},
++	/* -------------------------------------------------------------------------- */
+ 	/*                                submission:getAll                           */
+ 	/* -------------------------------------------------------------------------- */
+ 	{
