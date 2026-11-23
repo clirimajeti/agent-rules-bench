@@ -52,3 +52,17 @@ Pooled: prose 29/64, rules 0/64; exact conditional CMH, one-sided: p = <0.001.
 |---|---|---|---|---|---|---|---|---|---|
 | prose | 64 | 0 | 31 | 1 | - | - | 31.7 | $0.196 | 58/64 (81-96%) |
 | rules | 64 | 0 | 0 | 0 | 38 | 0 | 25.5 | $0.142 | 54/64 (73-92%) |
+
+## Measurement checks
+
+Labels filled: findings 0/83, diff cells 0/180.
+2 loop findings are linter errors (for example a parse error in half-edited code), not convention findings; they are not labelled and not counted.
+
+
+## Rule effort
+
+| project | conventions | rule source lines (plugin/, without tests) | test cases (valid + invalid) |
+|---|---|---|---|
+| n8n-conventions | 6 | 204 | 31 |
+
+Lines are non-empty, non-comment lines of every file in `plugin/`, including the prose text and the examples of each convention; a per-convention count needs the hand split listed in the measurement checks.

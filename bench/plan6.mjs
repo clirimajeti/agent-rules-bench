@@ -145,17 +145,17 @@ export function parseCsv(text) {
 }
 export const csvRow = (xs) => xs.map((x) => (/[",\n]/.test(String(x)) ? `"${String(x).replaceAll('"', '""')}"` : String(x))).join(',');
 
-export function loadLabels() {
-  const keyFile = KEY_PATHS.find((p) => fs.existsSync(p));
+export function loadLabels(dir = LABELS, keyPaths = KEY_PATHS) {
+  const keyFile = keyPaths.find((p) => fs.existsSync(p));
   if (!keyFile) return null;
   const key = JSON.parse(fs.readFileSync(keyFile, 'utf8'));
-  const read = (f) => (fs.existsSync(path.join(LABELS, f)) ? parseCsv(fs.readFileSync(path.join(LABELS, f), 'utf8')) : []);
+  const read = (f) => (fs.existsSync(path.join(dir, f)) ? parseCsv(fs.readFileSync(path.join(dir, f), 'utf8')) : []);
   const findingRows = read('findings.csv').filter((r) => ['correct', 'false'].includes(r.label) && r.rule.startsWith('local/'));
   const diffRows = Object.keys(key.diffs ?? {}).length ? [...new Set(Object.values(key.diffs).map((d) => d.study))].flatMap((s) => read(`diffs-${s}.csv`).map((r) => ({ ...r, study: s }))).filter((r) => ['yes', 'no'].includes(r.violated)) : [];
   // where the code shown with each finding came from (findings.md): exact, moved (a later state of the file), or not recoverable
-  const md = fs.existsSync(path.join(LABELS, 'findings.md')) ? fs.readFileSync(path.join(LABELS, 'findings.md'), 'utf8') : '';
+  const md = fs.existsSync(path.join(dir, 'findings.md')) ? fs.readFileSync(path.join(dir, 'findings.md'), 'utf8') : '';
   const shown = Object.fromEntries([...md.matchAll(/^## (X\d+): .*\n\n.*; code from (.*)\.$/gm)].map(([, c, src]) => [c, src.includes('not recoverable') ? 'not recoverable' : src.includes('may have moved') ? 'moved' : 'exact']));
-  return { key, shown, findingRows, diffRows, findingsTotal: Object.keys(key.findings ?? {}).length, diffCells: read('diffs-bulletproof-conventions.csv').length + read('diffs-formbricks-conventions.csv').length };
+  return { key, shown, findingRows, diffRows, findingsTotal: Object.keys(key.findings ?? {}).length, diffCells: fs.readdirSync(dir).filter((f) => /^diffs-.+\.csv$/.test(f)).reduce((a, f) => a + read(f).length, 0), dir: path.relative(ROOT, dir) };
 }
 
 // --- report
@@ -255,7 +255,7 @@ export function falseLabels(labels, kind) {
   return { f: rows.filter((r) => r.label === 'false').length, n: rows.length, moved: moved.length, movedFalse: moved.filter((r) => r.label === 'false').length, movedCorrect: moved.filter((r) => r.label === 'correct').length };
 }
 
-function measurementSection(all, labels) {
+export function measurementSection(all, labels) {
   const lines = ['## Measurement checks', ''];
   if (!labels) return [...lines, 'Pending: no label key yet (`node bench/plan6-prepare.mjs`).', ''].join('\n');
   const { key, findingRows, diffRows, findingsTotal, diffCells } = labels;
@@ -272,7 +272,7 @@ function measurementSection(all, labels) {
     if (moved) lines.push(`  ${moved} more were shown with a later state of the file (the flagged line may have moved or been fixed since); their labels (${movedFalse} false, ${movedCorrect} correct) judge that later code and are left out of the rate.`);
   }
   const lost = Object.entries(key.findings).filter(([c]) => labels.shown?.[c] === 'not recoverable').length;
-  if (lost) lines.push(`- ${lost} findings could not be shown: their code could not be rebuilt from the run and its logs (\`studies/plan-6-labels/after-task-replay.json\`). They are not labelled.`);
+  if (lost) lines.push(`- ${lost} findings could not be shown: their code could not be rebuilt from the run and its logs (\`${labels.dir}/after-task-replay.json\`). They are not labelled.`);
   return [...lines, ''].join('\n');
 }
 
@@ -283,7 +283,7 @@ export function ruleEffortCounts(study) {
   return { conventions: (src.match(/^\s*id: '/gm) ?? []).length, loc: src.split('\n').filter((l) => l.trim() && !/^\s*\/\//.test(l)).length, cases: src.match(/\{\s*filename:/g)?.length ?? 0 };
 }
 
-function ruleEffort(all) {
+export function ruleEffort(all) {
   const lines = ['## Rule effort', '', '| project | conventions | rule source lines (plugin/, without tests) | test cases (valid + invalid) |', '|---|---|---|---|'];
   for (const { study } of all) { const e = ruleEffortCounts(study); lines.push(`| ${study.name} | ${e.conventions} | ${e.loc} | ${e.cases} |`); }
   lines.push('', 'Lines are non-empty, non-comment lines of every file in `plugin/`, including the prose text and the examples of each convention; a per-convention count needs the hand split listed in the measurement checks.', '');
