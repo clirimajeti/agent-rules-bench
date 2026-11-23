@@ -324,6 +324,25 @@ fs.writeFileSync(path.join(out, 'local.tex'), local.join('\n') + '\n');
   macro('PSevenProseLeft', ok.filter((r) => r.arm === 'prose' && r.breaksFinal > 0).length);
   macro('PSevenTurnsProse', avg(ok.filter((r) => r.arm === 'prose').map((r) => r.turns)).toFixed(1));
   macro('PSevenTurnsRules', avg(rules.map((r) => r.turns)).toFixed(1));
+  // measurement checks against the blind hand labels
+  const labels = P6.loadLabels(P7.LABELS, P7.KEY_PATHS);
+  if (!labels?.findingRows.length) throw new Error('Plan 7: no labels (studies/plan-7-labels)');
+  const study7 = loadStudy(P7.STUDY);
+  const c = P6.checkerCounts([{ study: study7, runs: ok }], labels)[study7.name];
+  const cp = (k, n) => { const [lo, hi] = clopperPearson(k, n); return `${Math.round(lo * 100)}\\% to ${Math.round(hi * 100)}\\%`; };
+  macro('PSevenCells', c.cells); macro('PSevenDiffs', Object.keys(labels.key.diffs).length);
+  macro('PSevenPrecision', frac(c.tp, c.tp + c.fp)); macro('PSevenPrecisionCI', cp(c.tp, c.tp + c.fp));
+  macro('PSevenRecall', frac(c.tp, c.tp + c.fn)); macro('PSevenRecallCI', cp(c.tp, c.tp + c.fn)); macro('PSevenMissed', c.fn);
+  for (const [name, kind] of [['Loop', 'loop'], ['After', 'after-task']]) {
+    const { f, n } = P6.falseLabels(labels, kind);
+    macro(`PSeven${name}False`, frac(f, n)); macro(`PSeven${name}FalseCI`, cp(f, n));
+  }
+  // post hoc: the node-errors checker flags only `new Error`; the labels also counted n8n's UserError in node code
+  const userError = (r) => /^\+.*new UserError\(/m.test(fs.readFileSync(path.join(study7.resultsDir, r.id, 'diff.patch'), 'utf8').split(/^diff --git /m).filter((d) => d.startsWith('a/packages/nodes-base/nodes/')).join('\n'));
+  const ue = P7.strata(runs, P7.PRIMARY, (r) => P6.violating(r) || userError(r));
+  macro('PSevenUserErrorRuns', ok.filter((r) => r.arm === 'rules' && userError(r)).length);
+  macro('PSevenUserErrorProse', frac(sum('x1', ue), sum('n1', ue))); macro('PSevenUserErrorRules', frac(sum('x2', ue), sum('n2', ue)));
+  macro('PSevenUserErrorP', p3(exactUpper(ue)));
   // H18 (descriptive): verify pass rate per arm, exact 95% interval; where the failures are
   for (const [name, arm] of [['Prose', 'prose'], ['Rules', 'rules']]) {
     const v = ok.filter((r) => r.arm === arm && P6.verifyOk(r) !== null);

@@ -55,9 +55,12 @@ Pooled: prose 29/64, rules 0/64; exact conditional CMH, one-sided: p = <0.001.
 
 ## Measurement checks
 
-Labels filled: findings 0/83, diff cells 0/180.
+Labels filled: findings 83/83, diff cells 180/180.
 2 loop findings are linter errors (for example a parse error in half-edited code), not convention findings; they are not labelled and not counted.
 
+- n8n-conventions, 180 labelled cells: precision 11/11 (72-100%), recall 11/13 (55-98%) (true negatives 167).
+- Loop findings (rules arm), labelled against the flagged code: 0/38 labelled false (0-9%).
+- Findings after the task (both arms), labelled against the flagged code: 0/45 labelled false (0-8%).
 
 ## Rule effort
 

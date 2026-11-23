@@ -683,7 +683,13 @@ All \PSevenVerifyRulesFail{} failures in the \arm{rules} arm and \PSevenVerifyPr
 The agent added a constructor parameter and did not change the existing tests that call the constructor, or it did not export a new DTO from its package.
 The lint rules do not check types, so the loop could not catch these failures.
 Setup builds the agent's changes to the other packages; when that build failed, the run counts as a type-check failure (deviations D2 and D3).
-% TODO(Plan 7): measurement checks (hand labels of 40 diffs and of every loop finding), when the labels are done.
+\paragraph{Measurement checks.}
+The author labelled by hand, with the arm hidden, a random sample of \PSevenDiffs{} diffs for every convention, \PSevenCells{} cells, and every finding of the checkers.
+The checkers had a precision of \PSevenPrecision{} (\PSevenPrecisionCI) and a recall of \PSevenRecall{} (\PSevenRecallCI).
+The labels marked none of the \PSevenLoopFalse{} loop findings and none of the \PSevenAfterFalse{} findings after the task as false.
+Both violations that only the labels found are of the \texttt{node-errors} convention, in the \arm{rules} arm: the agent threw n8n's \texttt{UserError}, and the checker flags only \texttt{new Error}.
+So the \arm{rules} arm is not free of violations: \PSevenUserErrorRuns{} of its runs throw \texttt{UserError} in node code.
+Counted as violations, post hoc, they give \PSevenUserErrorProse{} \arm{prose} and \PSevenUserErrorRules{} \arm{rules} violating runs (exact CMH, one-sided $p$~\PSevenUserErrorP), and H16 still holds.
 
 \subsection{Descriptive and post hoc comparisons}
 
@@ -848,9 +854,10 @@ The checkers define what a violation is, so their blind spots are ours.
 In jhipster-buried the checkers also covered test files, which the documents did not.
 The exploratory pool counts those violations (17/56 runs, 11/56 in production code only), and all later studies count production code only.
 For the exploratory studies and Plans 1 to 5 we did not measure the false-positive rate of the lint rules.
-In Plan~6 we labelled every loop finding and a blind sample of diffs.
+In Plans~6 and~7 we labelled every loop finding and a blind sample of diffs.
 One author did all labels with the arm hidden, and there was no second rater.
 The checkers of bulletproof-react had a low recall in the sample (\PSixBPRecall), mostly because of a scope that leaves out the mock API; this lowers the violation counts of both arms alike.
+In Plan~7 the checker of \texttt{node-errors} missed n8n's \texttt{UserError} (recall \PSevenRecall); this hides violations mostly in the \arm{rules} arm, where the loop accepts the code, so a lint rule enforces only what its checker sees.
 The diff labels and the finding labels disagree on the role-filter pattern: the diff labels judge \PSixBPFpRole{} of these findings as no violation, while the finding labels mark only \PSixAfterFalse{} findings as false.
 The review fix is idealised: one precise prompt, no human time and no CI round trip.
 Real review costs more, which would favour arms with fewer violations.
