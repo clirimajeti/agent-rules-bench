@@ -50,5 +50,5 @@ Pooled: prose 29/64, rules 0/64; exact conditional CMH, one-sided: p = <0.001.
 
 | arm | runs | capped | violating | runs left violating at the end | loop catches (runs) | ignored catches (runs) | mean turns | mean total cost | verify passes |
 |---|---|---|---|---|---|---|---|---|---|
-| prose | 64 | 0 | 31 | 1 | - | - | 31.7 | $0.196 | 13/16 (54-96%) |
-| rules | 64 | 0 | 0 | 0 | 38 | 0 | 25.5 | $0.142 | not verified |
+| prose | 64 | 0 | 31 | 1 | - | - | 31.7 | $0.196 | 58/64 (81-96%) |
+| rules | 64 | 0 | 0 | 0 | 38 | 0 | 25.5 | $0.142 | 54/64 (73-92%) |

@@ -1,0 +1,544 @@
+tests n8n: src/modules/oauth-server 
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/repo/packages/cli[39m
+
+ [31m❯[39m src/modules/oauth-server/__tests__/oauth-token.service.test.ts [2m([22m[2m75 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 84[2mms[22m[39m
+   [31m❯[39m OAuthTokenService [2m(75)[22m
+     [32m✓[39m generateTokenPair [2m(6)[22m
+       [32m✓[39m should generate JWT access token and opaque refresh token[32m 4[2mms[22m[39m
+       [32m✓[39m should set aud to resource when resource is provided[32m 1[2mms[22m[39m
+       [32m✓[39m should mint a space-delimited scope claim[32m 0[2mms[22m[39m
+       [32m✓[39m should mint an empty scope claim for scope-less grants[32m 0[2mms[22m[39m
+       [32m✓[39m should return the resolved audience so the grant can be persisted[32m 1[2mms[22m[39m
+       [32m✓[39m should generate different tokens on each call[32m 1[2mms[22m[39m
+     [31m❯[39m saveTokenPair [2m(1)[22m
+[31m       [31m×[31m should save both tokens in a transaction[39m[32m 7[2mms[22m[39m
+     [32m✓[39m validateAndRotateRefreshToken [2m(7)[22m
+       [32m✓[39m requires an active token owner (0)[32m 1[2mms[22m[39m
+       [32m✓[39m requires an active token owner (1)[32m 1[2mms[22m[39m
+       [32m✓[39m should rotate refresh token and return new token pair in a transaction[32m 1[2mms[22m[39m
+       [32m✓[39m should honor resource when rotating refresh token[32m 1[2mms[22m[39m
+       [32m✓[39m should carry the stored scopes into the new token pair[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error when refresh token not found[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error when refresh token expired (atomic delete fails)[32m 0[2mms[22m[39m
+     [32m✓[39m refresh-token resource binding [2m(6)[22m
+       [32m✓[39m reuses the granted resource when the request names none[32m 0[2mms[22m[39m
+       [32m✓[39m accepts a request naming the granted resource[32m 2[2mms[22m[39m
+       [32m✓[39m accepts an equivalent spelling of the granted resource[32m 1[2mms[22m[39m
+       [32m✓[39m rejects a request naming a different resource, leaving the token usable[32m 0[2mms[22m[39m
+       [32m✓[39m rejects a request naming the default resource for a grant made elsewhere[32m 0[2mms[22m[39m
+       [32m✓[39m carries the granted resource onto the rotated refresh token[32m 0[2mms[22m[39m
+     [32m✓[39m verifyAccessToken [2m(8)[22m
+       [32m✓[39m should verify valid access token and return auth info[32m 2[2mms[22m[39m
+       [32m✓[39m should throw error for invalid JWT signature[32m 1[2mms[22m[39m
+       [32m✓[39m should throw error for wrong audience[32m 1[2mms[22m[39m
+       [32m✓[39m should accept tokens with canonical audience when expected audience is provided[32m 1[2mms[22m[39m
+       [32m✓[39m should accept legacy audience when expected audience is provided[32m 0[2mms[22m[39m
+       [32m✓[39m should accept token whose aud is the legacy literal (backward compat)[32m 0[2mms[22m[39m
+       [32m✓[39m should accept token whose aud is the resource URL[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error when token not found in database[32m 1[2mms[22m[39m
+     [32m✓[39m verifyOAuthAccessToken [2m(4)[22m
+       [32m✓[39m requires an active user for a stored access token[32m 1[2mms[22m[39m
+       [32m✓[39m should verify token and return user[32m 0[2mms[22m[39m
+       [32m✓[39m should return null for invalid token[32m 0[2mms[22m[39m
+       [32m✓[39m should return null when user not found[32m 0[2mms[22m[39m
+     [32m✓[39m verifyOAuthAccessToken audience resolution [2m(1)[22m
+       [32m✓[39m should deny when a resource-scoped audience cannot be resolved[32m 0[2mms[22m[39m
+     [32m✓[39m revokeAccessToken [2m(2)[22m
+       [32m✓[39m should delete access token[32m 0[2mms[22m[39m
+       [32m✓[39m should return false when token not found[32m 0[2mms[22m[39m
+     [32m✓[39m revokeRefreshToken [2m(2)[22m
+       [32m✓[39m should delete refresh token[32m 0[2mms[22m[39m
+       [32m✓[39m should return false when token not found[32m 0[2mms[22m[39m
+     [32m✓[39m getAllowedAudiences [2m(2)[22m
+       [32m✓[39m should return canonical URL and legacy audience when expectedAudience is the canonical URL[32m 0[2mms[22m[39m
+       [32m✓[39m should return only canonical URL and legacy audience when expectedAudience is undefined[32m 0[2mms[22m[39m
+     [32m✓[39m multi-resource audience isolation [2m(4)[22m
+       [32m✓[39m should reject a token whose aud belongs to another resource[32m 1[2mms[22m[39m
+       [32m✓[39m should not accept the legacy audience at a non-default resource[32m 0[2mms[22m[39m
+       [32m✓[39m should accept a token at its own resource[32m 0[2mms[22m[39m
+       [32m✓[39m should still accept the legacy audience at the default (instance MCP) resource[32m 0[2mms[22m[39m
+     [32m✓[39m scope handling [2m(5)[22m
+       [32m✓[39m carries the stored grant scopes over on rotation[32m 0[2mms[22m[39m
+       [32m✓[39m treats a token without a scope claim as having no scopes[32m 0[2mms[22m[39m
+       [32m✓[39m parses the scope claim of a scoped token[32m 0[2mms[22m[39m
+       [32m✓[39m treats an empty scope claim as no scopes[32m 0[2mms[22m[39m
+       [32m✓[39m returns the token scopes from verifyOAuthAccessToken[32m 0[2mms[22m[39m
+     [32m✓[39m audience gate with a configured MCP base URL [2m(4)[22m
+       [32m✓[39m should accept a token whose aud is the configured resource URL[32m 0[2mms[22m[39m
+       [32m✓[39m should accept a token whose aud is the instance-base-URL-derived resource URL[32m 0[2mms[22m[39m
+       [32m✓[39m should accept a token whose aud is the legacy audience[32m 0[2mms[22m[39m
+       [32m✓[39m should reject a token whose aud is an unconfigured host[32m 1[2mms[22m[39m
+     [32m✓[39m ES256 access tokens [2m(23)[22m
+       [32m✓[39m with a kid [2m(5)[22m
+         [32m✓[39m verifies against the key the kid names and never against the HMAC secret[32m 1[2mms[22m[39m
+         [32m✓[39m rejects a token with a wrong aud[32m 1[2mms[22m[39m
+         [32m✓[39m rejects a token with a wrong iss[32m 0[2mms[22m[39m
+         [32m✓[39m rejects a token with a wrong typ[32m 1[2mms[22m[39m
+         [32m✓[39m rejects a token with an expired exp[32m 0[2mms[22m[39m
+       [32m✓[39m algorithm confusion [2m(15)[22m
+         [32m✓[39m rejects HS256 signed with the public key PEM as the secret[32m 1[2mms[22m[39m
+         [32m✓[39m rejects HS256 signed with the public JWK JSON as the secret[32m 0[2mms[22m[39m
+         [32m✓[39m rejects a valid HMAC token with a kid added[32m 1[2mms[22m[39m
+         [32m✓[39m rejects alg none[32m 0[2mms[22m[39m
+         [32m✓[39m rejects ES384 in the header over a signature from the real key[32m 0[2mms[22m[39m
+         [32m✓[39m rejects RS256 signed with an RSA key under the real kid[32m 21[2mms[22m[39m
+         [32m✓[39m rejects another P-256 key under the real kid[32m 1[2mms[22m[39m
+         [32m✓[39m rejects a P-384 key under the real kid[32m 2[2mms[22m[39m
+         [32m✓[39m rejects an all-zero signature[32m 0[2mms[22m[39m
+         [32m✓[39m rejects an unknown kid[32m 0[2mms[22m[39m
+         [32m✓[39m rejects an empty kid[32m 0[2mms[22m[39m
+         [32m✓[39m rejects a numeric kid[32m 0[2mms[22m[39m
+         [32m✓[39m rejects an object kid[32m 0[2mms[22m[39m
+         [32m✓[39m ignores an embedded jwk header[32m 0[2mms[22m[39m
+         [32m✓[39m ignores a jku header[32m 0[2mms[22m[39m
+       [32m✓[39m without a kid [2m(3)[22m
+         [32m✓[39m rejects an ES256 token whose kid was removed[32m 0[2mms[22m[39m
+         [32m✓[39m accepts a legacy HS256 token until it expires[32m 9[2mms[22m[39m
+         [32m✓[39m rejects HS512[32m 0[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-webhook-test-trigger-resource.resolver.api.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 22259[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 22207[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 22255[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-clients.controller.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 22454[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/form-trigger-resource.resolver.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 22864[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/chat-trigger-resource.resolver.api.test.ts [2m([22m[2m31 tests[22m[2m)[22m[33m 23182[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-webhook-trigger-resource.resolver.api.test.ts [2m([22m[2m44 tests[22m[2m)[22m[33m 23580[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-flow.service.api.test.ts [2m([22m[2m39 tests[22m[2m)[22m[33m 24692[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth.controller.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 1308[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-signing-key.service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/form-trigger-test-resource.resolver.api.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 19387[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-trigger-authorization.api.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 20336[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-access-token-signing.api.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 20108[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-test-trigger-resource.resolver.api.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 19853[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-local-authorization-server.api.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 20430[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/chat-trigger-test-resource.resolver.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 19986[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-trigger-resource.resolver.api.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 20796[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth.helpers.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.config.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/protected-resource-resolvers/__tests__/utils.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.service.test.ts [2m([22m[2m74 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-consent.service.test.ts [2m([22m[2m46 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-authorization-code.service.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-session.service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.module.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/resource-gate.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-signing-jwks.provider.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-local-authorization-server.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m28 passed[39m[22m[90m (29)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m637 passed[39m[22m[90m (638)[39m
+[2m   Start at [22m 23:16:22
+[2m   Duration [22m 476.74s[2m (transform 75%, import 10%, tests 9%, setup 6%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 2767.05s[39m[2m · 75% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mon CI this only helps when the cache directory is persisted between runs[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
+JSON report written to /repo/.verify-vitest.json
+related test files: 29, failing: 1, outside the baseline: 1
+  packages/cli/src/modules/oauth-server/__tests__/oauth-token.service.test.ts
+Downloading the pnpm 12.4.2 binary for linux-arm64...
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.config.base.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.workspace-externals.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/modules/oauth-server/__tests__/oauth-token.service.test.ts[2m > [22mOAuthTokenService[2m > [22msaveTokenPair[2m > [22mshould save both tokens in a transaction
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ { …(3) }, Anything ][90m
+
+Received:
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[2m    {[22m
+[2m      "clientId": "client-123",[22m
+[31m+     "expiresAt": 1795393204165,[90m
+[2m      "token": "jwt-access-token",[22m
+[2m      "userId": "user-456",[22m
+[2m    },[22m
+[32m-   Anything,[90m
+[31m+   {},[90m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m src/modules/oauth-server/__tests__/oauth-token.service.test.ts:[2m227:46[22m[39m
+    [90m225|[39m    expect(grantTransactionRunner.run).toHaveBeenCalled();
+    [90m226|[39m
+    [90m227|[39m    expect(accessTokenRepository.insertToken).toHaveBeenCalledWith(
+    [90m   |[39m                                              [31m^[39m
+    [90m228|[39m     { token: accessToken, clientId, userId },
+    [90m229|[39m     expect.anything(),
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+===== attempt 2 =====
+tests n8n: src/modules/oauth-server 
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/repo/packages/cli[39m
+
+ [31m❯[39m src/modules/oauth-server/__tests__/oauth-token.service.test.ts [2m([22m[2m75 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 54[2mms[22m[39m
+   [31m❯[39m OAuthTokenService [2m(75)[22m
+     [32m✓[39m generateTokenPair [2m(6)[22m
+       [32m✓[39m should generate JWT access token and opaque refresh token[32m 4[2mms[22m[39m
+       [32m✓[39m should set aud to resource when resource is provided[32m 1[2mms[22m[39m
+       [32m✓[39m should mint a space-delimited scope claim[32m 1[2mms[22m[39m
+       [32m✓[39m should mint an empty scope claim for scope-less grants[32m 0[2mms[22m[39m
+       [32m✓[39m should return the resolved audience so the grant can be persisted[32m 1[2mms[22m[39m
+       [32m✓[39m should generate different tokens on each call[32m 1[2mms[22m[39m
+     [31m❯[39m saveTokenPair [2m(1)[22m
+[31m       [31m×[31m should save both tokens in a transaction[39m[32m 6[2mms[22m[39m
+     [32m✓[39m validateAndRotateRefreshToken [2m(7)[22m
+       [32m✓[39m requires an active token owner (0)[32m 1[2mms[22m[39m
+       [32m✓[39m requires an active token owner (1)[32m 0[2mms[22m[39m
+       [32m✓[39m should rotate refresh token and return new token pair in a transaction[32m 1[2mms[22m[39m
+       [32m✓[39m should honor resource when rotating refresh token[32m 0[2mms[22m[39m
+       [32m✓[39m should carry the stored scopes into the new token pair[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error when refresh token not found[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error when refresh token expired (atomic delete fails)[32m 0[2mms[22m[39m
+     [32m✓[39m refresh-token resource binding [2m(6)[22m
+       [32m✓[39m reuses the granted resource when the request names none[32m 0[2mms[22m[39m
+       [32m✓[39m accepts a request naming the granted resource[32m 0[2mms[22m[39m
+       [32m✓[39m accepts an equivalent spelling of the granted resource[32m 0[2mms[22m[39m
+       [32m✓[39m rejects a request naming a different resource, leaving the token usable[32m 0[2mms[22m[39m
+       [32m✓[39m rejects a request naming the default resource for a grant made elsewhere[32m 0[2mms[22m[39m
+       [32m✓[39m carries the granted resource onto the rotated refresh token[32m 0[2mms[22m[39m
+     [32m✓[39m verifyAccessToken [2m(8)[22m
+       [32m✓[39m should verify valid access token and return auth info[32m 2[2mms[22m[39m
+       [32m✓[39m should throw error for invalid JWT signature[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error for wrong audience[32m 1[2mms[22m[39m
+       [32m✓[39m should accept tokens with canonical audience when expected audience is provided[32m 1[2mms[22m[39m
+       [32m✓[39m should accept legacy audience when expected audience is provided[32m 0[2mms[22m[39m
+       [32m✓[39m should accept token whose aud is the legacy literal (backward compat)[32m 0[2mms[22m[39m
+       [32m✓[39m should accept token whose aud is the resource URL[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error when token not found in database[32m 1[2mms[22m[39m
+     [32m✓[39m verifyOAuthAccessToken [2m(4)[22m
+       [32m✓[39m requires an active user for a stored access token[32m 1[2mms[22m[39m
+       [32m✓[39m should verify token and return user[32m 0[2mms[22m[39m
+       [32m✓[39m should return null for invalid token[32m 0[2mms[22m[39m
+       [32m✓[39m should return null when user not found[32m 0[2mms[22m[39m
+     [32m✓[39m verifyOAuthAccessToken audience resolution [2m(1)[22m
+       [32m✓[39m should deny when a resource-scoped audience cannot be resolved[32m 0[2mms[22m[39m
+     [32m✓[39m revokeAccessToken [2m(2)[22m
+       [32m✓[39m should delete access token[32m 0[2mms[22m[39m
+       [32m✓[39m should return false when token not found[32m 0[2mms[22m[39m
+     [32m✓[39m revokeRefreshToken [2m(2)[22m
+       [32m✓[39m should delete refresh token[32m 0[2mms[22m[39m
+       [32m✓[39m should return false when token not found[32m 0[2mms[22m[39m
+     [32m✓[39m getAllowedAudiences [2m(2)[22m
+       [32m✓[39m should return canonical URL and legacy audience when expectedAudience is the canonical URL[32m 0[2mms[22m[39m
+       [32m✓[39m should return only canonical URL and legacy audience when expectedAudience is undefined[32m 0[2mms[22m[39m
+     [32m✓[39m multi-resource audience isolation [2m(4)[22m
+       [32m✓[39m should reject a token whose aud belongs to another resource[32m 1[2mms[22m[39m
+       [32m✓[39m should not accept the legacy audience at a non-default resource[32m 0[2mms[22m[39m
+       [32m✓[39m should accept a token at its own resource[32m 0[2mms[22m[39m
+       [32m✓[39m should still accept the legacy audience at the default (instance MCP) resource[32m 0[2mms[22m[39m
+     [32m✓[39m scope handling [2m(5)[22m
+       [32m✓[39m carries the stored grant scopes over on rotation[32m 0[2mms[22m[39m
+       [32m✓[39m treats a token without a scope claim as having no scopes[32m 0[2mms[22m[39m
+       [32m✓[39m parses the scope claim of a scoped token[32m 0[2mms[22m[39m
+       [32m✓[39m treats an empty scope claim as no scopes[32m 0[2mms[22m[39m
+       [32m✓[39m returns the token scopes from verifyOAuthAccessToken[32m 0[2mms[22m[39m
+     [32m✓[39m audience gate with a configured MCP base URL [2m(4)[22m
+       [32m✓[39m should accept a token whose aud is the configured resource URL[32m 0[2mms[22m[39m
+       [32m✓[39m should accept a token whose aud is the instance-base-URL-derived resource URL[32m 0[2mms[22m[39m
+       [32m✓[39m should accept a token whose aud is the legacy audience[32m 0[2mms[22m[39m
+       [32m✓[39m should reject a token whose aud is an unconfigured host[32m 0[2mms[22m[39m
+     [32m✓[39m ES256 access tokens [2m(23)[22m
+       [32m✓[39m with a kid [2m(5)[22m
+         [32m✓[39m verifies against the key the kid names and never against the HMAC secret[32m 1[2mms[22m[39m
+         [32m✓[39m rejects a token with a wrong aud[32m 1[2mms[22m[39m
+         [32m✓[39m rejects a token with a wrong iss[32m 0[2mms[22m[39m
+         [32m✓[39m rejects a token with a wrong typ[32m 0[2mms[22m[39m
+         [32m✓[39m rejects a token with an expired exp[32m 0[2mms[22m[39m
+       [32m✓[39m algorithm confusion [2m(15)[22m
+         [32m✓[39m rejects HS256 signed with the public key PEM as the secret[32m 1[2mms[22m[39m
+         [32m✓[39m rejects HS256 signed with the public JWK JSON as the secret[32m 0[2mms[22m[39m
+         [32m✓[39m rejects a valid HMAC token with a kid added[32m 0[2mms[22m[39m
+         [32m✓[39m rejects alg none[32m 0[2mms[22m[39m
+         [32m✓[39m rejects ES384 in the header over a signature from the real key[32m 0[2mms[22m[39m
+         [32m✓[39m rejects RS256 signed with an RSA key under the real kid[32m 9[2mms[22m[39m
+         [32m✓[39m rejects another P-256 key under the real kid[32m 0[2mms[22m[39m
+         [32m✓[39m rejects a P-384 key under the real kid[32m 1[2mms[22m[39m
+         [32m✓[39m rejects an all-zero signature[32m 0[2mms[22m[39m
+         [32m✓[39m rejects an unknown kid[32m 0[2mms[22m[39m
+         [32m✓[39m rejects an empty kid[32m 0[2mms[22m[39m
+         [32m✓[39m rejects a numeric kid[32m 0[2mms[22m[39m
+         [32m✓[39m rejects an object kid[32m 0[2mms[22m[39m
+         [32m✓[39m ignores an embedded jwk header[32m 0[2mms[22m[39m
+         [32m✓[39m ignores a jku header[32m 0[2mms[22m[39m
+       [32m✓[39m without a kid [2m(3)[22m
+         [32m✓[39m rejects an ES256 token whose kid was removed[32m 0[2mms[22m[39m
+         [32m✓[39m accepts a legacy HS256 token until it expires[32m 2[2mms[22m[39m
+         [32m✓[39m rejects HS512[32m 0[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 20997[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-webhook-test-trigger-resource.resolver.api.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 21135[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 21185[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-clients.controller.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 21268[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/form-trigger-resource.resolver.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 21549[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/chat-trigger-resource.resolver.api.test.ts [2m([22m[2m31 tests[22m[2m)[22m[33m 21846[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-webhook-trigger-resource.resolver.api.test.ts [2m([22m[2m44 tests[22m[2m)[22m[33m 22230[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-flow.service.api.test.ts [2m([22m[2m39 tests[22m[2m)[22m[33m 23105[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth.controller.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 1174[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-signing-key.service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 113[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-trigger-resource.resolver.api.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 18502[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-access-token-signing.api.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 18828[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-local-authorization-server.api.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 19360[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-test-trigger-resource.resolver.api.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 18656[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/form-trigger-test-resource.resolver.api.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 18597[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/chat-trigger-test-resource.resolver.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 19252[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-trigger-authorization.api.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 19849[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth.helpers.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/protected-resource-resolvers/__tests__/utils.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.config.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.service.test.ts [2m([22m[2m74 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-consent.service.test.ts [2m([22m[2m46 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-authorization-code.service.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-session.service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.module.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/resource-gate.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-signing-jwks.provider.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-local-authorization-server.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m28 passed[39m[22m[90m (29)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m637 passed[39m[22m[90m (638)[39m
+[2m   Start at [22m 23:24:50
+[2m   Duration [22m 464.39s[2m (transform 76%, import 9%, tests 9%, setup 6%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 2737.79s[39m[2m · 76% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mon CI this only helps when the cache directory is persisted between runs[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
+JSON report written to /repo/.verify-vitest.json
+related test files: 29, failing: 1, outside the baseline: 1
+  packages/cli/src/modules/oauth-server/__tests__/oauth-token.service.test.ts
+Downloading the pnpm 12.4.2 binary for linux-arm64...
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.config.base.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.workspace-externals.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/modules/oauth-server/__tests__/oauth-token.service.test.ts[2m > [22mOAuthTokenService[2m > [22msaveTokenPair[2m > [22mshould save both tokens in a transaction
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ { …(3) }, Anything ][90m
+
+Received:
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[2m    {[22m
+[2m      "clientId": "client-123",[22m
+[31m+     "expiresAt": 1795393709657,[90m
+[2m      "token": "jwt-access-token",[22m
+[2m      "userId": "user-456",[22m
+[2m    },[22m
+[32m-   Anything,[90m
+[31m+   {},[90m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m src/modules/oauth-server/__tests__/oauth-token.service.test.ts:[2m227:46[22m[39m
+    [90m225|[39m    expect(grantTransactionRunner.run).toHaveBeenCalled();
+    [90m226|[39m
+    [90m227|[39m    expect(accessTokenRepository.insertToken).toHaveBeenCalledWith(
+    [90m   |[39m                                              [31m^[39m
+    [90m228|[39m     { token: accessToken, clientId, userId },
+    [90m229|[39m     expect.anything(),
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+===== attempt 3 =====
+tests n8n: src/modules/oauth-server 
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/repo/packages/cli[39m
+
+ [31m❯[39m src/modules/oauth-server/__tests__/oauth-token.service.test.ts [2m([22m[2m75 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 74[2mms[22m[39m
+   [31m❯[39m OAuthTokenService [2m(75)[22m
+     [32m✓[39m generateTokenPair [2m(6)[22m
+       [32m✓[39m should generate JWT access token and opaque refresh token[32m 4[2mms[22m[39m
+       [32m✓[39m should set aud to resource when resource is provided[32m 1[2mms[22m[39m
+       [32m✓[39m should mint a space-delimited scope claim[32m 0[2mms[22m[39m
+       [32m✓[39m should mint an empty scope claim for scope-less grants[32m 0[2mms[22m[39m
+       [32m✓[39m should return the resolved audience so the grant can be persisted[32m 1[2mms[22m[39m
+       [32m✓[39m should generate different tokens on each call[32m 1[2mms[22m[39m
+     [31m❯[39m saveTokenPair [2m(1)[22m
+[31m       [31m×[31m should save both tokens in a transaction[39m[32m 7[2mms[22m[39m
+     [32m✓[39m validateAndRotateRefreshToken [2m(7)[22m
+       [32m✓[39m requires an active token owner (0)[32m 1[2mms[22m[39m
+       [32m✓[39m requires an active token owner (1)[32m 0[2mms[22m[39m
+       [32m✓[39m should rotate refresh token and return new token pair in a transaction[32m 1[2mms[22m[39m
+       [32m✓[39m should honor resource when rotating refresh token[32m 0[2mms[22m[39m
+       [32m✓[39m should carry the stored scopes into the new token pair[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error when refresh token not found[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error when refresh token expired (atomic delete fails)[32m 0[2mms[22m[39m
+     [32m✓[39m refresh-token resource binding [2m(6)[22m
+       [32m✓[39m reuses the granted resource when the request names none[32m 0[2mms[22m[39m
+       [32m✓[39m accepts a request naming the granted resource[32m 0[2mms[22m[39m
+       [32m✓[39m accepts an equivalent spelling of the granted resource[32m 0[2mms[22m[39m
+       [32m✓[39m rejects a request naming a different resource, leaving the token usable[32m 0[2mms[22m[39m
+       [32m✓[39m rejects a request naming the default resource for a grant made elsewhere[32m 0[2mms[22m[39m
+       [32m✓[39m carries the granted resource onto the rotated refresh token[32m 0[2mms[22m[39m
+     [32m✓[39m verifyAccessToken [2m(8)[22m
+       [32m✓[39m should verify valid access token and return auth info[32m 2[2mms[22m[39m
+       [32m✓[39m should throw error for invalid JWT signature[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error for wrong audience[32m 1[2mms[22m[39m
+       [32m✓[39m should accept tokens with canonical audience when expected audience is provided[32m 0[2mms[22m[39m
+       [32m✓[39m should accept legacy audience when expected audience is provided[32m 0[2mms[22m[39m
+       [32m✓[39m should accept token whose aud is the legacy literal (backward compat)[32m 0[2mms[22m[39m
+       [32m✓[39m should accept token whose aud is the resource URL[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error when token not found in database[32m 0[2mms[22m[39m
+     [32m✓[39m verifyOAuthAccessToken [2m(4)[22m
+       [32m✓[39m requires an active user for a stored access token[32m 1[2mms[22m[39m
+       [32m✓[39m should verify token and return user[32m 0[2mms[22m[39m
+       [32m✓[39m should return null for invalid token[32m 0[2mms[22m[39m
+       [32m✓[39m should return null when user not found[32m 0[2mms[22m[39m
+     [32m✓[39m verifyOAuthAccessToken audience resolution [2m(1)[22m
+       [32m✓[39m should deny when a resource-scoped audience cannot be resolved[32m 0[2mms[22m[39m
+     [32m✓[39m revokeAccessToken [2m(2)[22m
+       [32m✓[39m should delete access token[32m 0[2mms[22m[39m
+       [32m✓[39m should return false when token not found[32m 0[2mms[22m[39m
+     [32m✓[39m revokeRefreshToken [2m(2)[22m
+       [32m✓[39m should delete refresh token[32m 0[2mms[22m[39m
+       [32m✓[39m should return false when token not found[32m 0[2mms[22m[39m
+     [32m✓[39m getAllowedAudiences [2m(2)[22m
+       [32m✓[39m should return canonical URL and legacy audience when expectedAudience is the canonical URL[32m 0[2mms[22m[39m
+       [32m✓[39m should return only canonical URL and legacy audience when expectedAudience is undefined[32m 0[2mms[22m[39m
+     [32m✓[39m multi-resource audience isolation [2m(4)[22m
+       [32m✓[39m should reject a token whose aud belongs to another resource[32m 1[2mms[22m[39m
+       [32m✓[39m should not accept the legacy audience at a non-default resource[32m 0[2mms[22m[39m
+       [32m✓[39m should accept a token at its own resource[32m 0[2mms[22m[39m
+       [32m✓[39m should still accept the legacy audience at the default (instance MCP) resource[32m 0[2mms[22m[39m
+     [32m✓[39m scope handling [2m(5)[22m
+       [32m✓[39m carries the stored grant scopes over on rotation[32m 0[2mms[22m[39m
+       [32m✓[39m treats a token without a scope claim as having no scopes[32m 0[2mms[22m[39m
+       [32m✓[39m parses the scope claim of a scoped token[32m 0[2mms[22m[39m
+       [32m✓[39m treats an empty scope claim as no scopes[32m 0[2mms[22m[39m
+       [32m✓[39m returns the token scopes from verifyOAuthAccessToken[32m 0[2mms[22m[39m
+     [32m✓[39m audience gate with a configured MCP base URL [2m(4)[22m
+       [32m✓[39m should accept a token whose aud is the configured resource URL[32m 0[2mms[22m[39m
+       [32m✓[39m should accept a token whose aud is the instance-base-URL-derived resource URL[32m 0[2mms[22m[39m
+       [32m✓[39m should accept a token whose aud is the legacy audience[32m 0[2mms[22m[39m
+       [32m✓[39m should reject a token whose aud is an unconfigured host[32m 0[2mms[22m[39m
+     [32m✓[39m ES256 access tokens [2m(23)[22m
+       [32m✓[39m with a kid [2m(5)[22m
+         [32m✓[39m verifies against the key the kid names and never against the HMAC secret[32m 1[2mms[22m[39m
+         [32m✓[39m rejects a token with a wrong aud[32m 1[2mms[22m[39m
+         [32m✓[39m rejects a token with a wrong iss[32m 0[2mms[22m[39m
+         [32m✓[39m rejects a token with a wrong typ[32m 0[2mms[22m[39m
+         [32m✓[39m rejects a token with an expired exp[32m 0[2mms[22m[39m
+       [32m✓[39m algorithm confusion [2m(15)[22m
+         [32m✓[39m rejects HS256 signed with the public key PEM as the secret[32m 1[2mms[22m[39m
+         [32m✓[39m rejects HS256 signed with the public JWK JSON as the secret[32m 0[2mms[22m[39m
+         [32m✓[39m rejects a valid HMAC token with a kid added[32m 1[2mms[22m[39m
+         [32m✓[39m rejects alg none[32m 0[2mms[22m[39m
+         [32m✓[39m rejects ES384 in the header over a signature from the real key[32m 0[2mms[22m[39m
+         [32m✓[39m rejects RS256 signed with an RSA key under the real kid[32m 25[2mms[22m[39m
+         [32m✓[39m rejects another P-256 key under the real kid[32m 0[2mms[22m[39m
+         [32m✓[39m rejects a P-384 key under the real kid[32m 1[2mms[22m[39m
+         [32m✓[39m rejects an all-zero signature[32m 0[2mms[22m[39m
+         [32m✓[39m rejects an unknown kid[32m 0[2mms[22m[39m
+         [32m✓[39m rejects an empty kid[32m 0[2mms[22m[39m
+         [32m✓[39m rejects a numeric kid[32m 0[2mms[22m[39m
+         [32m✓[39m rejects an object kid[32m 0[2mms[22m[39m
+         [32m✓[39m ignores an embedded jwk header[32m 0[2mms[22m[39m
+         [32m✓[39m ignores a jku header[32m 0[2mms[22m[39m
+       [32m✓[39m without a kid [2m(3)[22m
+         [32m✓[39m rejects an ES256 token whose kid was removed[32m 0[2mms[22m[39m
+         [32m✓[39m accepts a legacy HS256 token until it expires[32m 3[2mms[22m[39m
+         [32m✓[39m rejects HS512[32m 0[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 21215[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-webhook-test-trigger-resource.resolver.api.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 21259[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 21297[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-clients.controller.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 21410[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/form-trigger-resource.resolver.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 21763[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/chat-trigger-resource.resolver.api.test.ts [2m([22m[2m31 tests[22m[2m)[22m[33m 22022[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-webhook-trigger-resource.resolver.api.test.ts [2m([22m[2m44 tests[22m[2m)[22m[33m 22422[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-flow.service.api.test.ts [2m([22m[2m39 tests[22m[2m)[22m[33m 23462[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth.controller.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 1226[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-signing-key.service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 135[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/chat-trigger-test-resource.resolver.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 18525[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-trigger-authorization.api.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 19054[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-access-token-signing.api.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 19185[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-local-authorization-server.api.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 19240[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-test-trigger-resource.resolver.api.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 19222[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/form-trigger-test-resource.resolver.api.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 19410[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-trigger-resource.resolver.api.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 19670[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth.helpers.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/protected-resource-resolvers/__tests__/utils.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.service.test.ts [2m([22m[2m74 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-authorization-code.service.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-consent.service.test.ts [2m([22m[2m46 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-session.service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-local-authorization-server.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.module.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.config.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/resource-gate.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-signing-jwks.provider.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m28 passed[39m[22m[90m (29)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m637 passed[39m[22m[90m (638)[39m
+[2m   Start at [22m 23:33:04
+[2m   Duration [22m 467.20s[2m (transform 76%, import 9%, tests 9%, setup 6%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 2753.05s[39m[2m · 76% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mon CI this only helps when the cache directory is persisted between runs[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
+JSON report written to /repo/.verify-vitest.json
+related test files: 29, failing: 1, outside the baseline: 1
+  packages/cli/src/modules/oauth-server/__tests__/oauth-token.service.test.ts
+Downloading the pnpm 12.4.2 binary for linux-arm64...
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.config.base.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.workspace-externals.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/modules/oauth-server/__tests__/oauth-token.service.test.ts[2m > [22mOAuthTokenService[2m > [22msaveTokenPair[2m > [22mshould save both tokens in a transaction
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ { …(3) }, Anything ][90m
+
+Received:
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[2m    {[22m
+[2m      "clientId": "client-123",[22m
+[31m+     "expiresAt": 1795394198602,[90m
+[2m      "token": "jwt-access-token",[22m
+[2m      "userId": "user-456",[22m
+[2m    },[22m
+[32m-   Anything,[90m
+[31m+   {},[90m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m src/modules/oauth-server/__tests__/oauth-token.service.test.ts:[2m227:46[22m[39m
+    [90m225|[39m    expect(grantTransactionRunner.run).toHaveBeenCalled();
+    [90m226|[39m
+    [90m227|[39m    expect(accessTokenRepository.insertToken).toHaveBeenCalledWith(
+    [90m   |[39m                                              [31m^[39m
+    [90m228|[39m     { token: accessToken, clientId, userId },
+    [90m229|[39m     expect.anything(),
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+

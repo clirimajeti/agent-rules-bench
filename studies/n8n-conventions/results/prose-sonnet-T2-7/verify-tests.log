@@ -1,0 +1,403 @@
+tests n8n: src/modules/oauth-server 
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/repo/packages/cli[39m
+
+ [31m❯[39m src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts [2m([22m[2m8 tests[22m[2m | [22m[33m8 skipped[39m[2m)[22m[33m 30015[2mms[22m[39m
+   [2m[90m↓[39m[22m protected-resource grants outliving the trigger [2m(8)[22m
+     [2m[90m↓[39m[22m keeps verifying the run token after the registration is torn down
+     [2m[90m↓[39m[22m covers every method of a multi-method trigger
+     [2m[90m↓[39m[22m does not widen what the resource allowed [2m(4)[22m
+       [2m[90m↓[39m[22m re-checks execute access, so revoking it stops the run
+       [2m[90m↓[39m[22m rejects a token minted for a different resource
+       [2m[90m↓[39m[22m stops at the sealed token expiring, which the grant does not extend
+       [2m[90m↓[39m[22m rejects a revoked token
+     [2m[90m↓[39m[22m omits the execute check when the trigger does not require it
+     [2m[90m↓[39m[22m prefers the live resource while the trigger is still registered
+ [31m❯[39m src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts [2m([22m[2m23 tests[22m[2m | [22m[33m23 skipped[39m[2m)[22m[33m 127198[2mms[22m[39m
+   [2m[90m↓[39m[22m GET /rest/consent/details [2m(9)[22m
+     [2m[90m↓[39m[22m should return consent details for valid session
+     [2m[90m↓[39m[22m should include the resource name when the session resource resolves
+     [2m[90m↓[39m[22m should return 422 and clear the session when the resource cannot be resolved
+     [2m[90m↓[39m[22m should return 400 when session cookie is missing
+     [2m[90m↓[39m[22m should return 400 when session token is invalid
+     [2m[90m↓[39m[22m should return 400 when client does not exist
+     [2m[90m↓[39m[22m should clear session cookie on invalid token
+     [2m[90m↓[39m[22m should require authentication
+     [2m[90m↓[39m[22m should work for different users
+   [2m[90m↓[39m[22m POST /rest/consent/approve [2m(13)[22m
+     [2m[90m↓[39m[22m should handle consent approval and return redirect URL with authorization code
+     [2m[90m↓[39m[22m rejects a scope list with duplicates
+     [2m[90m↓[39m[22m should handle consent denial and return error redirect URL
+     [2m[90m↓[39m[22m should clear session cookie after processing consent
+     [2m[90m↓[39m[22m should return 400 when approved field is missing
+     [2m[90m↓[39m[22m should return 400 when approved field is not boolean
+     [2m[90m↓[39m[22m should return 400 when session cookie is missing
+     [2m[90m↓[39m[22m should return 400 when session token is invalid
+     [2m[90m↓[39m[22m should clear session cookie even on error
+     [2m[90m↓[39m[22m should require authentication
+     [2m[90m↓[39m[22m should create user consent record on approval
+     [2m[90m↓[39m[22m should not create user consent record on denial
+     [2m[90m↓[39m[22m should handle consent from different users
+   [2m[90m↓[39m[22m Consent Flow - End-to-End [2m(1)[22m
+     [2m[90m↓[39m[22m should complete full consent flow from details to approval
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-webhook-test-trigger-resource.resolver.api.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 70985[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-clients.controller.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 112894[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/form-trigger-resource.resolver.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 72200[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/chat-trigger-resource.resolver.api.test.ts [2m([22m[2m31 tests[22m[2m)[22m[33m 73395[2mms[22m[39m
+   [32m✓[39m consent reuse on a second visit [2m(2)[22m
+     [33m[2m✓[22m[39m a second visit reuses consent when the visitor is already logged in[33m 323[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-webhook-trigger-resource.resolver.api.test.ts [2m([22m[2m44 tests[22m[2m)[22m[33m 74581[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-flow.service.api.test.ts [2m([22m[2m39 tests[22m[2m)[22m[33m 77279[2mms[22m[39m
+   [32m✓[39m complete [2m(10)[22m
+     [33m[2m✓[22m[39m returns metadata stashed at begin, and undefined when none was stashed[33m 379[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects when the submitter lacks execute access on the workflow[33m 335[2mms[22m[39m
+     [33m[2m✓[22m[39m produces a token that a different form resource rejects[33m 317[2mms[22m[39m
+   [32m✓[39m refresh [2m(8)[22m
+     [33m[2m✓[22m[39m keeps exactly one refresh row across repeated rotations[33m 338[2mms[22m[39m
+   [32m✓[39m chat trigger resources [2m(2)[22m
+     [33m[2m✓[22m[39m produces a token that another trigger resource rejects[33m 313[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth.controller.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 2978[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-local-authorization-server.api.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 42685[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-trigger-resource.resolver.api.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 22317[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-token.service.test.ts [2m([22m[2m75 tests[22m[2m)[22m[33m 380[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/form-trigger-test-resource.resolver.api.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 21682[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/chat-trigger-test-resource.resolver.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 21957[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-trigger-authorization.api.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 23148[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-test-trigger-resource.resolver.api.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 20302[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-access-token-signing.api.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 20495[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-signing-key.service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 260[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth.helpers.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.service.test.ts [2m([22m[2m74 tests[22m[2m)[22m[32m 73[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-consent.service.test.ts [2m([22m[2m46 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-authorization-code.service.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-session.service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 97[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-local-authorization-server.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/protected-resource-resolvers/__tests__/utils.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.module.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-signing-jwks.provider.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.config.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/resource-gate.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m27 passed[39m[22m[90m (29)[39m
+[2m      Tests [22m [1m[32m607 passed[39m[22m[2m | [22m[33m31 skipped[39m[90m (638)[39m
+[2m   Start at [22m 16:05:38
+[2m   Duration [22m 1461.96s[2m (transform 80%, import 8%, tests 7%, setup 5%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 9053.28s[39m[2m · 80% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mon CI this only helps when the cache directory is persisted between runs[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
+JSON report written to /repo/.verify-vitest.json
+related test files: 29, failing: 2, outside the baseline: 1
+  packages/cli/src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts
+Downloading the pnpm 12.4.2 binary for linux-arm64...
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.config.base.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.workspace-externals.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts[2m [ src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts ][22m
+[31m[1mError[22m: Hook timed out in 120000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".[39m
+[36m [2m❯[22m setupTestServer test/integration/shared/utils/test-server.ts:[2m160:2[22m[39m
+    [90m158|[39m
+    [90m159|[39m  // eslint-disable-next-line complexity
+    [90m160|[39m  beforeAll(async () => {
+    [90m   |[39m  [31m^[39m
+    [90m161|[39m   if (modules) await testModules.loadModules(modules, packagedModules);
+    [90m162|[39m   await testDb.init();
+[90m [2m❯[22m src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts:[2m16:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts[2m [ src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts ][22m
+[31m[1mError[22m: Hook timed out in 30000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".[39m
+[36m [2m❯[22m setupTestServer test/integration/shared/utils/test-server.ts:[2m160:2[22m[39m
+    [90m158|[39m
+    [90m159|[39m  // eslint-disable-next-line complexity
+    [90m160|[39m  beforeAll(async () => {
+    [90m   |[39m  [31m^[39m
+    [90m161|[39m   if (modules) await testModules.loadModules(modules, packagedModules);
+    [90m162|[39m   await testDb.init();
+[90m [2m❯[22m src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts:[2m24:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+===== attempt 2 =====
+tests n8n: src/modules/oauth-server 
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/repo/packages/cli[39m
+
+ [31m❯[39m src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts [2m([22m[2m8 tests[22m[2m | [22m[33m8 skipped[39m[2m)[22m[33m 30016[2mms[22m[39m
+   [2m[90m↓[39m[22m protected-resource grants outliving the trigger [2m(8)[22m
+     [2m[90m↓[39m[22m keeps verifying the run token after the registration is torn down
+     [2m[90m↓[39m[22m covers every method of a multi-method trigger
+     [2m[90m↓[39m[22m does not widen what the resource allowed [2m(4)[22m
+       [2m[90m↓[39m[22m re-checks execute access, so revoking it stops the run
+       [2m[90m↓[39m[22m rejects a token minted for a different resource
+       [2m[90m↓[39m[22m stops at the sealed token expiring, which the grant does not extend
+       [2m[90m↓[39m[22m rejects a revoked token
+     [2m[90m↓[39m[22m omits the execute check when the trigger does not require it
+     [2m[90m↓[39m[22m prefers the live resource while the trigger is still registered
+ [31m❯[39m src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts [2m([22m[2m23 tests[22m[2m | [22m[33m23 skipped[39m[2m)[22m[33m 125592[2mms[22m[39m
+   [2m[90m↓[39m[22m GET /rest/consent/details [2m(9)[22m
+     [2m[90m↓[39m[22m should return consent details for valid session
+     [2m[90m↓[39m[22m should include the resource name when the session resource resolves
+     [2m[90m↓[39m[22m should return 422 and clear the session when the resource cannot be resolved
+     [2m[90m↓[39m[22m should return 400 when session cookie is missing
+     [2m[90m↓[39m[22m should return 400 when session token is invalid
+     [2m[90m↓[39m[22m should return 400 when client does not exist
+     [2m[90m↓[39m[22m should clear session cookie on invalid token
+     [2m[90m↓[39m[22m should require authentication
+     [2m[90m↓[39m[22m should work for different users
+   [2m[90m↓[39m[22m POST /rest/consent/approve [2m(13)[22m
+     [2m[90m↓[39m[22m should handle consent approval and return redirect URL with authorization code
+     [2m[90m↓[39m[22m rejects a scope list with duplicates
+     [2m[90m↓[39m[22m should handle consent denial and return error redirect URL
+     [2m[90m↓[39m[22m should clear session cookie after processing consent
+     [2m[90m↓[39m[22m should return 400 when approved field is missing
+     [2m[90m↓[39m[22m should return 400 when approved field is not boolean
+     [2m[90m↓[39m[22m should return 400 when session cookie is missing
+     [2m[90m↓[39m[22m should return 400 when session token is invalid
+     [2m[90m↓[39m[22m should clear session cookie even on error
+     [2m[90m↓[39m[22m should require authentication
+     [2m[90m↓[39m[22m should create user consent record on approval
+     [2m[90m↓[39m[22m should not create user consent record on denial
+     [2m[90m↓[39m[22m should handle consent from different users
+   [2m[90m↓[39m[22m Consent Flow - End-to-End [2m(1)[22m
+     [2m[90m↓[39m[22m should complete full consent flow from details to approval
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-webhook-test-trigger-resource.resolver.api.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 70641[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-clients.controller.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 91530[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/form-trigger-resource.resolver.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 71869[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/chat-trigger-resource.resolver.api.test.ts [2m([22m[2m31 tests[22m[2m)[22m[33m 73006[2mms[22m[39m
+   [32m✓[39m consent reuse on a second visit [2m(2)[22m
+     [33m[2m✓[22m[39m a second visit reuses consent when the visitor is already logged in[33m 422[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-webhook-trigger-resource.resolver.api.test.ts [2m([22m[2m44 tests[22m[2m)[22m[33m 74398[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-flow.service.api.test.ts [2m([22m[2m39 tests[22m[2m)[22m[33m 77132[2mms[22m[39m
+   [32m✓[39m complete [2m(10)[22m
+     [33m[2m✓[22m[39m returns metadata stashed at begin, and undefined when none was stashed[33m 333[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects when the submitter lacks execute access on the workflow[33m 315[2mms[22m[39m
+     [33m[2m✓[22m[39m produces a token that a different form resource rejects[33m 305[2mms[22m[39m
+   [32m✓[39m refresh [2m(8)[22m
+     [33m[2m✓[22m[39m leaves the previous access token usable[33m 316[2mms[22m[39m
+   [32m✓[39m chat trigger resources [2m(2)[22m
+     [33m[2m✓[22m[39m produces a token that another trigger resource rejects[33m 309[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth.controller.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 3181[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-local-authorization-server.api.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 42945[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-trigger-authorization.api.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 21559[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-token.service.test.ts [2m([22m[2m75 tests[22m[2m)[22m[32m 242[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/chat-trigger-test-resource.resolver.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 21711[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/form-trigger-test-resource.resolver.api.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 21847[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-trigger-resource.resolver.api.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 22802[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-access-token-signing.api.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 20153[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-test-trigger-resource.resolver.api.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 20811[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-signing-key.service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 200[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth.helpers.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-session.service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 101[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-authorization-code.service.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-consent.service.test.ts [2m([22m[2m46 tests[22m[2m)[22m[32m 78[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.service.test.ts [2m([22m[2m74 tests[22m[2m)[22m[32m 101[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/protected-resource-resolvers/__tests__/utils.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.module.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-local-authorization-server.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-signing-jwks.provider.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.config.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/resource-gate.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m27 passed[39m[22m[90m (29)[39m
+[2m      Tests [22m [1m[32m607 passed[39m[22m[2m | [22m[33m31 skipped[39m[90m (638)[39m
+[2m   Start at [22m 16:30:57
+[2m   Duration [22m 974.58s[2m (transform 71%, import 11%, tests 10%, setup 7%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 5375.09s[39m[2m · 71% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mon CI this only helps when the cache directory is persisted between runs[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
+JSON report written to /repo/.verify-vitest.json
+related test files: 29, failing: 2, outside the baseline: 1
+  packages/cli/src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts
+Downloading the pnpm 12.4.2 binary for linux-arm64...
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.config.base.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.workspace-externals.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts[2m [ src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts ][22m
+[31m[1mError[22m: Hook timed out in 120000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".[39m
+[36m [2m❯[22m setupTestServer test/integration/shared/utils/test-server.ts:[2m160:2[22m[39m
+    [90m158|[39m
+    [90m159|[39m  // eslint-disable-next-line complexity
+    [90m160|[39m  beforeAll(async () => {
+    [90m   |[39m  [31m^[39m
+    [90m161|[39m   if (modules) await testModules.loadModules(modules, packagedModules);
+    [90m162|[39m   await testDb.init();
+[90m [2m❯[22m src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts:[2m16:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts[2m [ src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts ][22m
+[31m[1mError[22m: Hook timed out in 30000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".[39m
+[36m [2m❯[22m setupTestServer test/integration/shared/utils/test-server.ts:[2m160:2[22m[39m
+    [90m158|[39m
+    [90m159|[39m  // eslint-disable-next-line complexity
+    [90m160|[39m  beforeAll(async () => {
+    [90m   |[39m  [31m^[39m
+    [90m161|[39m   if (modules) await testModules.loadModules(modules, packagedModules);
+    [90m162|[39m   await testDb.init();
+[90m [2m❯[22m src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts:[2m24:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+===== attempt 3 =====
+tests n8n: src/modules/oauth-server 
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/repo/packages/cli[39m
+
+ [31m❯[39m src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts [2m([22m[2m8 tests[22m[2m | [22m[33m8 skipped[39m[2m)[22m[33m 30012[2mms[22m[39m
+   [2m[90m↓[39m[22m protected-resource grants outliving the trigger [2m(8)[22m
+     [2m[90m↓[39m[22m keeps verifying the run token after the registration is torn down
+     [2m[90m↓[39m[22m covers every method of a multi-method trigger
+     [2m[90m↓[39m[22m does not widen what the resource allowed [2m(4)[22m
+       [2m[90m↓[39m[22m re-checks execute access, so revoking it stops the run
+       [2m[90m↓[39m[22m rejects a token minted for a different resource
+       [2m[90m↓[39m[22m stops at the sealed token expiring, which the grant does not extend
+       [2m[90m↓[39m[22m rejects a revoked token
+     [2m[90m↓[39m[22m omits the execute check when the trigger does not require it
+     [2m[90m↓[39m[22m prefers the live resource while the trigger is still registered
+ [31m❯[39m src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts [2m([22m[2m23 tests[22m[2m | [22m[33m23 skipped[39m[2m)[22m[33m 126795[2mms[22m[39m
+   [2m[90m↓[39m[22m GET /rest/consent/details [2m(9)[22m
+     [2m[90m↓[39m[22m should return consent details for valid session
+     [2m[90m↓[39m[22m should include the resource name when the session resource resolves
+     [2m[90m↓[39m[22m should return 422 and clear the session when the resource cannot be resolved
+     [2m[90m↓[39m[22m should return 400 when session cookie is missing
+     [2m[90m↓[39m[22m should return 400 when session token is invalid
+     [2m[90m↓[39m[22m should return 400 when client does not exist
+     [2m[90m↓[39m[22m should clear session cookie on invalid token
+     [2m[90m↓[39m[22m should require authentication
+     [2m[90m↓[39m[22m should work for different users
+   [2m[90m↓[39m[22m POST /rest/consent/approve [2m(13)[22m
+     [2m[90m↓[39m[22m should handle consent approval and return redirect URL with authorization code
+     [2m[90m↓[39m[22m rejects a scope list with duplicates
+     [2m[90m↓[39m[22m should handle consent denial and return error redirect URL
+     [2m[90m↓[39m[22m should clear session cookie after processing consent
+     [2m[90m↓[39m[22m should return 400 when approved field is missing
+     [2m[90m↓[39m[22m should return 400 when approved field is not boolean
+     [2m[90m↓[39m[22m should return 400 when session cookie is missing
+     [2m[90m↓[39m[22m should return 400 when session token is invalid
+     [2m[90m↓[39m[22m should clear session cookie even on error
+     [2m[90m↓[39m[22m should require authentication
+     [2m[90m↓[39m[22m should create user consent record on approval
+     [2m[90m↓[39m[22m should not create user consent record on denial
+     [2m[90m↓[39m[22m should handle consent from different users
+   [2m[90m↓[39m[22m Consent Flow - End-to-End [2m(1)[22m
+     [2m[90m↓[39m[22m should complete full consent flow from details to approval
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-webhook-test-trigger-resource.resolver.api.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 95125[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-clients.controller.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 116676[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/form-trigger-resource.resolver.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 97419[2mms[22m[39m
+   [32m✓[39m protected resource metadata for form triggers [2m(14)[22m
+     [33m[2m✓[22m[39m should follow the published version, not the draft[33m 419[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/chat-trigger-resource.resolver.api.test.ts [2m([22m[2m31 tests[22m[2m)[22m[33m 98647[2mms[22m[39m
+   [32m✓[39m protected resource metadata for chat triggers [2m(20)[22m
+     [33m[2m✓[22m[39m should not resolve when authentication is an expression[33m 336[2mms[22m[39m
+   [32m✓[39m consent reuse on a second visit [2m(2)[22m
+     [33m[2m✓[22m[39m a second visit reuses consent when the visitor is already logged in[33m 351[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-webhook-trigger-resource.resolver.api.test.ts [2m([22m[2m44 tests[22m[2m)[22m[33m 99507[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-flow.service.api.test.ts [2m([22m[2m39 tests[22m[2m)[22m[33m 103388[2mms[22m[39m
+   [32m✓[39m complete [2m(10)[22m
+     [33m[2m✓[22m[39m exchanges the code for a validated token (sub=submitter, aud=form resource)[33m 321[2mms[22m[39m
+     [33m[2m✓[22m[39m returns the refresh token and the access token lifetime[33m 462[2mms[22m[39m
+     [33m[2m✓[22m[39m returns metadata stashed at begin, and undefined when none was stashed[33m 688[2mms[22m[39m
+     [33m[2m✓[22m[39m consumes the state so a replay is rejected[33m 323[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects when the submitter lacks execute access on the workflow[33m 391[2mms[22m[39m
+     [33m[2m✓[22m[39m produces a token that a different form resource rejects[33m 309[2mms[22m[39m
+   [32m✓[39m refresh [2m(8)[22m
+     [33m[2m✓[22m[39m leaves the previous access token usable[33m 319[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses a refresh token presented against another resource[33m 315[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps exactly one refresh row across repeated rotations[33m 351[2mms[22m[39m
+   [32m✓[39m chat trigger resources [2m(2)[22m
+     [33m[2m✓[22m[39m produces a token that another trigger resource rejects[33m 556[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth.controller.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 22985[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-local-authorization-server.api.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 42429[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-trigger-resource.resolver.api.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 18751[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-token.service.test.ts [2m([22m[2m75 tests[22m[2m)[22m[33m 313[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/form-trigger-test-resource.resolver.api.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 18509[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-access-token-signing.api.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 18701[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/chat-trigger-test-resource.resolver.api.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 19620[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-test-trigger-resource.resolver.api.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 19247[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/workflow-mcp-trigger-authorization.api.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 20844[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-signing-key.service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 395[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth.helpers.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/protected-resource-resolvers/__tests__/utils.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.service.test.ts [2m([22m[2m74 tests[22m[2m)[22m[32m 64[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-session.service.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 71[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-consent.service.test.ts [2m([22m[2m46 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-authorization-code.service.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.module.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-local-authorization-server.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-server.config.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/resource-gate.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/modules/oauth-server/__tests__/oauth-signing-jwks.provider.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m27 passed[39m[22m[90m (29)[39m
+[2m      Tests [22m [1m[32m607 passed[39m[22m[2m | [22m[33m31 skipped[39m[90m (638)[39m
+[2m   Start at [22m 16:48:08
+[2m   Duration [22m 992.76s[2m (transform 69%, tests 12%, import 11%, setup 7%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 5329.95s[39m[2m · 69% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mon CI this only helps when the cache directory is persisted between runs[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
+JSON report written to /repo/.verify-vitest.json
+related test files: 29, failing: 2, outside the baseline: 1
+  packages/cli/src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts
+Downloading the pnpm 12.4.2 binary for linux-arm64...
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.config.base.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.workspace-externals.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts[2m [ src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts ][22m
+[31m[1mError[22m: Hook timed out in 120000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".[39m
+[36m [2m❯[22m setupTestServer test/integration/shared/utils/test-server.ts:[2m160:2[22m[39m
+    [90m158|[39m
+    [90m159|[39m  // eslint-disable-next-line complexity
+    [90m160|[39m  beforeAll(async () => {
+    [90m   |[39m  [31m^[39m
+    [90m161|[39m   if (modules) await testModules.loadModules(modules, packagedModules);
+    [90m162|[39m   await testDb.init();
+[90m [2m❯[22m src/modules/oauth-server/__tests__/oauth-consent.controller.api.test.ts:[2m16:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts[2m [ src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts ][22m
+[31m[1mError[22m: Hook timed out in 30000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".[39m
+[36m [2m❯[22m setupTestServer test/integration/shared/utils/test-server.ts:[2m160:2[22m[39m
+    [90m158|[39m
+    [90m159|[39m  // eslint-disable-next-line complexity
+    [90m160|[39m  beforeAll(async () => {
+    [90m   |[39m  [31m^[39m
+    [90m161|[39m   if (modules) await testModules.loadModules(modules, packagedModules);
+    [90m162|[39m   await testDb.init();
+[90m [2m❯[22m src/modules/oauth-server/__tests__/test-trigger-resource-lifetime.api.test.ts:[2m24:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
