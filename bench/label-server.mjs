@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 // A local page for the blind finding labels of Plan 6: one finding at a time, with the convention text next to it.
-// Each label is written to studies/plan-6-labels/findings.csv at once. Reads only the label sheets, never the key.
+// Each label is written to the folder's findings.csv at once. Reads only the label sheets, never the key.
 //
-//   node bench/label-server.mjs [--port 4317]     then open http://127.0.0.1:4317 (findings) or /d (diffs)
+//   node bench/label-server.mjs [--dir studies/plan-7-labels] [--port 4317]   (default folder: Plan 6)     then open http://127.0.0.1:4317 (findings) or /d (diffs)
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { LABELS, csvRow, parseCsv } from './plan6.mjs';
 
-const CSV = path.join(LABELS, 'findings.csv');
+const arg = (name) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : undefined; };
+const DIR = path.resolve(arg('--dir') ?? LABELS);
+const CSV = path.join(DIR, 'findings.csv');
+// the studies of this folder, from its conventions-<study>.md files
+const STUDIES = fs.readdirSync(DIR).flatMap((f) => f.match(/^conventions-(.+)\.md$/)?.[1] ?? []);
 const LABEL_VALUES = ['correct', 'false', ''];
 
 // findings.md: "## X001: local/rule" sections with a file line and one code block
@@ -26,33 +30,33 @@ export function parseConventions(md) {
   return Object.fromEntries(md.split(/^## /m).slice(1).map((s) => { const [id, ...rest] = s.split('\n'); return [`local/${id.trim()}`, rest.join('\n').trim()]; }));
 }
 
-const study = (where) => (where.includes('apps/react-vite') ? 'bulletproof-conventions' : 'formbricks-conventions');
+const study = (where) => (STUDIES.length === 1 ? STUDIES[0] : where.includes('apps/react-vite') ? 'bulletproof-conventions' : 'formbricks-conventions');
 
 function load() {
-  const findings = parseFindings(fs.readFileSync(path.join(LABELS, 'findings.md'), 'utf8'));
-  const conventions = Object.fromEntries(['bulletproof-conventions', 'formbricks-conventions'].map((s) => [s, parseConventions(fs.readFileSync(path.join(LABELS, `conventions-${s}.md`), 'utf8'))]));
+  const findings = parseFindings(fs.readFileSync(path.join(DIR, 'findings.md'), 'utf8'));
+  const conventions = Object.fromEntries(STUDIES.map((s) => [s, parseConventions(fs.readFileSync(path.join(DIR, `conventions-${s}.md`), 'utf8'))]));
   const labels = Object.fromEntries(parseCsv(fs.readFileSync(CSV, 'utf8')).map((r) => [r.code, r]));
   return findings.map((f) => ({ ...f, convention: conventions[study(f.where)][f.rule] ?? (f.rule.startsWith('local/') ? '(convention text not found)' : 'Not a convention: the linter itself reported an error here (for example a parse error in half-edited code). Skip it; the analysis leaves it out.'), label: labels[f.code]?.label ?? '', note: labels[f.code]?.note ?? '' }));
 }
 
 // --- diff labels: per sampled diff, every convention in scope of its files, violated yes or no
-const DIFF_STUDY = { B: 'bulletproof-conventions', F: 'formbricks-conventions' };
-const diffCsv = (st) => path.join(LABELS, `diffs-${st}.csv`);
+const diffCsv = (st) => path.join(DIR, `diffs-${st}.csv`);
+const DIFF_STUDIES = STUDIES.filter((st) => fs.existsSync(diffCsv(st)));
 
 function loadDiffs() {
-  return Object.values(DIFF_STUDY).flatMap((st) => {
-    const conv = parseConventions(fs.readFileSync(path.join(LABELS, `conventions-${st}.md`), 'utf8'));
-    const hints = fs.existsSync(path.join(LABELS, 'hints.json')) ? JSON.parse(fs.readFileSync(path.join(LABELS, 'hints.json'), 'utf8')) : {};
+  return DIFF_STUDIES.flatMap((st) => {
+    const conv = parseConventions(fs.readFileSync(path.join(DIR, `conventions-${st}.md`), 'utf8'));
+    const hints = fs.existsSync(path.join(DIR, 'hints.json')) ? JSON.parse(fs.readFileSync(path.join(DIR, 'hints.json'), 'utf8')) : {};
     const rows = parseCsv(fs.readFileSync(diffCsv(st), 'utf8'));
     return [...new Set(rows.map((r) => r.code))].map((code) => ({
-      code, study: st, patch: fs.readFileSync(path.join(LABELS, 'diffs', `${code}.patch`), 'utf8'),
+      code, study: st, patch: fs.readFileSync(path.join(DIR, 'diffs', `${code}.patch`), 'utf8'),
       cells: rows.filter((r) => r.code === code).map((r) => ({ convention: r.convention, text: conv[`local/${r.convention}`] ?? '', hint: hints[r.convention] ?? '', violated: r.violated, note: r.note })),
     }));
   });
 }
 
 function saveDiff(code, cells) {
-  const st = DIFF_STUDY[code[0]];
+  const st = DIFF_STUDIES.find((s) => parseCsv(fs.readFileSync(diffCsv(s), 'utf8')).some((r) => r.code === code));
   if (!st) throw new Error(`unknown diff ${code}`);
   const rows = parseCsv(fs.readFileSync(diffCsv(st), 'utf8'));
   for (const c of cells) {
@@ -199,7 +203,6 @@ const server = http.createServer((req, res) => {
 });
 
 if (process.argv[1]?.endsWith('label-server.mjs')) {
-  const i = process.argv.indexOf('--port');
-  const port = i > 0 ? Number(process.argv[i + 1]) : 4317;
+  const port = Number(arg('--port') ?? 4317);
   server.listen(port, '127.0.0.1', () => console.log(`finding labels: http://127.0.0.1:${port}   diff labels: http://127.0.0.1:${port}/d  (Ctrl+C to stop; labels are saved to ${CSV})`));
 }
