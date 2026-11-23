@@ -324,6 +324,16 @@ fs.writeFileSync(path.join(out, 'local.tex'), local.join('\n') + '\n');
   macro('PSevenProseLeft', ok.filter((r) => r.arm === 'prose' && r.breaksFinal > 0).length);
   macro('PSevenTurnsProse', avg(ok.filter((r) => r.arm === 'prose').map((r) => r.turns)).toFixed(1));
   macro('PSevenTurnsRules', avg(rules.map((r) => r.turns)).toFixed(1));
+  // H18 (descriptive): verify pass rate per arm, exact 95% interval; where the failures are
+  for (const [name, arm] of [['Prose', 'prose'], ['Rules', 'rules']]) {
+    const v = ok.filter((r) => r.arm === arm && P6.verifyOk(r) !== null);
+    const pass = v.filter((r) => P6.verifyOk(r)).length, fail = v.filter((r) => !P6.verifyOk(r));
+    const [lo, hi] = clopperPearson(pass, v.length);
+    macro(`PSevenVerify${name}`, frac(pass, v.length));
+    macro(`PSevenVerify${name}CI`, `${Math.round(lo * 100)}\\% to ${Math.round(hi * 100)}\\%`);
+    macro(`PSevenVerify${name}Fail`, fail.length);
+    macro(`PSevenVerify${name}TTwo`, fail.filter((r) => r.task === 'T2').length);
+  }
   fs.writeFileSync(path.join(out, 'plan7.tex'), ss.map((s) => `${MODEL[s.model]} & ${s.task} & ${s.x1}/${s.n1} & ${s.x2}/${s.n2} & ${p3(exactUpper([s]))} & ${pct(avg(s.y.map(total)) / avg(s.x.map(total)))} \\\\`).join('\n') + '\n');
 }
 

@@ -47,8 +47,7 @@ Pre-registered, the feedback loop prevented violations of a rule that no prose s
 Against our own conventions in a short always-loaded file, lint rules gained nothing.
 On two projects, the advantage of lint rules was not significant after correction (\HTwelveProse{} vs.\ \HTwelveRules{} violating runs); it came from the project whose prose the agent did not load (\PSixFBProse{} vs.\ \PSixFBRules).
 On n8n, with the maintainers' conventions in loaded files, prose was violated in \HSixteenProse{} runs and lint rules in \HSixteenRules, at \HSeventeenCost{} cost.
-Functional correctness did not differ.
-% TODO(Plan 7): check this sentence against H18 when the verify of Plan 7 is complete.
+Functional correctness was similar across arms.
 
 \textbf{Conclusions.}
 In-session lint feedback helps where the agent does not read the prose, and where long instruction files sit next to code that violates them.
@@ -678,7 +677,12 @@ The \arm{rules} arm cost \HSeventeenCost{} against prose (90\% interval \HSevent
 The saving comes from the review fix: without it, the task sessions cost \HSeventeenTaskCost{} (\HSeventeenTaskCI).
 A run in the \arm{rules} arm took \PSevenTurnsRules{} turns on average, a run in the \arm{prose} arm \PSevenTurnsProse.
 
-% TODO(Plan 7): H18, functional correctness per arm, when verify is complete.
+\paragraph{Functional correctness (H18, descriptive).}
+The final diff passed verify in \PSevenVerifyProse{} \arm{prose} runs (95\% interval \PSevenVerifyProseCI) and in \PSevenVerifyRules{} \arm{rules} runs (\PSevenVerifyRulesCI); the intervals overlap, and the plan registered no test.
+All \PSevenVerifyRulesFail{} failures in the \arm{rules} arm and \PSevenVerifyProseTTwo{} of the \PSevenVerifyProseFail{} in the \arm{prose} arm come from the OAuth task, which changes three packages.
+The agent added a constructor parameter and did not change the existing tests that call the constructor, or it did not export a new DTO from its package.
+The lint rules do not check types, so the loop could not catch these failures.
+Setup builds the agent's changes to the other packages; when that build failed, the run counts as a type-check failure (deviations D2 and D3).
 % TODO(Plan 7): measurement checks (hand labels of 40 diffs and of every loop finding), when the labels are done.
 
 \subsection{Descriptive and post hoc comparisons}
