@@ -308,6 +308,7 @@ As a second model family it uses \texttt{qwen3.6:35b-a3b-coding} in the Codex CL
 A deviation added exploratory runs with the two newest Claude models, \texttt{claude-opus-5-5} and \texttt{claude-fable-5-2}, with 1 or 2 repeats per cell.
 Each Plan~6 run records the agent version, the model identifiers and the commit of the harness.
 The Claude Code runs of Plan~6 cost \PSixCost{} in total.
+Plan~7 uses the same two models in Claude Code 2.1.330, ran on 22 November 2026, records the same data per run, and cost \PSevenCost{} in total.
 
 One exploratory study also repeats a comparison with a local model, \texttt{qwen3.6:35b-a3b} (Q4\_K\_M quantization), in two other agents, pi and the Codex CLI, with the same feedback loop.
 These runs have a turn cap of 60, because the local model needs more turns than the Claude models.
@@ -343,8 +344,8 @@ We registered it on OSF before its first run (\url{https://osf.io/9hdjs}), and i
 Its sample size comes from a power analysis: 128 runs per arm give 80\% power for 8\% against 1\% violating runs (one-sided exact test, $\alpha=0.05$).
 A seed interleaves the arms in time, so that no arm runs as one block with a warm prompt cache.
 Install, build and verify run in a container without credentials.
-Plan~7 follows the same rules (\url{https://osf.io/6v8yx}).
-We designed it after the results of Plan~6, and we registered it before its first run.
+Plan~7 follows the same rules.
+We designed it after the results of Plan~6 and registered it on OSF before its first run (\url{https://osf.io/6v8yx}); it lists three deviations, with the same details.
 Its sample size is our choice, 64 runs per arm; the plan states its power: 81\% if prose is violated in 15\% of runs and lint rules in 1\%.
 
 \subsection{Statistics}
@@ -400,7 +401,7 @@ Always-loaded text can change what else the agent reads.
 
 \subsection{Pre-registered studies}
 
-The five pre-registered studies test the ideas that the exploratory studies gave us.
+Plans 1 to 5 test the ideas that the exploratory studies gave us; Plans~6 and~7, registered on OSF, follow in Sections~\ref{sec:plan6} and~\ref{sec:plan7}.
 Table~\ref{tab:hyp} gives every pre-registered hypothesis with its result.
 Of the nine hypotheses of Plans 1 to 5 that we could test, three are supported.
 H3 has no test by design, and H4 could not be tested.
@@ -847,6 +848,7 @@ Only a few of the 40 conventions were ever at risk in the tasks, and in Plan~6 o
 Most cells of Plans 1 to 5 have 8 runs, and the cost varies widely between runs of the same arm.
 Several null results (H5, H7, H9) can only exclude large differences.
 Plan~6 has 128 runs per arm and a power analysis, but its expected effect assumed that violations spread over many conventions.
+Plan~7 has 64 runs per arm, with the power stated in its OSF registration.
 They are not evidence of equal compliance.
 
 \paragraph{Measurement.}
@@ -863,14 +865,14 @@ The review fix is idealised: one precise prompt, no human time and no CI round t
 Real review costs more, which would favour arms with fewer violations.
 
 \paragraph{Cost and reach of lint rules.}
-We measured the size of the lint rules of Plan~6 (lines and test cases), but not the time to write and maintain them, which is higher than the time to write one sentence.
+We measured the size of the lint rules of Plans~6 and~7 (lines and test cases), but not the time to write and maintain them, which is higher than the time to write one sentence.
 Not every rule can become a lint rule: a rule about intent, or about a design choice across many files, may have no pattern that a linter can check.
 Our results apply to rules that a linter can check.
 
 \paragraph{Models and agents.}
 We used four Claude models in Claude Code and one local model in two other agents, in the versions that were current in November 2026.
 For the studies before Plan~6 we did not record the exact tool versions at run time, and sessions of one arm ran back to back and shared the prompt cache.
-Plan~6 records the versions and interleaves the arms.
+Plans~6 and~7 record the versions and interleave the arms.
 Updates of a model or an agent can change the results.
 Repeated runs of the same prompt give different code \citep{ouyang2025nondeterminism}, which is why every cell of our studies has several repeats.
 The Claude models are closed, so we cannot rule out that their training data contains the public projects that we used \citep{sallou2024threats}; we follow the published guidelines for empirical studies with language models where they apply \citep{baltes2025guidelines}.
@@ -880,7 +882,7 @@ Plan~2 stopped at the usage limit of the account, and we report it as not tested
 
 \paragraph{Conflict of interest.}
 The author wrote codemyrules, which installs the \arm{rules} arm.
-To limit this bias, we committed the plans before the runs and registered Plan~6 on OSF, we used the same checkers for all arms, we publish every run, and we report the null results of the pre-registered studies in full.
+To limit this bias, we committed the plans before the runs and registered Plans~6 and~7 on OSF, we used the same checkers for all arms, we publish every run, and we report the null results of the pre-registered studies in full.
 
 \section{Conclusion}
 
