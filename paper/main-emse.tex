@@ -810,7 +810,7 @@ The pointer prevents the rework that a late catch of a design-shaping rule cause
 The token price of a short always-loaded file is small: about \$0.006 per 1k tokens per Sonnet session at median turns, and less with a warm cache.
 We could not separate 1.9k tokens of prose from noise.
 The cost becomes measurable when the file grows: at 15.7k tokens the cost change was \HSixCost{}.
-The risk of a missed rule may also grow: the same rule was followed in the short file and violated in 3 of 16 runs with the large one.
+The risk of a missed rule may also grow: the prose rule ``show the success notification in the mutation hook, not in the component'' was followed in all 16 runs with a short \file{CLAUDE.md}, and violated in \HFiveBreaks{} runs (all Haiku) when it sat in the large file with the project's own guides.
 This difference is not significant, and \citet{mcmillan2026adherence} finds no effect of file size on adherence, so we do not claim it.
 
 \paragraph{A guideline.}
@@ -846,10 +846,9 @@ Only a few of the 40 conventions were ever at risk in the tasks, and in Plan~6 o
 
 \paragraph{Sample size.}
 Most cells of Plans 1 to 5 have 8 runs, and the cost varies widely between runs of the same arm.
-Several null results (H5, H7, H9) can only exclude large differences.
+So several null results (H5, H7, H9) can only rule out large differences; they do not show that the agent follows prose and lint rules equally well.
 Plan~6 has 128 runs per arm and a power analysis, but its expected effect assumed that violations spread over many conventions.
 Plan~7 has 64 runs per arm, with the power stated in its OSF registration.
-They are not evidence of equal compliance.
 
 \paragraph{Measurement.}
 The checkers define what a violation is, so their blind spots are ours.
@@ -891,8 +890,9 @@ Prose works when the agent reads it, when it is short, and when the code next to
 A lint rule with an in-session feedback loop works whether or not the agent reads anything, and it costs nothing while the code is correct.
 Lint rules show their clearest gains against prose that the agent can miss, against large always-loaded files, and with a weaker model.
 Against short always-loaded prose, the two come out even in our pre-registered tests.
-Our largest registered study did not confirm a general advantage of lint rules: they helped on the project whose prose the agent did not load, and not on the project whose short prose, written by us, it always loaded.
-A further registered study tested the realistic case: on n8n, with rules that the maintainers wrote in the instruction files that the agent loads, prose was violated in \HSixteenProse{} runs and lint rules in \HSixteenRules, and the total cost changed by \HSeventeenCost{} with lint rules.
+Two registered studies compared prose and lint rules on open-source projects.
+In Plan~6, with prose that we wrote, lint rules helped on the project whose prose the agent did not load, and not on the project whose short prose it always loaded.
+Plan~7 tested the most realistic case: on n8n, a production project, with the rules that its maintainers wrote in the instruction files that the agent loads, prose was violated in \HSixteenProse{} runs and lint rules in \HSixteenRules, and the total cost changed by \HSeventeenCost{} with lint rules.
 So the case where prose works is the one that real projects rarely have: in practice, rules sit in long files, next to code that violates them, and there a lint rule is the more reliable place.
 A lint rule reports, and the agent can still keep code that it thinks is right.
 The harness and all \NTotalRunsEMSE{} runs are public, so others can test other projects, rules and agents.
