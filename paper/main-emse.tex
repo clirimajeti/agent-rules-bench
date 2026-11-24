@@ -32,26 +32,26 @@
 
 \abstract{\textbf{Context.}
 Teams write conventions for AI coding agents in Markdown instruction files, but nothing enforces them.
-An alternative is lint rules that report violations to the agent after every edit.
+A deterministic alternative is lint rules that report each violation to the agent after every edit.
 
 \textbf{Objective.}
 We ask where a coding rule should live to minimize violations and cost.
 
 \textbf{Method.}
-We present agent-rules-bench, an open-source harness that runs the same task once per rule placement and measures violations, cost and functional correctness.
-We report \NTotalRunsEMSE{} agent runs (\NTotalSessionsEMSE{} sessions) on five projects in three languages: four exploratory studies and seven pre-registered ones, the last two on OSF.
+We present agent-rules-bench, an open-source harness that runs each task once per rule placement and measures violations, cost and correctness.
+We report \NTotalRunsEMSE{} agent runs (\NTotalSessionsEMSE{} sessions) on five projects in three languages, from four exploratory and seven pre-registered studies (two on OSF).
 
 \textbf{Results.}
-When the rule was in prose that the agent could miss, it was violated in 17 of 56 exploratory runs, and as a lint rule in none.
-Pre-registered, the feedback loop prevented violations of a rule that no prose stated (\HOneBreaks{} vs.\ \HOneBreaksAgainst), and a one-line pointer avoided rework.
-Against our own conventions in a short always-loaded file, lint rules gained nothing.
-On two projects, the advantage of lint rules was not significant after correction (\HTwelveProse{} vs.\ \HTwelveRules{} violating runs); it came from the project whose prose the agent did not load (\PSixFBProse{} vs.\ \PSixFBRules).
-On n8n, with the maintainers' conventions in loaded files, prose was violated in \HSixteenProse{} runs and lint rules in \HSixteenRules, at \HSeventeenCost{} cost.
+With the rule in linked or buried prose, 17 of 56 exploratory runs violated it; with a lint rule, 0 of 56.
+Pre-registered, the lint feedback prevented violations of a rule that no prose stated (\HOneBreaks{} vs.\ \HOneBreaksAgainst{} runs), and a one-line pointer to the lint rules avoided rework.
+In Plan~6 (two projects), lint rules had no significant advantage after correction (\HTwelveProse{} vs.\ \HTwelveRules).
+They helped only where two conventions were in a document the agent did not open (\PSixFBProse{} vs.\ \PSixFBRules), not with our own conventions in a short always-loaded file.
+In Plan~7, on n8n, with the maintainers' own instruction files, prose was violated in \HSixteenProse{} runs and lint rules in \HSixteenRules, at \HSeventeenCost{} cost.
 Functional correctness was similar across arms.
 
 \textbf{Conclusions.}
-In-session lint feedback helps where the agent does not read the prose, and where long instruction files sit next to code that violates them.
-Teams can keep always-loaded prose short and move checkable rules into lint rules.}
+Lint feedback helps when the agent misses a rule: in an unopened document, or among many rules in long instruction files while existing code violates it.
+Teams can keep business context in prose and move checkable rules into lint rules.}
 
 \keywords{AI coding agents, coding conventions, static analysis, lint rules, context files, pre-registration}
 
@@ -61,16 +61,16 @@ Teams can keep always-loaded prose short and move checkable rules into lint rule
 \section{Introduction}
 \label{sec:intro}
 
-Teams state their conventions in repository instruction files, which AI coding agents such as Claude Code, Codex, Cursor, GitHub Copilot, Gemini CLI and pi read.
+Teams state their conventions in repository instruction files, which AI coding agents such as Claude Code, Codex, Cursor and GitHub Copilot read.
 Typical conventions are ``inject a clock instead of calling \texttt{now()}'', ``keep database access out of route handlers'', and ``return success messages only from the API layer''.
 Nothing enforces these files: adherence to them tends to fall as the agent writes more code \citep{mcmillan2026adherence}, and they raise inference cost by over 20\% \citep{gloaguen2026agentsmd}.
-These files grow.
-A rule can then sit in the middle of long text, or in a linked document that the agent does not open.
+These files grow over time: developers maintain them like configuration code, mostly by small additions, and rarely remove text \citep{chatlatanagulchai2025agentreadmes}.
+In a long file, a rule can then sit in the middle of other text, or in a linked document that the agent does not open.
 The agent then copies the nearby code, and the nearby code often violates the rule.
 This is especially true for legacy code.
 
 A second place for a rule is the code itself: a lint rule.
-A linter tool checks the code, not the agent's attention.
+A linter checks the code itself, so it does not depend on whether the rule is in the agent's context window, or on whether the agent follows it.
 If a hook runs the linter after every edit, the agent gets the message while it works, and it can fix the violation in the same session.
 We found no controlled data on this approach.
 Research on agent context files measures whether the files help at all \citep{gloaguen2026agentsmd,khatri2026contextfiles}, how their structure changes adherence \citep{mcmillan2026adherence}, and what they contain \citep{chatlatanagulchai2025agentreadmes}.
@@ -93,15 +93,19 @@ Our contributions are:
 \label{sec:related}
 
 \paragraph{Context files for coding agents.}
-Each agent loads its own context files: Claude Code loads \file{CLAUDE.md} from the repository root at session start and from subdirectories when it reads files there, Codex and pi load \file{AGENTS.md}, and Cursor reads its own rule files.
+Each agent loads its own context files.
+Claude Code loads the root \file{CLAUDE.md} in every session, and the \file{CLAUDE.md} of a subdirectory when it works on files there.
+Codex, pi and other agents load \file{AGENTS.md}, and Cursor reads its own rule files.
 Several studies analyze what developers write in these files.
-\citet{chatlatanagulchai2025manifests} study 253 \file{CLAUDE.md} files and find mostly build commands, implementation details and architecture; \citet{chatlatanagulchai2025agentreadmes} extend this to 2,303 context files of three agents.
-\citet{jiang2026cursorrules} build a taxonomy of the context that developers give in Cursor rules, from 401 repositories.
-\citet{gloaguen2026agentsmd} find that context files do not generally improve task success, and that they raise inference cost by over 20\% on average.
-They also find that the agents do follow the instructions in these files.
+\citet{chatlatanagulchai2025manifests} studied 253 \file{CLAUDE.md} files and found mostly build commands, implementation details and architecture.
+\citet{chatlatanagulchai2025agentreadmes} extended this to 2,303 context files of three agents.
+\citet{jiang2026cursorrules} built a taxonomy of the context that developers give in Cursor rules, from 401 repositories.
+\citet{gloaguen2026agentsmd} found that context files do not generally improve task success, and that they raise inference cost by over 20\% on average.
+The agents do follow the instructions in these files: with a context file, they explore more broadly, for example they test more and open more files, and this extra work raises the cost.
+So requirements in the file that the task does not need make the task harder.
 In their view, the files are most useful to state practices that are not standard, such as a project's own conventions.
-\citet{khatri2026contextfiles} finds, in an ablation with Claude Code and Codex, that the context strategy does not measurably change correctness: the agents fail on implementation skill, not on missing repository knowledge.
-\citet{mcmillan2026adherence} varies four structural properties of configuration files (size, instruction position, file architecture and conflicting files) in 1,650 Claude Code sessions, and finds no detectable effect of any of them on adherence.
+\citet{khatri2026contextfiles} found, in an ablation with Claude Code and Codex, that the context strategy does not measurably change correctness: the agents fail on implementation skill, not on missing repository knowledge.
+\citet{mcmillan2026adherence} varied four structural properties of configuration files (size, instruction position, file architecture and conflicting files) in 1,650 Claude Code sessions, and found no detectable effect of any of them on adherence.
 The largest effect in that study is within the session: adherence tends to fall as the agent generates more code.
 All of these studies treat the context file as the only place for instructions.
 We add the lint rule as a second place and compare both places for the same rule.
@@ -124,6 +128,7 @@ Some conventions are architectural: they say where code belongs, and checking th
 Violations of such rules accumulate as architecture erosion, which no single strategy prevents \citep{desilva2012erosion}.
 Code from language models has many style and maintainability issues even when it is correct \citep{liu2024refining}, and code models continue the patterns of their context, also faulty ones \citep{dinh2023buggy}.
 This is the mechanism behind our tasks: the existing code violates the rule, and the agent copies it.
+The quality of the existing code also affects the agent in other ways: AI refactorings of 5,000 Python files kept the behaviour more often when the code had a higher CodeHealth score, a maintainability metric \citep{borg2026codehealth}.
 
 \paragraph{Static analysis and linters.}
 Static analysis tools are common in open source, but far from universal, and their configuration rarely changes once set \citep{beller2016static}.
@@ -131,7 +136,7 @@ Developers use linters to keep code consistent, to prevent errors and to save di
 Developers often ignore warnings that arrive late or include false positives \citep{johnson2013static,sadowski2018google}.
 \citet{sadowski2018google} report that developers act on checks that appear during code review and have a low false-positive rate.
 A lint rule that runs after each agent edit can meet both conditions: the warning arrives within seconds of the change, and a rule written for one project convention can be written to have a low false-positive rate.
-Its message can also state the fix directly.
+Its message can also say how to fix the violation, for example which helper or layer to use instead, so the agent does not have to look up the convention.
 
 \paragraph{Feedback for code generation.}
 Language models can improve their output with feedback: from themselves \citep{madaan2023selfrefine}, from reflections kept in memory \citep{shinn2023reflexion}, or from running the code \citep{chen2024selfdebug}.
@@ -141,9 +146,12 @@ Agent scaffolds already use this idea for syntax: SWE-agent runs a linter inside
 We study the same mechanism for rules that encode the conventions of one project, inside the session of a general-purpose coding agent.
 
 \paragraph{Agents and benchmarks.}
-Coding agents combine a model with tools to edit, run and search code \citep{yang2024sweagent,wang2025openhands,zhang2024autocoderover}, and simpler fixed pipelines can compete with them \citep{xia2025agentless}; \citet{hou2024llm4se} survey the wider use of language models in software engineering.
-SWE-bench \citep{jimenez2024swebench} measures whether an agent resolves real GitHub issues.
-mdarena \citep{mdarena} compares \file{CLAUDE.md} variants on a repository's merged pull requests, and a token-efficiency benchmark \citep{peker2026tokeneff} compares Claude Code configurations by cost.
+Coding agents combine a model with tools to edit, run and search code \citep{yang2024sweagent,wang2025openhands,zhang2024autocoderover}, and simpler fixed pipelines can compete with them \citep{xia2025agentless}.
+\citet{hou2024llm4se} survey the wider use of language models in software engineering.
+Benchmarks for coding agents first measured task success: SWE-bench \citep{jimenez2024swebench} measures whether an agent resolves real GitHub issues.
+Later benchmarks compare how the agent is configured.
+mdarena \citep{mdarena} compares \file{CLAUDE.md} variants on the merged pull requests of a repository.
+A token-efficiency benchmark \citep{peker2026tokeneff} compares Claude Code configurations by their cost.
 None of these benchmarks measures rule violations, or the cost of fixing them, across different placements of the same rule.
 
 \section{Rule Placements}
@@ -223,16 +231,17 @@ The author of this paper also wrote codemyrules (see the conflict-of-interest st
 
 \subsection{Harness}
 
-agent-rules-bench has four steps (Figure~\ref{fig:bench}).
-\textbf{prepare} clones the repository once per arm at the pinned commit, runs the setup script of the arm, and tags the result.
-\textbf{run} resets the copy before every session and starts one headless agent session.
-For Claude Code this is \texttt{claude -p} with project settings only, so the personal hooks and plugins of the experimenter have no effect.
-The study sets the model, the allowed tools and a turn cap (30 in most studies, 60 on Formbricks).
-After each session the harness runs the checkers of the study on the lines that the agent added.
-The checkers are the same for every arm and live outside the copies, so no arm is measured with its own rules.
+agent-rules-bench runs a study in four steps (Figure~\ref{fig:bench}).
+In the \textbf{prepare} step, the harness clones the repository once per arm at the pinned commit, runs the setup script of the arm, and tags the result.
+In the \textbf{run} step, it resets the copy of the arm before every session and starts one headless agent session.
+For Claude Code the session is the command ``\texttt{claude -p}'' with project settings only, so the personal hooks and plugins of the experimenter have no effect.
+The study sets the model, the allowed tools and a turn cap.
+The default cap is 30 turns.
+A study can raise it for all its models or for one model, because tasks and models need different numbers of turns: the Claude models have 60 turns on Formbricks and n8n, and the local model up to 120.
+After each session, the harness checks the lines that the agent added with the checkers of the study, which are the same for every arm and live outside the copies, so that no arm is measured with its own rules.
 If a run violated a rule, one more session gives the agent precise review feedback, with the same text in every arm.
-\textbf{verify} applies the final diff of each run to a clean checkout of the pinned commit, without the setup of any arm, and runs the build and the tests of the project.
-\textbf{summarize}, \textbf{compare} and \textbf{pool} produce the statistics.
+In the \textbf{verify} step, the harness applies the final diff of each run to a clean checkout of the pinned commit, without the setup of any arm, and runs the build and the tests of the project.
+In the last step, \textbf{summarize}, \textbf{compare} and \textbf{pool} produce the statistics.
 The harness needs only Node.js and git, and its own test suite runs against a fake agent.
 
 \begin{figure}[!htb]
@@ -269,8 +278,9 @@ n8n (TypeScript, ESLint) & Plan~7: 6 conventions in the maintainers' words; D: r
 \end{table}
 
 
-Plans 4 and 5 use a list of 40 conventions for bulletproof-react.
-The conventions cover architecture, the API layer, authorization, UI, routing, TypeScript, files and the mock API.
+From Plan~4 on, the rules for bulletproof-react are a list of 40 conventions that we wrote.
+The rules for Formbricks and n8n are in the words of their maintainers (see below).
+The 40 conventions cover architecture, the API layer, authorization, UI, routing, TypeScript, files and the mock API.
 Each convention has one prose line, and the same line is its lint message and the text of its review fix.
 This is essential for the comparison: prose and lint rule state each convention in the same words, so a difference between the arms comes from where the rule lives, not from how it is written.
 The Formbricks lint rules also use the maintainers' words as their messages.
@@ -279,7 +289,7 @@ Plan~6 adds Formbricks, an open-source survey platform, at a pinned commit.
 Its conventions are not ours: we took them word for word from the maintainers' \file{AGENTS.md} and \file{CODING\_STANDARDS.md}, and we used only the four that its own ESLint configuration does not enforce.
 The existing code violates three of them (F1 to F3, see above).
 Claude Code loads \file{AGENTS.md} in every session, but it loads \file{CODING\_STANDARDS.md} only if the agent opens it.
-So in the prose arm of Formbricks, two conventions (F1, F4) are always loaded and two (F2, F3) are in a document that the agent may not open.
+So in the prose arm of Formbricks, two conventions (F1, F4) are in the context of every session, and two (F2, F3) enter it only in the sessions in which the agent opens \file{CODING\_STANDARDS.md} (Section~\ref{sec:plan6} reports how often it did).
 We kept the files as the maintainers wrote them.
 
 Plan~7 adds n8n, an open-source workflow automation platform, at a pinned commit.
@@ -291,7 +301,7 @@ n8n is under the Sustainable Use License; the published diffs of Plan~7 are unde
 
 \subsection{Measures}
 
-A \emph{violation} is a checker finding on an added line in production code, after the task session and before any review fix.
+A \emph{violation} is a checker finding on an added code line in production code, after the first task session and before any review fix.
 A run is \emph{violating} if it has at least one violation.
 \emph{Cost} is the total cost per run that Claude Code reports: the task session plus the review fix, if there was one.
 Cost combines tokens, turns, cache use and rework in one number.
@@ -299,53 +309,53 @@ We also record turns, tokens, wall time, loop catches, the violations left at th
 
 \subsection{Models and agents}
 
-The Claude Code runs of the exploratory studies and of Plans 1 to 5 use \texttt{claude-sonnet-5-5} and \texttt{claude-haiku-5-5}.
+The primary models of all studies are \texttt{claude-sonnet-5-5} and \texttt{claude-haiku-5-5} in Claude Code.
 We read the model identifiers from the session output.
-These runs took place between 1 and 5 November 2026, and the \NClaudeRuns{} runs cost \TotalCost{} in total.
+The exploratory studies and Plans~1 to~5 ran between 1 and 5 November 2026, Plan~6 between 15 and 17 November 2026 (Claude Code 2.1.325), and Plan~7 on 22 November 2026 (Claude Code 2.1.330).
+In Plans~6 and~7, each run also records the agent version and the commit of the harness.
+The Claude runs cost \TotalCost{} for the exploratory studies and Plans~1 to~5 (\NClaudeRuns{} runs), \PSixCost{} for Plan~6 and \PSevenCost{} for Plan~7.
 
-Plan~6 uses the same two models as its primary models (Claude Code 2.1.325) and ran between 15 and 17 November 2026.
-As a second model family it uses \texttt{qwen3.6:35b-a3b-coding} in the Codex CLI 0.166.0 with the same feedback loop.
-A deviation added exploratory runs with the two newest Claude models, \texttt{claude-opus-5-5} and \texttt{claude-fable-5-2}, with 1 or 2 repeats per cell.
-Each Plan~6 run records the agent version, the model identifiers and the commit of the harness.
-The Claude Code runs of Plan~6 cost \PSixCost{} in total.
-Plan~7 uses the same two models in Claude Code 2.1.330, ran on 22 November 2026, records the same data per run, and cost \PSevenCost{} in total.
-
-One exploratory study also repeats a comparison with a local model, \texttt{qwen3.6:35b-a3b} (Q4\_K\_M quantization), in two other agents, pi and the Codex CLI, with the same feedback loop.
-These runs have a turn cap of 60, because the local model needs more turns than the Claude models.
-A local model reports no cost, so for these runs we report violations and turns only.
+A local model gives a second model family, with the same feedback loop.
+In one exploratory study, \texttt{qwen3.6:35b-a3b} (Q4\_K\_M quantization) runs in two other agents, pi and the Codex CLI.
+In Plan~6, \texttt{qwen3.6:35b-a3b-coding} runs in the Codex CLI 0.166.0 as the pre-registered second model family.
+The local model needs more turns than the Claude models, so its turn cap is higher (60 or 120).
+It reports no cost, so for these runs we report violations and turns only.
+Finally, a deviation of Plan~6 added exploratory runs with the two newest Claude models, \texttt{claude-opus-5-5} and \texttt{claude-fable-5-2}, with 1 or 2 repeats per cell.
 
 \subsection{Use of AI tools in this work}
 
-AI coding agents are the subject of this study, and this section describes how they were run.
-Apart from that, the author used Claude (Anthropic) in Claude Code to write and test the code of the harness and the analysis scripts, to operate the runs, and to draft and edit the text of this paper.
-The hand labels of the measurement checks are the author's own judgments: the labelling page showed each finding or diff with the convention text and the arm hidden, and recorded only the author's answer.
 The author reviewed all code, analyses and text, and is responsible for the content.
+AI coding agents are the subject of this study, and the sections above describe how they were run.
+Apart from the study sessions, the author used Claude Code (Anthropic) to write and test the code of the harness and the analysis scripts, and to operate the runs.
+Claude Code also helped to build the tools that the author used to write and revise this paper, and it applied the author's revision notes to the text.
+The hand labels of the measurement checks are the author's own judgments: the labelling page showed each finding or diff with the convention text and the arm hidden, and recorded only the author's answer.
 
 \subsection{Exploratory and pre-registered studies}
 
 The work has two phases, and we keep them apart in all results.
 
-In the first phase we ran four \emph{exploratory} studies.
-They had no fixed analysis plan, because their purpose was to form ideas.
-While we ran them, we also completed the harness: the arms, the checkers, the review fix and the measures took their final form in this phase.
-These studies gave us the questions that the second phase tests, for example what the loop and the pointer each contribute, and what a large always-loaded file costs.
-We report their results as exploratory, and we draw no confirmatory conclusion from them.
+In the first phase, we ran four \emph{exploratory} studies to form ideas, so they had no fixed analysis plan.
+During this phase we also finished the harness: the arms, the checkers, the review fix and the measures reached their final form.
+The exploratory studies raised the questions that the second phase tests, for example what the loop and the pointer each contribute, and what a large always-loaded file costs.
+We report their results as exploratory and draw no confirmatory conclusion from them.
 
 In the second phase we tested these ideas.
 We wrote seven analysis plans, Plans~1 to~7, one for each new study.
-We committed each plan to the public repository before the first run of its study \citep{nosek2018prereg,ernst2023registered}.
+We committed each plan to the public repository before the first run of its study.
+This follows the practice of pre-registration \citep{nosek2018prereg} and of registered reports in software engineering \citep{ernst2023registered}.
 The commit history therefore shows that each plan is older than its data.
 This is what we mean by \emph{pre-registered}: we fixed the arms, outcomes, hypotheses and statistical tests of a study before we saw any of its results.
 Each plan also lists every later deviation with its date.
 Only the hypotheses of these plans are confirmatory (Tables~\ref{tab:hyp}, \ref{tab:plan6} and~\ref{tab:plan7}).
 
-Plan~6 is stricter than Plans 1 to 5 in four ways.
-We registered it on OSF before its first run (\url{https://osf.io/9hdjs}), and it lists five deviations, each with its date, its reason and what we knew when we made it.
-Its sample size comes from a power analysis: 128 runs per arm give 80\% power for 8\% against 1\% violating runs (one-sided exact test, $\alpha=0.05$).
+Plans~6 and~7 are stricter than Plans 1 to 5 in four ways.
+We registered each of them on OSF before its first run, and each lists its deviations, each with its date, its reason and what we knew when we made it.
+Each plan states its sample size and the power that this gives.
 A seed interleaves the arms in time, so that no arm runs as one block with a warm prompt cache.
 Install, build and verify run in a container without credentials.
-Plan~7 follows the same rules.
-We designed it after the results of Plan~6 and registered it on OSF before its first run (\url{https://osf.io/6v8yx}); it lists three deviations, with the same details.
+Plan~6 (\url{https://osf.io/9hdjs}) lists five deviations.
+Its sample size comes from a power analysis: 128 runs per arm give 80\% power for 8\% against 1\% violating runs (one-sided exact test, $\alpha=0.05$).
+We designed Plan~7 (\url{https://osf.io/6v8yx}) after the results of Plan~6, and it lists three deviations.
 Its sample size is our choice, 64 runs per arm; the plan states its power: 81\% if prose is violated in 15\% of runs and lint rules in 1\%.
 
 \subsection{Statistics}
@@ -384,7 +394,7 @@ Rule location & Model & Cells & Prose violating & Rules violating & Cost & 95\% 
 
 \paragraph{Prose that the agent can miss.}
 When the rule was in linked or buried prose, the agent violated it in \PoolMissProse{} runs.
-When the same rule was a lint rule, the agent violated it in none.
+When the same rule was a lint rule, the agent violated it in none (0/56 runs).
 The cost change was \PoolMissCost{} (\PoolMissCI), because no run with lint rules needed an extra session to fix a violation.
 Haiku missed buried prose more often (13 of 24 runs) than Sonnet (4 of 32).
 Almost every violation was of a design-shaping rule, and the agent had copied the violating pattern from nearby code.
@@ -397,7 +407,8 @@ Prose therefore fails when it is buried among other text, not because it is pros
 \paragraph{A side effect of always-loaded rules.}
 With the rules in \file{CLAUDE.md}, Sonnet on FastAPI stopped opening the linked documents.
 It then wrote no tests in any run, so it missed the testing convention that only those documents state.
-Always-loaded text can change what else the agent reads.
+Always-loaded text takes space in the context window of every session \citep{anthropic2025context} and raises the inference cost \citep{gloaguen2026agentsmd}.
+It can also change what else the agent reads.
 
 \subsection{Pre-registered studies}
 
