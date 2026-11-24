@@ -863,19 +863,22 @@ A rule in a document that the agent does not load is the first candidate, and a 
 \paragraph{Adversarial tasks.}
 We designed the tasks so that an agent that copies nearby code violates a rule.
 Our violation rates are therefore an upper bound.
-We did not measure how often natural tasks touch the scope of a rule.
+This holds for all five projects, n8n included: we placed each n8n task where four of the six conventions apply and the nearby code already violates some of them.
+We did not measure how often the tasks that developers actually do touch the scope of a rule.
 Tasks mined from merged pull requests would answer this question.
 
 \paragraph{Few projects and rules.}
-We used four projects, and Plans 2 to 5 used only one of them.
-Plan~6 used two, and they gave opposite results.
-They differ in more than one way: where the prose is (loaded or not), the number of conventions (40 against 4), who wrote the conventions, and how well the checkers measure them.
-With two projects we cannot tell which difference matters; the per-convention split of Formbricks points to the first.
-Plan~7 removes one of these differences: on n8n the maintainers wrote the conventions and the agent loads them, and lint rules still prevented every violation that prose did not.
-It does not isolate a single cause either: n8n also differs from bulletproof-react in the length of its instruction files, in the form of its rules (bullets in long sections, not one line per rule), and in how much of its existing code violates them.
-Our claim is therefore about the realistic setup as a whole, not about authorship alone.
+The studies cover five projects, but each plan used only one or two of them: Plans 2 to 5 ran on bulletproof-react alone, and Plan~6 added Formbricks.
+The two projects of Plan~6 gave opposite results, and they differ in several ways at once: whether the agent loads the prose, the number of conventions (40 against 4), who wrote the conventions, and how well the checkers measure them.
+With two projects we cannot tell which difference matters, although the per-convention split of Formbricks points to the first.
+We designed Plan~7 to remove one of these differences.
+On n8n the maintainers wrote the conventions and the agent loads them, and prose was still violated in \HSixteenProse{} runs, against \HSixteenRules{} with lint rules.
+But n8n also differs from bulletproof-react in other ways: its instruction files are longer, its rules are bullets in long sections instead of one line per rule, and more of its existing code violates them.
+So Plan~7 does not isolate a single cause either, and our claim is about the realistic setup as a whole, not about who wrote the rules.
+The rules themselves are also few, and some are ours.
 The author wrote the 40 conventions of bulletproof-react and its business context from the documents and the code of the project.
-Only a few of the 40 conventions were ever at risk in the tasks, and in Plan~6 one convention in one task explains every violation.
+Only a few of the 40 were ever at risk in the tasks, and in Plan~6 one convention in one task explains every violation.
+More projects with conventions that their maintainers wrote are needed before the results generalize.
 
 \paragraph{Sample size.}
 Most cells of Plans 1 to 5 have 8 runs, and the cost varies widely between runs of the same arm.
@@ -884,16 +887,23 @@ Plan~6 has 128 runs per arm and a power analysis, but its expected effect assume
 Plan~7 has 64 runs per arm, with the power stated in its OSF registration.
 
 \paragraph{Measurement.}
-The checkers define what a violation is, so their blind spots are ours.
+Every violation count in this paper comes from the checkers: a violation is what a checker reports on an added line, so what a checker misses, we miss too.
+This has three consequences.
+
+First, the scope of the checkers changed once.
 In jhipster-buried the checkers also covered test files, which the documents did not.
 The exploratory pool counts those violations (17/56 runs, 11/56 in production code only), and all later studies count production code only.
-For the exploratory studies and Plans 1 to 5 we did not measure the false-positive rate of the lint rules.
-In Plans~6 and~7 we labelled every loop finding and a blind sample of diffs.
-One author did all labels with the arm hidden, and there was no second rater.
-The checkers of bulletproof-react had a low recall in the sample (\PSixBPRecall), mostly because of a scope that leaves out the mock API; this lowers the violation counts of both arms alike.
-In Plan~7 the checker of \texttt{node-errors} missed n8n's \texttt{UserError} (recall \PSevenRecall); this hides violations mostly in the \arm{rules} arm, where the loop accepts the code, so a lint rule enforces only what its checker sees.
-The diff labels and the finding labels disagree on the role-filter pattern: the diff labels judge \PSixBPFpRole{} of these findings as no violation, while the finding labels mark only \PSixAfterFalse{} findings as false.
-The review fix is idealised: one precise prompt, no human time and no CI round trip.
+
+Second, we checked the checkers only in Plans~6 and~7.
+There the author labelled every finding of the loop and a blind sample of diffs, with the arm hidden; there was no second rater.
+For the exploratory studies and Plans 1 to 5 we did not measure how often the checkers are wrong.
+The labels found two gaps.
+On bulletproof-react the recall was low (\PSixBPRecall), mostly because the lint rule does not cover the mock API; this lowers the counts of both arms alike, because one checker measures both.
+On n8n the checker of \texttt{node-errors} missed n8n's \texttt{UserError} (recall \PSevenRecall).
+This hides violations mostly in the \arm{rules} arm, because the loop accepts code that its checker does not flag: a lint rule enforces only what its checker sees.
+The two kinds of labels also disagree on the role-filter pattern of bulletproof-react: the diff labels judge \PSixBPFpRole{} of these findings as no violation, while the finding labels mark only \PSixAfterFalse{} findings as false.
+
+Third, the review fix is idealised: one precise prompt, no human time and no CI round trip.
 Real review costs more, which would favour arms with fewer violations.
 
 \paragraph{Cost and reach of lint rules.}
