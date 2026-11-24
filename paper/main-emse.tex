@@ -435,19 +435,25 @@ H3 has no test by design, and H4 could not be tested.
 We report the other six in full, because a null result here is also information for practice.
 
 \paragraph{What the loop and the pointer do (Plan 1, 144 runs).}
-Three arms differ in one part each: the full setup, the setup without the loop (\arm{pointer\_only}), and the setup without the pointer (\arm{rule\_only}).
-Without the loop, \HOneBreaks{} runs violated a rule, against \HOneBreaksAgainst{} with it (H1 supported).
-All 8 violations were of the mechanical status-code rule on FastAPI.
-This rule had no pointer line, so no text stated it at all.
-The three design-shaping rules, each with its pointer line, were violated in 0 of 48 runs without the loop.
-The measured value of the loop is therefore that it enforces rules that no prose states.
+Plan~1 takes the lint setup apart in three arms.
+The full setup has the lint rules, the feedback loop, and a one-line pointer for each design-shaping rule.
+The \arm{pointer\_only} arm keeps the pointers and removes the loop.
+The \arm{rule\_only} arm keeps the loop and removes the pointers.
 
-Without the pointer, the loop caught the design-shaping rule \HTwoCatchNoPointer{} times, against \HOneCatchFull{} times with it, and the cost change was \HTwoCost{} (\HTwoCI; H2 supported).
+\emph{Without the loop} (\arm{pointer\_only}), \HOneBreaks{} runs violated a rule, against \HOneBreaksAgainst{} with the full setup (H1 supported).
+All 8 violations were of the mechanical status-code rule on FastAPI.
+This rule had no pointer line, so in this arm no text stated it at all.
+The three design-shaping rules, each with its pointer line, were violated in 0 of 48 runs of this arm.
+So the measured value of the loop is that it enforces rules that no prose states.
+
+\emph{Without the pointer} (\arm{rule\_only}), the loop caught the design-shaping rule \HTwoCatchNoPointer{} times, against \HOneCatchFull{} times with it, and the cost change was \HTwoCost{} (\HTwoCI; H2 supported).
 With the pointer, the agent writes the right shape first.
 With the loop alone, the agent reaches the same result through rework.
 
 H3 states that functional correctness does not differ between the three arms, and the plan gives it no test.
-The production code passed the original test suite in \HThreeNoLoop{} runs without the loop (exact 95\% interval \HThreeNoLoopCI), in \HThreeNoPointer{} runs without the pointer (\HThreeNoPointerCI) and in \HThreeFull{} runs with the full setup (\HThreeFullCI).
+Here a run is correct when its production code passes the original test suite of the project, whether or not it violated a rule.
+The correct runs were \HThreeNoLoop{} without the loop (exact 95\% interval \HThreeNoLoopCI), \HThreeNoPointer{} without the pointer (\HThreeNoPointerCI) and \HThreeFull{} with the full setup (\HThreeFullCI).
+So in every arm, at most one run of 48 broke the tests.
 
 \paragraph{Missed rules over a sequence of sessions (Plan 2).}
 This plan ran three tasks in a row on the same copy, to test whether a missed rule compounds.
@@ -461,13 +467,13 @@ Plan~3 took its place, and the plan records this change with its date.
 \paragraph{A large always-loaded file (Plan 3, 64 runs).}
 Teams often put all their documents into the always-loaded file.
 We put the project's own \file{AGENTS.md} and its nine guides into \file{CLAUDE.md}, which gives 15.7k tokens in every session, with the two rules in the same positions as in \arm{prose\_buried}.
-Against lint rules with short documents, the cost change was \HSixCost{} (\HSixCI, $p=\HSixCostP$; H6 supported).
+Against the \arm{rules} arm, which has lint rules and the short documents, the large file changed the cost per run by \HSixCost{} (\HSixCI, $p=\HSixCostP$; H6 supported).
 The large file had \HFiveBreaks{} violating runs against \HFiveBreaksAgainst{} (all Haiku, $p=\HFiveBreaksP$; H5 not supported at 16 runs per arm).
 The same rule sentence was followed in a short \file{CLAUDE.md} in all 16 runs.
 
 \paragraph{Forty conventions (Plan 4, 96 runs).}
 We stated 40 conventions as 40 prose lines in a short always-loaded file (757 words, 1.9k tokens), and compared them with 40 lint rules and 8 pointers.
-The result was even: \HSevenBreaks{} vs.\ \HSevenBreaksAgainst{} violating runs ($p=\HSevenBreaksP$) and a cost change of \HEightCost{} (\HEightCI).
+The result was even: prose was violated in \HSevenBreaks{} runs and lint rules in \HSevenBreaksAgainst{} ($p=\HSevenBreaksP$), and prose changed the cost by \HEightCost{} against lint rules (\HEightCI).
 Neither hypothesis is supported.
 
 Stating the conventions mattered in either form.
@@ -477,7 +483,8 @@ The agent followed the other 36 because the code around it already followed them
 In the \arm{rules} arm, the agent wrote a violation in 13 of 32 runs; each time the loop caught it and the agent fixed it in the same session.
 
 \paragraph{Conventions among business context (Plan 5, 288 runs).}
-A real \file{CLAUDE.md} also holds product context.
+A real \file{CLAUDE.md} holds more than conventions: studies of these files find project overviews, architecture notes and build commands \citep{chatlatanagulchai2025manifests,chatlatanagulchai2025agentreadmes}.
+Plan~5 adds such context to the file.
 Every arm got 1,328 words of business context, and the prose arm added the 40 lines.
 On the feature tasks, prose was violated in \HNineBreaks{} runs and lint rules in \HNineBreaksAgainst{} ($p=\HNineBreaksP$), with a cost change of \HTenCost{} (\HTenCI).
 On four tasks outside the scope of every convention, the 1.9k tokens of prose gave a cost change of \HElevenCost{} (\HElevenCI).
@@ -490,7 +497,7 @@ This is close to the price that the token counts predict, and it is too small to
 
 Plans 4 and 5 each came out even, but pooled after the fact they gave 7 violating runs with prose against none with lint rules.
 Plan~6 tests this as a confirmatory hypothesis, on two projects, with a second model family.
-In bulletproof-react the 40 conventions are in a short always-loaded \file{CLAUDE.md}, as in Plan~4, with four new tasks.
+bulletproof-react has no conventions from its maintainers that Claude Code loads, so we wrote the 40 conventions ourselves and added them to the repository as a short always-loaded \file{CLAUDE.md}, as in Plan~4, with four new tasks.
 In Formbricks the four conventions are in the maintainers' own files (Section~\ref{sec:method}).
 In the \arm{rules} arm the convention lines are removed from these files, and each convention is a lint rule with the feedback loop.
 Table~\ref{tab:plan6} gives every stratum.
@@ -511,7 +518,8 @@ Project & Model & Prose violating & Rules violating & $p$ & Cost \\
 
 \paragraph{Violations (H12, not supported).}
 Over both projects and both Claude models, prose was violated in \HTwelveProse{} runs and lint rules in \HTwelveRules.
-The exact stratified test gives $p=\HTwelveP$, and $p=\HTwelveHolm$ after Holm's correction with H13, so H12 is not supported.
+Lint rules had fewer violating runs, but almost all of the difference came from one project.
+The exact stratified test gives $p=\HTwelveP$, and $p=\HTwelveHolm$ after Holm's correction with H13, above the registered $\alpha$ of 0.05, so H12 is not supported.
 The pooled result hides a split by project.
 On Formbricks, prose was violated in \PSixFBProse{} runs and lint rules in \PSixFBRules{} ($p$~\PSixFBP, not corrected).
 On bulletproof-react the two arms were even, \PSixBPProse{} against \PSixBPRules.
@@ -520,14 +528,15 @@ On bulletproof-react the two arms were even, \PSixBPProse{} against \PSixBPRules
 Table~\ref{tab:formbricks} splits Formbricks by convention.
 Most violations of prose were of F2 and F3, the two conventions in \file{CODING\_STANDARDS.md}, which Claude Code does not load by itself.
 With lint rules, these two were violated in no run.
+The lint rule checks every edit, whether or not the agent opened the document, and the agent fixed each reported violation in the same session.
 F1, the design-shaping rule against new server actions, is in the always-loaded \file{AGENTS.md}; the Claude models rarely violated it in either arm.
 F4 was violated in no run.
-This is the pattern of the exploratory studies: lint rules help where the agent does not read the prose.
+This is the pattern of the exploratory studies: lint rules help where the rule is in a document that the agent does not load by itself, so the rule reaches the agent's context only if the agent decides to open that document.
 
 We also checked in the session logs whether each prose run opened \file{CODING\_STANDARDS.md} (exploratory).
 The Claude models opened it in \PSixOpened{} runs.
 F2 or F3 was violated in \PSixOpenedViol{} of the runs that opened it and in \PSixNotOpenedViol{} of the runs that did not.
-Opening the document therefore helped little.
+Opening the document therefore helped little: \PSixOpenedViol{} of the runs that opened it still violated F2 or F3.
 The logs do not show whether the agent read the part of the document that states the convention.
 
 \begin{table}[!htb]
@@ -591,10 +600,14 @@ Project & Prose & Rules & Prose & Rules \\
 \end{table}
 
 \paragraph{The newest models (exploratory).}
-Table~\ref{tab:latest} gives the runs with Claude Opus 5.5 and Fable 5.2 (deviation D1).
-They violated few conventions in either arm, and none on Formbricks.
+Readers may ask whether the result holds for larger models.
+After all primary runs of Plan~6, we added exploratory runs with the two newest Claude models, Opus 5.5 and Fable 5.2 (deviation D1): both projects, both arms and all four tasks, \PSixLatestRuns{} runs in total.
+They are not part of any registered test.
+Table~\ref{tab:latest} gives the results per model.
+On bulletproof-react both models violated a convention in 2 of 8 prose runs and in 1 of 8 runs with lint rules.
+On Formbricks they violated no convention in either arm, also not the two in the document that Claude Code does not load.
 On bulletproof-react, Fable 5.2 needed about twice as many turns with lint rules, because it read more files and reacted to the messages of the loop.
-With 1 or 2 repeats per cell these runs support no test.
+With 1 or 2 repeats per cell (Fable 5.2 had one repeat on Formbricks, because of usage limits), these runs support no test.
 
 \begin{table}[!htb]
 \centering
@@ -613,15 +626,15 @@ Project & Model & Prose & Rules & Prose & Rules \\
 \end{table}
 
 \paragraph{Measurement checks.}
-The author labelled by hand, with the arm hidden, a random sample of 40 diffs per project for every convention in scope of the changed files, and every finding that the loop reported.
-On Formbricks the checkers agreed with the labels: precision \PSixFBPrecision{} and recall \PSixFBRecall{} over \PSixFBCells{} labelled cells.
-On bulletproof-react they agreed less: precision \PSixBPPrecision{} (\PSixBPPrecisionCI) and recall \PSixBPRecall{} (\PSixBPRecallCI) over \PSixBPCells{} cells.
-All \PSixBPFpRole{} findings that the labels did not confirm were role checks on code that offers an ``all roles'' choice in a filter.
-Of the cells that only the labels marked, \PSixBPFnNoAny{} were \texttt{any} types in the mock API handlers, a folder outside the scope of the lint rule, \PSixBPFnZod{} were input types written by hand instead of derived from the schema, and \PSixBPFnOther{} were other conventions.
-These misses affect both arms alike, because one checker measures both.
-Of the findings that the loop reported in the \arm{rules} arm, \PSixLoopFalse{} were labelled false (\PSixLoopFalseCI), and of the findings after the task in both arms, \PSixAfterFalse{} (\PSixAfterFalseCI).
-Without these false findings H12 does not change (deviation D2).
-The lint rules took \PSixBPLOC{} lines of rule code and \PSixBPCases{} test cases for the \PSixBPConventions{} conventions of bulletproof-react, and \PSixFBLOC{} lines and \PSixFBCases{} test cases for the \PSixFBConventions{} of Formbricks.
+To check the checkers, the author labelled two sets of cases by hand, with the arm hidden: a random sample of 40 diffs per project, judged against every convention in scope of the changed files, and every finding that the loop reported.
+On Formbricks the checkers agreed with the labels, with a precision of \PSixFBPrecision{} and a recall of \PSixFBRecall{} over \PSixFBCells{} labelled cells.
+On bulletproof-react they agreed less, with a precision of \PSixBPPrecision{} (\PSixBPPrecisionCI) and a recall of \PSixBPRecall{} (\PSixBPRecallCI) over \PSixBPCells{} cells, for two reasons.
+The checker flagged too much in one place: all \PSixBPFpRole{} findings that the labels did not confirm were role checks in a filter that offers an ``all roles'' choice, the case of task T4 above.
+It also missed cases that the labels marked: \PSixBPFnNoAny{} were \texttt{any} types in the mock API handlers, a folder outside the scope of the lint rule, \PSixBPFnZod{} were input types written by hand instead of derived from the schema, and \PSixBPFnOther{} were of other conventions.
+Because one checker measures both arms, these errors affect both arms alike.
+The findings themselves were rarely wrong: \PSixLoopFalse{} of the findings that the loop reported in the \arm{rules} arm were labelled false (\PSixLoopFalseCI), and \PSixAfterFalse{} of the findings after the task in both arms (\PSixAfterFalseCI).
+Without these false findings, H12 does not change (deviation D2).
+Finally, the lint rules took \PSixBPLOC{} lines of rule code and \PSixBPCases{} test cases for the \PSixBPConventions{} conventions of bulletproof-react, and \PSixFBLOC{} lines and \PSixFBCases{} test cases for the \PSixFBConventions{} of Formbricks.
 
 \subsection{Maintainers' conventions that the agent loads (Plan 7)}
 \label{sec:plan7}
@@ -681,7 +694,10 @@ Prose was violated in \HSixteenProse{} runs and lint rules in \HSixteenRules{} (
 The agent loaded the prose and still violated it.
 Most violations were type casts with \texttt{as} (\PSevenAsCast{} runs) and database access through \texttt{.manager} in business logic (\PSevenManager{} runs), next to existing code that does both; one run hand-rolled a shared helper.
 Sonnet 5.5 violated the prose in three of four tasks, Haiku 5.5 almost only in the KoBoToolbox task (Table~\ref{tab:plan7}).
-In two prose runs the only finding was a syntax error, not a convention; without them prose was violated in \PSevenDOneProse{} runs, and the result does not change (deviation D1).
+Two prose runs count as violating only because of a syntax error, not because of a convention.
+In both, the agent wrote \texttt{Bitwardenimplements} without a space, and ESLint reported a parse error.
+The registered analysis counts every finding of the checkers, so it counts these two runs.
+If we count only the findings of the six conventions, prose was violated in \PSevenDOneProse{} runs, and the result does not change (deviation D1).
 In the \arm{rules} arm the loop reported a violation in \PSevenLoopRuns{} of its 64 runs, and the agent fixed every reported violation before the end of the task (\PSevenIgnoredRuns{} runs kept one).
 
 \paragraph{Cost (H17, not supported, in favour of lint rules).}
@@ -731,13 +747,16 @@ Second, Plans 4 and 5 together give \PoolFourFiveBreaks{} violating runs with pr
 We chose this pooling after we saw both results.
 It is therefore a reason to run a confirmatory study, and it does not replace one.
 Plan~6 is that study, and it did not confirm the pooled result (Section~\ref{sec:plan6}).
+Plan~7 then tested the case that Plan~6 left open, conventions that the maintainers wrote in files that the agent loads, and found a large difference (Section~\ref{sec:plan7}).
 
 \subsection{Functional correctness}
 
 A rule setup must not make the code worse.
 \textbf{verify} built and tested the final diff of each run on the plain upstream commit.
-In the exploratory studies and Plans 1 to 5, the production code passed the original test suite of the project in \NVerifyOk{} of \NClaudeRuns{} runs, and the arms did not differ (Plan~6: Table~\ref{tab:plan6verify}).
+In the exploratory studies and Plans 1 to 5, the production code passed the original test suite of the project in \NVerifyOk{} of \NClaudeRuns{} runs, and the arms did not differ.
 The \NVerifyFail{} failures are type errors and compile errors that are unrelated to the rules; \NVerifyHaikuFail{} of them come from Haiku.
+In Plan~6 the arms did not differ either (Table~\ref{tab:plan6verify}).
+In Plan~7 the final diff passed verify in \PSevenVerifyProse{} \arm{prose} runs and \PSevenVerifyRules{} \arm{rules} runs; the intervals overlap, and most failures come from one task that changes three packages (Section~\ref{sec:plan7}).
 
 \subsection{Other agents and a local model}
 
@@ -781,10 +800,13 @@ This check is not part of the main question.
 \label{sec:discussion}
 
 \paragraph{Where prose fails.}
-Prose that the agent reads works when it is short and clear, and when the code next to it does not show the opposite.
-A short always-loaded file and a short document behind one clear link were followed as well as lint rules.
+Prose rules worked in our studies under narrow conditions.
+A short always-loaded file that held only the rules, without business context or commands, was followed as well as lint rules, and so was a short document behind one clear link.
 This agrees with \citet{gloaguen2026agentsmd}, who report that agents follow the instructions in context files well.
-Prose fails when the agent does not read it: a bullet in the middle of long linked documents, or a document that the agent never opens.
+These conditions are hard to keep in a real project.
+A large project must choose between a few large instruction files, in which each rule is one bullet among setup commands, architecture notes and business context, and many small files for parts of the code, which the agent loads only when it works there or decides to open them.
+Each new convention or pattern also makes the existing code disagree with the files until all of it is changed.
+Prose fails when the rule does not reach the agent's context, or reaches it as one bullet among many: a bullet in the middle of long linked documents, a document that the agent never opens, or a long loaded file next to code that does the opposite.
 The failures are not random.
 In the exploratory studies they are design-shaping rules for which the existing code shows the wrong pattern, and the weaker model copies that pattern more often.
 Plan~6 shows the same split with conventions that a project's maintainers wrote.
@@ -799,23 +821,23 @@ Each convention there is one bullet in a loaded file of 457 lines (root) or 145 
 Real projects keep their rules like this, not as a short list written for the agent, so we expect this case to be the common one.
 
 \paragraph{What the lint rule adds.}
-A lint rule does not depend on the attention of the agent.
+A lint rule takes no space in the context window while the code follows it, so the instruction files can keep their space for the business context of the task.
+It also does not depend on whether the agent read the rule, or still remembers it late in the session.
 Of the \NLoopRuns{} Claude Code runs with the feedback loop in the exploratory studies and Plans 1 to 5, \NLoopBroken{} ended the task with a violation in production code.
+In Plan~6, \HTwelveRules{} runs with lint rules ended the task with a violation, \PSixBPIgnoredRuns{} of them role filters on bulletproof-react that the agent kept after the loop had reported them (see below).
+In Plan~7, \HSixteenRules{} did.
 This is cheap when the agent already follows the rule, because a passing check sends nothing to the model.
 
 \paragraph{What the lint rule does not add.}
-The loop reports; it does not force.
-Plan~6 shows two cases where the agent saw the message and kept the code.
-On bulletproof-react, the task asked for a role filter, the checker flagged it as an access check, and the agent kept it in \PSixBPIgnoredRuns{} runs.
-The hand labels did not settle whether this code violates the convention.
-On Formbricks, the local model kept new server actions after the loop had reported them.
-A lint rule therefore does not help when the agent disagrees with it, or when following it means moving code that the agent has already written.
-In the first case the rule or its message must be more precise.
-In the second case the pointer did not prevent it: F1 had a pointer line in \file{AGENTS.md}, and the local model still wrote the server action first.
-Writing the lint rules also has a cost: \PSixBPLOC{} lines and \PSixBPCases{} test cases for 40 conventions, against 40 lines of prose.
-The ablation shows how the two parts share the work.
-The loop enforces rules that nobody wrote down.
-The pointer prevents the rework that a late catch of a design-shaping rule causes.
+The loop reports a violation, but it does not force a fix, and in Plan~6 the agent kept flagged code in two situations.
+The first is disagreement.
+On bulletproof-react, a task asked for a role filter, the checker flagged it as an access check, and the agent kept it in \PSixBPIgnoredRuns{} runs because it judged the filter to be allowed; the hand labels did not settle whether this code violates the convention.
+Here the rule or its message must be more precise.
+The second is code that the agent has already written.
+On Formbricks, the local model kept new server actions after the loop had reported them, because following F1 means moving that code.
+A pointer should prevent this, since it states the rule before the code is written, but F1 had a pointer line in \file{AGENTS.md}, and the local model still wrote the server action first.
+Lint rules also cost effort to write: \PSixBPLOC{} lines and \PSixBPCases{} test cases for the 40 conventions of bulletproof-react, against 40 lines of prose.
+In return, the two parts of the setup share the work, as the ablation of Plan~1 shows: the loop enforces rules that nobody wrote down, and the pointer prevents the rework that a late catch of a design-shaping rule causes.
 
 \paragraph{What always-loaded prose costs.}
 The token price of a short always-loaded file is small: about \$0.006 per 1k tokens per Sonnet session at median turns, and less with a warm cache.
